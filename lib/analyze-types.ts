@@ -7,6 +7,7 @@ export type AnalyzeInput = {
   notes: string;
   expectedOutput: string;
   preferenceRules?: string[];
+  missionId?: string | null;
 };
 
 export type ExtractJsonResult = {

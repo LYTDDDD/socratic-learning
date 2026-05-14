@@ -15,6 +15,7 @@ import {
 } from "../lib/knowledge-subcard";
 import { saveReviewRecord } from "../lib/review-record-store";
 import type { ReviewFeedbackItem, ReviewMaturitySuggestion } from "../lib/review-record-store";
+import { getMissionById } from "../lib/mission-store";
 
 const ASSET_TYPES = ["All", "MethodCard", "MisconceptionCard", "ReflectionCard", "ConceptCard", "CaseCard"] as const;
 
@@ -731,7 +732,11 @@ function AssetDetail({ asset, onClose, onNavigateToHistory, onAssetUpdated }: { 
           )}
           <div>
             <dt className="text-xs font-medium text-ink/60">来源任务</dt>
-            <dd className="mt-0.5 text-sm text-ink">{liveAsset.source_mission || "—"}</dd>
+            <dd className="mt-0.5 text-sm text-ink">{
+              liveAsset.source_mission
+                ? (getMissionById(liveAsset.source_mission)?.title ?? liveAsset.source_mission)
+                : "—"
+            }</dd>
           </div>
           <div>
             <dt className="text-xs font-medium text-ink/60">置信度</dt>

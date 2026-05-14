@@ -37,6 +37,7 @@ function parseAnalyzeInput(payload: unknown): AnalyzeInput {
     preferenceRules: Array.isArray(input.preferenceRules)
       ? input.preferenceRules.filter((v): v is string => typeof v === "string")
       : [],
+    missionId: typeof input.missionId === "string" ? input.missionId : null,
   };
 }
 
