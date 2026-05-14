@@ -16,7 +16,7 @@ type ChatWorkspaceProps = {
 };
 
 export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorkspaceProps) {
-  const [sessions, setSessions] = useState<ChatSession[]>(() => loadChatSessions());
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);

@@ -146,7 +146,7 @@ function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData })
 }
 
 function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
-  const [rules, setRules] = useState<PreferenceRule[]>(() => loadPreferenceRules());
+  const [rules, setRules] = useState<PreferenceRule[]>([]);
   const [localRefresh, setLocalRefresh] = useState(0);
 
   useEffect(() => {
