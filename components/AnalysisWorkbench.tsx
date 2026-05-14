@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { InputPanel } from "./InputPanel";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { JsonViewer } from "./JsonViewer";
@@ -15,7 +15,18 @@ import type { Correction } from "../lib/correction-store";
 import { saveToHistory, loadHistory } from "../lib/history-store";
 import { extractAssetFromResponse } from "../lib/extract-asset";
 import { hasAssetFromRun } from "../lib/asset-store";
+import type { PreferenceRule } from "../lib/preference-rule-store";
 import { loadCorrections, saveCorrection } from "../lib/correction-store";
+import {
+  loadPreferenceRules,
+  savePreferenceRule,
+  confirmPreferenceRule,
+  disablePreferenceRule,
+  enablePreferenceRule,
+  deletePreferenceRule,
+  getConfirmedRules,
+  updatePreferenceRule,
+} from "../lib/preference-rule-store";
 
 type TabKey = "markdown" | "json" | "raw";
 
@@ -132,6 +143,215 @@ function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData })
   );
 }
 
+function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
+  const [rules, setRules] = useState<PreferenceRule[]>(() => loadPreferenceRules());
+  const [localRefresh, setLocalRefresh] = useState(0);
+
+  useEffect(() => {
+    setRules(loadPreferenceRules());
+  }, [refreshKey]);
+
+  function reloadRules() {
+    setRules(loadPreferenceRules());
+    setLocalRefresh((k) => k + 1);
+  }
+
+  const drafts = rules.filter((r) => r.status === "draft");
+  const confirmed = rules.filter((r) => r.status === "confirmed");
+  const disabled = rules.filter((r) => r.status === "disabled");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+
+  function handleConfirm(id: string) {
+    confirmPreferenceRule(id);
+    reloadRules();
+  }
+
+  function handleDisable(id: string) {
+    disablePreferenceRule(id);
+    reloadRules();
+  }
+
+  function handleEnable(id: string) {
+    enablePreferenceRule(id);
+    reloadRules();
+  }
+
+  function handleDelete(id: string) {
+    deletePreferenceRule(id);
+    reloadRules();
+  }
+
+  function startEdit(rule: PreferenceRule) {
+    setEditingId(rule.id);
+    setEditContent(rule.content);
+  }
+
+  function saveEdit(id: string) {
+    if (!editContent.trim()) return;
+    updatePreferenceRule(id, { content: editContent.trim() });
+    setEditingId(null);
+    reloadRules();
+  }
+
+  return (
+    <div className="rounded-lg border border-purple-200 bg-purple-50/50 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-ink">偏好规则</h3>
+      <p className="mb-3 text-xs text-ink/50">已确认的规则会在后续分析时自动注入 prompt。</p>
+
+      {drafts.length > 0 && (
+        <div className="mb-3">
+          <h4 className="mb-1 text-xs font-semibold text-amber-700">待确认草稿</h4>
+          <div className="space-y-2">
+            {drafts.map((rule) => (
+              <div key={rule.id} className="rounded border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-xs text-ink">{rule.content}</p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <button
+                    className="rounded bg-moss px-2 py-0.5 text-[10px] font-semibold text-white transition hover:bg-moss/90"
+                    onClick={() => handleConfirm(rule.id)}
+                    type="button"
+                  >
+                    确认
+                  </button>
+                  <button
+                    className="rounded border border-line px-2 py-0.5 text-[10px] font-medium text-ink/60 transition hover:bg-paper"
+                    onClick={() => startEdit(rule)}
+                    type="button"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    className="rounded border border-rust/30 px-2 py-0.5 text-[10px] font-medium text-rust transition hover:bg-rust/10"
+                    onClick={() => handleDelete(rule.id)}
+                    type="button"
+                  >
+                    删除
+                  </button>
+                </div>
+                {editingId === rule.id && (
+                  <div className="mt-2 space-y-1.5">
+                    <textarea
+                      className="w-full rounded border border-line px-2 py-1 text-xs text-ink outline-none"
+                      onChange={(e) => setEditContent(e.target.value)}
+                      rows={2}
+                      value={editContent}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="rounded bg-moss px-2 py-0.5 text-[10px] font-semibold text-white"
+                        onClick={() => saveEdit(rule.id)}
+                        type="button"
+                      >
+                        保存
+                      </button>
+                      <button
+                        className="rounded border border-line px-2 py-0.5 text-[10px] font-medium text-ink/60"
+                        onClick={() => setEditingId(null)}
+                        type="button"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {confirmed.length > 0 && (
+        <div className="mb-3">
+          <h4 className="mb-1 text-xs font-semibold text-moss">已生效规则</h4>
+          <div className="space-y-2">
+            {confirmed.map((rule) => (
+              <div key={rule.id} className="rounded border border-moss/30 bg-moss/5 px-3 py-2">
+                <p className="text-xs text-ink">{rule.content}</p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <button
+                    className="rounded border border-line px-2 py-0.5 text-[10px] font-medium text-ink/60 transition hover:bg-paper"
+                    onClick={() => startEdit(rule)}
+                    type="button"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    className="rounded border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-700 transition hover:bg-amber-50"
+                    onClick={() => handleDisable(rule.id)}
+                    type="button"
+                  >
+                    禁用
+                  </button>
+                </div>
+                {editingId === rule.id && (
+                  <div className="mt-2 space-y-1.5">
+                    <textarea
+                      className="w-full rounded border border-line px-2 py-1 text-xs text-ink outline-none"
+                      onChange={(e) => setEditContent(e.target.value)}
+                      rows={2}
+                      value={editContent}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="rounded bg-moss px-2 py-0.5 text-[10px] font-semibold text-white"
+                        onClick={() => saveEdit(rule.id)}
+                        type="button"
+                      >
+                        保存
+                      </button>
+                      <button
+                        className="rounded border border-line px-2 py-0.5 text-[10px] font-medium text-ink/60"
+                        onClick={() => setEditingId(null)}
+                        type="button"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {disabled.length > 0 && (
+        <div>
+          <h4 className="mb-1 text-xs font-semibold text-ink/40">已禁用规则</h4>
+          <div className="space-y-2">
+            {disabled.map((rule) => (
+              <div key={rule.id} className="rounded border border-line bg-paper/40 px-3 py-2 opacity-60">
+                <p className="text-xs text-ink/60">{rule.content}</p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <button
+                    className="rounded border border-moss/30 px-2 py-0.5 text-[10px] font-medium text-moss transition hover:bg-moss/10"
+                    onClick={() => handleEnable(rule.id)}
+                    type="button"
+                  >
+                    重新启用
+                  </button>
+                  <button
+                    className="rounded border border-rust/30 px-2 py-0.5 text-[10px] font-medium text-rust transition hover:bg-rust/10"
+                    onClick={() => handleDelete(rule.id)}
+                    type="button"
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rules.length === 0 && (
+        <p className="text-xs text-ink/40">暂无偏好规则。通过强纠正可自动生成规则草稿。</p>
+      )}
+    </div>
+  );
+}
+
 function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
   reportId: string;
   existingCorrections: Correction[];
@@ -143,7 +363,6 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
   const [originalValue, setOriginalValue] = useState("");
   const [correctedValue, setCorrectedValue] = useState("");
   const [reason, setReason] = useState("");
-  const [pendingRuleDraft, setPendingRuleDraft] = useState<string | null>(null);
 
   function resetForm() {
     setShowForm(false);
@@ -167,23 +386,14 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
     if (saved && correctionType === "strong_correction") {
       const targetLabel = targetLabels[target];
       const ruleDraft = `当系统判断${targetLabel}为「${originalValue || "—"}」时，应考虑用户可能认为是「${correctedValue || "—"}」。原因：${reason.trim()}`;
-      setPendingRuleDraft(ruleDraft);
+      savePreferenceRule({
+        content: ruleDraft,
+        sourceCorrectionId: saved.id,
+        status: "draft",
+        confirmedAt: null,
+      });
     }
     resetForm();
-    onCorrectionAdded();
-  }
-
-  function handleSaveRuleDraft() {
-    if (!pendingRuleDraft) return;
-    saveCorrection({
-      reportId,
-      correctionType: "minor_correction",
-      target: "update_proposal",
-      originalValue: null,
-      correctedValue: pendingRuleDraft,
-      reason: "强纠正触发的偏好规则草稿",
-    });
-    setPendingRuleDraft(null);
     onCorrectionAdded();
   }
 
@@ -236,29 +446,6 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
 
       {existingCorrections.length === 0 && !showForm && (
         <p className="text-xs text-ink/40">暂无纠正记录。如需修正系统判断，点击"添加纠正"。</p>
-      )}
-
-      {pendingRuleDraft && (
-        <div className="mb-3 rounded-lg border border-amber-300 bg-white p-3 text-xs">
-          <p className="mb-1 font-semibold text-amber-800">偏好规则草稿</p>
-          <p className="mb-2 text-ink/70">{pendingRuleDraft}</p>
-          <div className="flex items-center gap-2">
-            <button
-              className="rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-700"
-              onClick={handleSaveRuleDraft}
-              type="button"
-            >
-              保存规则草稿
-            </button>
-            <button
-              className="rounded border border-line px-3 py-1 text-xs font-medium text-ink/60 transition hover:bg-paper"
-              onClick={() => setPendingRuleDraft(null)}
-              type="button"
-            >
-              丢弃
-            </button>
-          </div>
-        </div>
       )}
 
       {showForm && (
@@ -603,6 +790,10 @@ export function AnalysisWorkbench() {
             />
           </div>
         )}
+
+        <div className="border-t border-line p-4">
+          <PreferenceRulePanel refreshKey={correctionRefreshKey} />
+        </div>
       </section>
     </div>
   );

@@ -46,7 +46,7 @@ export function getModelConfig() {
 }
 
 function buildUserContent(input: AnalyzeInput) {
-  return [
+  const sections = [
     "请分析以下半结构化输入：",
     "",
     "## Background（背景）",
@@ -63,7 +63,19 @@ function buildUserContent(input: AnalyzeInput) {
     "",
     "## Expected Output（期望输出）",
     input.expectedOutput,
-  ].join("\n");
+  ];
+
+  if (input.preferenceRules && input.preferenceRules.length > 0) {
+    sections.push(
+      "",
+      "## User Preference Rules（用户偏好规则）",
+      "以下是用户已确认的偏好规则，请在分析时参考这些规则：",
+      "",
+      ...input.preferenceRules.map((rule, i) => `${i + 1}. ${rule}`),
+    );
+  }
+
+  return sections.join("\n");
 }
 
 export async function callAnalysisModel(prompt: string, input: AnalyzeInput) {

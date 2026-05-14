@@ -34,6 +34,9 @@ function parseAnalyzeInput(payload: unknown): AnalyzeInput {
     conversation: readTextField(input, "conversation"),
     notes: readTextField(input, "notes"),
     expectedOutput: readTextField(input, "expectedOutput"),
+    preferenceRules: Array.isArray(input.preferenceRules)
+      ? input.preferenceRules.filter((v): v is string => typeof v === "string")
+      : [],
   };
 }
 
