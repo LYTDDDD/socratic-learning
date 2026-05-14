@@ -71,10 +71,11 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
 
     try {
       const currentSession = loadChatSessions().find((s) => s.id === activeSessionId);
-      const history = (currentSession?.messages ?? []).map((m) => ({
+      const allMessages = (currentSession?.messages ?? []).map((m) => ({
         role: m.role,
         content: m.content,
       }));
+      const history = allMessages.slice(0, -1);
 
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -99,7 +100,8 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
       reloadSessions();
 
       if (reviewTriggered && onReviewTriggered) {
-        onReviewTriggered(activeSessionId, currentMissionId);
+        const activeSession = sessions.find((s) => s.id === activeSessionId);
+        onReviewTriggered(activeSessionId, activeSession?.missionId ?? currentMissionId);
       }
     } catch (err) {
       addMessageToSession(activeSessionId, {
@@ -143,7 +145,7 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
             return (
               <div
                 key={session.id}
-                className={`cursor-pointer border-b border-line px-3 py-2 transition ${
+                className={`group cursor-pointer border-b border-line px-3 py-2 transition ${
                   activeSessionId === session.id
                     ? "bg-moss/10 border-l-2 border-l-moss"
                     : "hover:bg-paper"
