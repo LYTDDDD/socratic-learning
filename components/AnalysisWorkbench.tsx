@@ -1,0 +1,609 @@
+"use client";
+
+import { useState, useCallback, useMemo } from "react";
+import { InputPanel } from "./InputPanel";
+import { MarkdownPreview } from "./MarkdownPreview";
+import { JsonViewer } from "./JsonViewer";
+import { CopyButton } from "./CopyButton";
+import { DownloadButton } from "./DownloadButton";
+import { HistoryPanel } from "./HistoryPanel";
+import { AssetDraftPanel } from "./AssetDraftPanel";
+import { AssetLibrary } from "./AssetLibrary";
+import type { AnalyzeResponse } from "../lib/analyze-types";
+import type { RunLog } from "../lib/run-log";
+import type { Correction } from "../lib/correction-store";
+import { saveToHistory, loadHistory } from "../lib/history-store";
+import { extractAssetFromResponse } from "../lib/extract-asset";
+import { hasAssetFromRun } from "../lib/asset-store";
+import { loadCorrections, saveCorrection } from "../lib/correction-store";
+
+type TabKey = "markdown" | "json" | "raw";
+
+const tabs: { key: TabKey; label: string }[] = [
+  { key: "markdown", label: "Markdown" },
+  { key: "json", label: "JSON" },
+  { key: "raw", label: "Raw" },
+];
+
+function statusBadge(status: string) {
+  if (status === "success") return "bg-green-100 text-green-800";
+  if (status === "failed") return "bg-red-100 text-red-800";
+  return "bg-yellow-100 text-yellow-800";
+}
+
+function RunLogPanel({ runLog }: { runLog: RunLog }) {
+  const rows: { label: string; value: React.ReactNode }[] = [
+    { label: "Run ID", value: <code className="text-xs">{runLog.run_id}</code> },
+    { label: "Created At", value: runLog.created_at },
+    { label: "Prompt Version", value: runLog.prompt_version },
+    { label: "Model", value: runLog.model_name },
+    {
+      label: "Request Status",
+      value: (
+        <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${statusBadge(runLog.request_status)}`}>
+          {runLog.request_status}
+        </span>
+      ),
+    },
+    {
+      label: "Parse Status",
+      value: (
+        <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${statusBadge(runLog.parse_status)}`}>
+          {runLog.parse_status}
+        </span>
+      ),
+    },
+    { label: "Duration", value: `${runLog.duration_ms} ms` },
+    { label: "Original Goal", value: runLog.input_snapshot.originalGoal ? `${runLog.input_snapshot.originalGoal.slice(0, 120)}${runLog.input_snapshot.originalGoal.length > 120 ? "..." : ""}` : "(empty)" },
+    { label: "Conversation", value: runLog.input_snapshot.conversation ? `${runLog.input_snapshot.conversation.slice(0, 80)}${runLog.input_snapshot.conversation.length > 80 ? "..." : ""}` : "(empty)" },
+  ];
+
+  if (runLog.error_message) {
+    const truncated = runLog.error_message.length > 200 ? `${runLog.error_message.slice(0, 200)}...` : runLog.error_message;
+    rows.push({ label: "Error", value: <span className="text-red-700">{truncated}</span> });
+  }
+
+  return (
+    <div className="rounded-lg border border-line bg-paper/60 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-ink">Run Log</h3>
+      <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+        {rows.map((row) => (
+          <span key={row.label} className="contents">
+            <dt className="whitespace-nowrap font-medium text-ink/60">{row.label}</dt>
+            <dd className="break-all text-ink">{row.value}</dd>
+          </span>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+type TraceSummaryData = {
+  mission_detected?: boolean | string;
+  analysis_path?: string;
+  key_evidence_used?: string | string[];
+  policy_checks?: string | string[];
+  uncertainties?: string | string[];
+};
+
+function extractTraceSummary(json: unknown): TraceSummaryData | null {
+  if (!json || typeof json !== "object") return null;
+  const obj = json as Record<string, unknown>;
+  const ts = obj.trace_summary;
+  if (!ts || typeof ts !== "object") return null;
+  const t = ts as Record<string, unknown>;
+  return {
+    mission_detected: t.mission_detected as boolean | string | undefined,
+    analysis_path: t.analysis_path as string | undefined,
+    key_evidence_used: t.key_evidence_used as string | string[] | undefined,
+    policy_checks: t.policy_checks as string | string[] | undefined,
+    uncertainties: t.uncertainties as string | string[] | undefined,
+  };
+}
+
+function formatListValue(value: string | string[] | undefined): string {
+  if (!value) return "—";
+  if (Array.isArray(value)) return value.join("；");
+  return String(value);
+}
+
+function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData }) {
+  const rows: { label: string; value: string }[] = [
+    { label: "是否识别到任务", value: String(traceSummary.mission_detected ?? "—") },
+    { label: "分析路径", value: traceSummary.analysis_path ?? "—" },
+    { label: "关键证据", value: formatListValue(traceSummary.key_evidence_used) },
+    { label: "策略检查", value: formatListValue(traceSummary.policy_checks) },
+    { label: "不确定性", value: formatListValue(traceSummary.uncertainties) },
+  ];
+
+  return (
+    <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-ink">Trace Summary（轨迹摘要）</h3>
+      <p className="mb-3 text-xs text-ink/50">系统判断依据</p>
+      <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+        {rows.map((row) => (
+          <span key={row.label} className="contents">
+            <dt className="whitespace-nowrap font-medium text-ink/60">{row.label}</dt>
+            <dd className="break-all text-ink">{row.value}</dd>
+          </span>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
+  reportId: string;
+  existingCorrections: Correction[];
+  onCorrectionAdded: () => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [correctionType, setCorrectionType] = useState<"minor_correction" | "strong_correction">("minor_correction");
+  const [target, setTarget] = useState<Correction["target"]>("asset_type");
+  const [originalValue, setOriginalValue] = useState("");
+  const [correctedValue, setCorrectedValue] = useState("");
+  const [reason, setReason] = useState("");
+  const [pendingRuleDraft, setPendingRuleDraft] = useState<string | null>(null);
+
+  function resetForm() {
+    setShowForm(false);
+    setOriginalValue("");
+    setCorrectedValue("");
+    setReason("");
+    setCorrectionType("minor_correction");
+    setTarget("asset_type");
+  }
+
+  function handleSubmit() {
+    if (!reason.trim()) return;
+    const saved = saveCorrection({
+      reportId,
+      correctionType,
+      target,
+      originalValue: originalValue || null,
+      correctedValue: correctedValue || null,
+      reason: reason.trim(),
+    });
+    if (saved && correctionType === "strong_correction") {
+      const targetLabel = targetLabels[target];
+      const ruleDraft = `当系统判断${targetLabel}为「${originalValue || "—"}」时，应考虑用户可能认为是「${correctedValue || "—"}」。原因：${reason.trim()}`;
+      setPendingRuleDraft(ruleDraft);
+    }
+    resetForm();
+    onCorrectionAdded();
+  }
+
+  function handleSaveRuleDraft() {
+    if (!pendingRuleDraft) return;
+    saveCorrection({
+      reportId,
+      correctionType: "minor_correction",
+      target: "update_proposal",
+      originalValue: null,
+      correctedValue: pendingRuleDraft,
+      reason: "强纠正触发的偏好规则草稿",
+    });
+    setPendingRuleDraft(null);
+    onCorrectionAdded();
+  }
+
+  const targetLabels: Record<Correction["target"], string> = {
+    intent: "任务意图",
+    depth_score: "深度评分",
+    asset_type: "资产类型",
+    misconception: "误区标记",
+    update_proposal: "更新提议",
+  };
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-ink">纠正记录</h3>
+        {!showForm && (
+          <button
+            className="rounded border border-amber-300 px-3 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100"
+            onClick={() => setShowForm(true)}
+            type="button"
+          >
+            添加纠正
+          </button>
+        )}
+      </div>
+
+      {existingCorrections.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {existingCorrections.map((c) => (
+            <div key={c.id} className={`rounded border px-3 py-2 text-xs ${
+              c.correctionType === "strong_correction" ? "border-amber-300 bg-amber-100/50" : "border-line bg-white"
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                  c.correctionType === "strong_correction" ? "bg-amber-200 text-amber-800" : "bg-ink/10 text-ink/60"
+                }`}>
+                  {c.correctionType === "strong_correction" ? "强纠正" : "小纠正"}
+                </span>
+                <span className="font-medium text-ink/70">{targetLabels[c.target]}</span>
+                <span className="ml-auto text-ink/30">{new Date(c.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="mt-1 text-ink/50">
+                {c.originalValue != null ? String(c.originalValue) : "—"} → {c.correctedValue != null ? String(c.correctedValue) : "—"}
+              </div>
+              <div className="mt-0.5 text-ink/70">{c.reason}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {existingCorrections.length === 0 && !showForm && (
+        <p className="text-xs text-ink/40">暂无纠正记录。如需修正系统判断，点击"添加纠正"。</p>
+      )}
+
+      {pendingRuleDraft && (
+        <div className="mb-3 rounded-lg border border-amber-300 bg-white p-3 text-xs">
+          <p className="mb-1 font-semibold text-amber-800">偏好规则草稿</p>
+          <p className="mb-2 text-ink/70">{pendingRuleDraft}</p>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-700"
+              onClick={handleSaveRuleDraft}
+              type="button"
+            >
+              保存规则草稿
+            </button>
+            <button
+              className="rounded border border-line px-3 py-1 text-xs font-medium text-ink/60 transition hover:bg-paper"
+              onClick={() => setPendingRuleDraft(null)}
+              type="button"
+            >
+              丢弃
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="space-y-2 rounded-lg border border-amber-200 bg-white p-3">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-ink/60">
+              <input checked={correctionType === "minor_correction"} name="corrType" onChange={() => setCorrectionType("minor_correction")} type="radio" />
+              小纠正
+            </label>
+            <label className="flex items-center gap-1.5 text-xs font-medium text-ink/60">
+              <input checked={correctionType === "strong_correction"} name="corrType" onChange={() => setCorrectionType("strong_correction")} type="radio" />
+              强纠正
+            </label>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-ink/60">纠正目标</label>
+            <select
+              className="ml-2 rounded border border-line px-2 py-1 text-xs text-ink outline-none"
+              onChange={(e) => setTarget(e.target.value as Correction["target"])}
+              value={target}
+            >
+              {Object.entries(targetLabels).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-ink/60">原始值</label>
+            <input
+              className="ml-2 rounded border border-line px-2 py-1 text-xs text-ink outline-none"
+              onChange={(e) => setOriginalValue(e.target.value)}
+              placeholder="系统原来的判断"
+              value={originalValue}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-ink/60">纠正值</label>
+            <input
+              className="ml-2 rounded border border-line px-2 py-1 text-xs text-ink outline-none"
+              onChange={(e) => setCorrectedValue(e.target.value)}
+              placeholder="你认为正确的值"
+              value={correctedValue}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-ink/60">纠正原因</label>
+            <textarea
+              className="mt-1 w-full rounded border border-line px-2 py-1 text-xs text-ink outline-none"
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="为什么需要纠正？"
+              rows={2}
+              value={reason}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded bg-amber-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-700 disabled:opacity-50"
+              disabled={!reason.trim()}
+              onClick={handleSubmit}
+              type="button"
+            >
+              保存纠正
+            </button>
+            <button
+              className="rounded border border-line px-3 py-1 text-xs font-medium text-ink/60 transition hover:bg-paper"
+              onClick={resetForm}
+              type="button"
+            >
+              取消
+            </button>
+          </div>
+          {correctionType === "strong_correction" && (
+            <p className="text-[10px] text-amber-600">强纠正可能生成用户偏好规则草稿，需确认后保存。</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, onDiscard }: {
+  result: AnalyzeResponse | null;
+  draftAsset: ReturnType<typeof extractAssetFromResponse>;
+  assetRefreshKey: number;
+  onConfirm: () => void;
+  onDiscard: () => void;
+}) {
+  if (!result) return null;
+
+  const sourceRunId = result.runLog?.run_id;
+  const alreadySaved = sourceRunId ? hasAssetFromRun(sourceRunId) : false;
+
+  if (result.parseStatus !== "success" || !result.json) {
+    return (
+      <div className="border-t border-line p-4">
+        <div className="flex items-center gap-2">
+          <svg className="h-4 w-4 text-ink/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-sm text-ink/50">JSON 解析未成功，无法判断资产候选</span>
+        </div>
+      </div>
+    );
+  }
+
+  const json = result.json as Record<string, unknown>;
+  const decision = json.asset_decision as Record<string, unknown> | undefined;
+
+  if (draftAsset) {
+    if (alreadySaved) {
+      return (
+        <div className="border-t border-line p-4">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-moss" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-sm font-medium text-moss">该对话的资产已入库</span>
+            <span className="text-xs text-ink/40">— 不会重复添加</span>
+          </div>
+        </div>
+      );
+    }
+
+    const recommendedType = decision?.recommended_asset_type as string | undefined;
+    return (
+      <div className="border-t border-line p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <svg className="h-5 w-5 text-moss" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path d="M12 6v6m0 0v6m0-6h6m-6 0H6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <h3 className="text-sm font-semibold text-ink">资产候选</h3>
+          {recommendedType && recommendedType !== "none" && (
+            <span className="inline-block rounded bg-moss/10 px-2 py-0.5 text-xs font-medium text-moss">
+              {recommendedType}
+            </span>
+          )}
+          {!decision && (
+            <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+              扁平结构
+            </span>
+          )}
+        </div>
+        <AssetDraftPanel key={draftAsset.asset_id} asset={draftAsset} onConfirm={onConfirm} onDiscard={onDiscard} />
+      </div>
+    );
+  }
+
+  if (!decision) {
+    return (
+      <div className="border-t border-line p-4">
+        <div className="flex items-start gap-2">
+          <svg className="mt-0.5 h-4 w-4 shrink-0 text-ink/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <div>
+            <span className="text-sm text-ink/50">本次分析未产生资产候选</span>
+            <p className="mt-1 text-xs text-ink/40">模型输出中未包含可提取的资产数据。</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const whyNot = (decision.why_worth_saving as string | undefined) ?? (decision.reason as string | undefined);
+
+  return (
+    <div className="border-t border-line p-4">
+      <div className="flex items-start gap-2">
+        <svg className="mt-0.5 h-4 w-4 shrink-0 text-ink/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <div>
+          <span className="text-sm text-ink/50">本次分析未达到资产候选门槛</span>
+          {whyNot && <p className="mt-1 text-xs text-ink/40">{whyNot}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AnalysisWorkbench() {
+  const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("markdown");
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [assetRefreshKey, setAssetRefreshKey] = useState(0);
+  const [dismissedDraft, setDismissedDraft] = useState(false);
+  const [correctionRefreshKey, setCorrectionRefreshKey] = useState(0);
+
+  const traceSummary = useMemo(() => {
+    if (!result?.json) return null;
+    return extractTraceSummary(result.json);
+  }, [result]);
+
+  const currentRunId = result?.runLog?.run_id ?? "";
+  const corrections = useMemo(() => {
+    if (!currentRunId) return [];
+    return loadCorrections(currentRunId);
+  }, [currentRunId, correctionRefreshKey]);
+
+  const draftAsset = useMemo(() => {
+    if (!result?.runLog || dismissedDraft) return null;
+    return extractAssetFromResponse(result, result.runLog.run_id);
+  }, [result, dismissedDraft]);
+
+  const handleAnalyzeFinish = useCallback((response: AnalyzeResponse) => {
+    setResult(response);
+    setIsLoading(false);
+    setDismissedDraft(false);
+    if (response.runLog) {
+      saveToHistory({
+        run_id: response.runLog.run_id,
+        created_at: response.runLog.created_at,
+        input_snapshot: response.runLog.input_snapshot,
+        analyzeResponse: response,
+        status: "draft",
+      });
+      setHistoryRefreshKey((k) => k + 1);
+    }
+  }, []);
+
+  const handleHistorySelect = useCallback((response: AnalyzeResponse) => {
+    setResult(response);
+    setIsLoading(false);
+    setDismissedDraft(false);
+  }, []);
+
+  const handleNavigateToHistory = useCallback((sourceRunId: string) => {
+    const history = loadHistory();
+    const entry = history.find((h) => h.run_id === sourceRunId);
+    if (entry) {
+      setResult(entry.analyzeResponse);
+      setIsLoading(false);
+      setActiveTab("markdown");
+    }
+  }, []);
+
+  function getCopyContent(): string | null {
+    if (!result) return null;
+    if (activeTab === "markdown") return result.markdown;
+    if (activeTab === "json") return result.json != null ? JSON.stringify(result.json, null, 2) : null;
+    if (activeTab === "raw") return result.raw;
+    return null;
+  }
+
+  return (
+    <div className="grid gap-5 py-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
+      <section className="flex flex-col gap-4 rounded-lg border border-line bg-white/80 p-5 shadow-sm">
+        <InputPanel
+          onAnalyzeStart={() => {
+            setIsLoading(true);
+            setResult(null);
+          }}
+          onAnalyzeFinish={handleAnalyzeFinish}
+        />
+        <HistoryPanel onSelect={handleHistorySelect} refreshKey={historyRefreshKey} />
+        <AssetLibrary refreshKey={assetRefreshKey} onNavigateToHistory={handleNavigateToHistory} />
+      </section>
+
+      <section className="flex min-h-[420px] flex-col rounded-lg border border-line bg-white/80 shadow-sm">
+        <header className="flex shrink-0 items-center gap-1 border-b border-line px-4">
+          <div className="flex items-center gap-1">
+            {tabs.map((tab) => (
+              <button
+                className={`px-4 py-3 text-sm font-semibold transition ${
+                  activeTab === tab.key
+                    ? "border-b-2 border-moss text-moss"
+                    : "text-ink/50 hover:text-ink"
+                }`}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                type="button"
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <DownloadButton result={result} />
+            <CopyButton content={getCopyContent()} />
+          </div>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-auto">
+          {activeTab === "markdown" && (
+            <div className="p-5">
+              <MarkdownPreview isLoading={isLoading} markdown={result?.markdown ?? null} unstyled />
+            </div>
+          )}
+          {activeTab === "json" && (
+            <div className="p-5">
+              <h2 className="mb-3 text-base font-semibold">JSON Viewer</h2>
+              <JsonViewer
+                json={result?.json ?? null}
+                parseStatus={result?.parseStatus ?? "not_attempted"}
+                raw={result?.raw ?? null}
+              />
+            </div>
+          )}
+          {activeTab === "raw" && (
+            <div className="p-5">
+              <h2 className="mb-3 text-base font-semibold">Raw Output</h2>
+              {result?.raw ? (
+                <pre className="overflow-auto whitespace-pre-wrap break-words rounded-lg bg-ink p-4 text-sm leading-6 text-white">
+                  {result.raw}
+                </pre>
+              ) : (
+                <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-line bg-paper text-sm text-ink/60">
+                  暂无原始输出。提交输入后，模型的原始返回会显示在这里。
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <AssetDecisionBanner
+          result={result}
+          draftAsset={draftAsset}
+          assetRefreshKey={assetRefreshKey}
+          onConfirm={() => setAssetRefreshKey((k) => k + 1)}
+          onDiscard={() => setDismissedDraft(true)}
+        />
+
+        {result?.runLog && (
+          <div className="border-t border-line p-4">
+            <RunLogPanel runLog={result.runLog} />
+          </div>
+        )}
+
+        {traceSummary && (
+          <div className="border-t border-line p-4">
+            <TraceSummaryPanel traceSummary={traceSummary} />
+          </div>
+        )}
+
+        {currentRunId && (
+          <div className="border-t border-line p-4">
+            <CorrectionPanel
+              existingCorrections={corrections}
+              onCorrectionAdded={() => setCorrectionRefreshKey((k) => k + 1)}
+              reportId={currentRunId}
+            />
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
