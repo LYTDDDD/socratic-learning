@@ -12,8 +12,10 @@ const initialInput: AnalyzeInput = {
   expectedOutput: "",
 };
 
+type TextFieldKey = "background" | "originalGoal" | "conversation" | "notes" | "expectedOutput";
+
 type FieldConfig = {
-  key: keyof AnalyzeInput;
+  key: TextFieldKey;
   label: string;
   required?: boolean;
   rows: number;
@@ -58,11 +60,13 @@ const fields: FieldConfig[] = [
 type InputPanelProps = {
   onAnalyzeStart?: () => void;
   onAnalyzeFinish?: (result: AnalyzeResponse) => void;
+  currentMissionId?: string | null;
 };
 
 export function InputPanel({
   onAnalyzeFinish,
   onAnalyzeStart,
+  currentMissionId,
 }: InputPanelProps) {
   const [input, setInput] = useState<AnalyzeInput>(initialInput);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,14 +95,14 @@ export function InputPanel({
     [conversationMissing, originalGoalMissing],
   );
 
-  function isMissingRequiredField(key: keyof AnalyzeInput) {
+  function isMissingRequiredField(key: TextFieldKey) {
     return (
       (key === "originalGoal" && originalGoalMissing) ||
       (key === "conversation" && conversationMissing)
     );
   }
 
-  function updateField(key: keyof AnalyzeInput, value: string) {
+  function updateField(key: TextFieldKey, value: string) {
     setInput((current) => ({ ...current, [key]: value }));
     setReadyMessage("");
   }
@@ -125,6 +129,7 @@ export function InputPanel({
         body: JSON.stringify({
           ...input,
           preferenceRules: getConfirmedRules().map((r) => r.content),
+          missionId: currentMissionId,
         }),
       });
       const result = (await response.json()) as AnalyzeResponse;

@@ -9,6 +9,7 @@ import { DownloadButton } from "./DownloadButton";
 import { HistoryPanel } from "./HistoryPanel";
 import { AssetDraftPanel } from "./AssetDraftPanel";
 import { AssetLibrary } from "./AssetLibrary";
+import { MissionPanel } from "./MissionPanel";
 import type { AnalyzeResponse } from "../lib/analyze-types";
 import type { RunLog } from "../lib/run-log";
 import type { Correction } from "../lib/correction-store";
@@ -17,6 +18,7 @@ import { extractAssetFromResponse } from "../lib/extract-asset";
 import { hasAssetFromRun } from "../lib/asset-store";
 import type { PreferenceRule } from "../lib/preference-rule-store";
 import { loadCorrections, saveCorrection } from "../lib/correction-store";
+import { assignReportToMission } from "../lib/mission-store";
 import {
   loadPreferenceRules,
   savePreferenceRule,
@@ -526,12 +528,13 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
   );
 }
 
-function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, onDiscard }: {
+function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, onDiscard, currentMissionId }: {
   result: AnalyzeResponse | null;
   draftAsset: ReturnType<typeof extractAssetFromResponse>;
   assetRefreshKey: number;
   onConfirm: () => void;
   onDiscard: () => void;
+  currentMissionId?: string | null;
 }) {
   if (!result) return null;
 
@@ -588,7 +591,7 @@ function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, o
             </span>
           )}
         </div>
-        <AssetDraftPanel key={draftAsset.asset_id} asset={draftAsset} onConfirm={onConfirm} onDiscard={onDiscard} />
+        <AssetDraftPanel key={draftAsset.asset_id} asset={draftAsset} onConfirm={onConfirm} onDiscard={onDiscard} currentMissionId={currentMissionId} />
       </div>
     );
   }
@@ -634,6 +637,8 @@ export function AnalysisWorkbench() {
   const [assetRefreshKey, setAssetRefreshKey] = useState(0);
   const [dismissedDraft, setDismissedDraft] = useState(false);
   const [correctionRefreshKey, setCorrectionRefreshKey] = useState(0);
+  const [currentMissionId, setCurrentMissionId] = useState<string | null>(null);
+  const [missionRefreshKey, setMissionRefreshKey] = useState(0);
 
   const traceSummary = useMemo(() => {
     if (!result?.json) return null;
@@ -664,8 +669,12 @@ export function AnalysisWorkbench() {
         status: "draft",
       });
       setHistoryRefreshKey((k) => k + 1);
+      if (currentMissionId) {
+        assignReportToMission(currentMissionId, response.runLog.run_id);
+        setMissionRefreshKey((k) => k + 1);
+      }
     }
-  }, []);
+  }, [currentMissionId]);
 
   const handleHistorySelect = useCallback((response: AnalyzeResponse) => {
     setResult(response);
@@ -700,8 +709,14 @@ export function AnalysisWorkbench() {
             setResult(null);
           }}
           onAnalyzeFinish={handleAnalyzeFinish}
+          currentMissionId={currentMissionId}
         />
         <HistoryPanel onSelect={handleHistorySelect} refreshKey={historyRefreshKey} />
+        <MissionPanel
+          currentMissionId={currentMissionId}
+          onSelectMission={setCurrentMissionId}
+          refreshKey={missionRefreshKey}
+        />
         <AssetLibrary refreshKey={assetRefreshKey} onNavigateToHistory={handleNavigateToHistory} />
       </section>
 
@@ -767,6 +782,7 @@ export function AnalysisWorkbench() {
           assetRefreshKey={assetRefreshKey}
           onConfirm={() => setAssetRefreshKey((k) => k + 1)}
           onDiscard={() => setDismissedDraft(true)}
+          currentMissionId={currentMissionId}
         />
 
         {result?.runLog && (

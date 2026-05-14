@@ -9,6 +9,7 @@ type AssetDraftPanelProps = {
   asset: CognitiveAsset;
   onConfirm: () => void;
   onDiscard: () => void;
+  currentMissionId?: string | null;
 };
 
 function typeBadgeColor(type: string): string {
@@ -114,7 +115,7 @@ function flattenConnectionLayer(connectionLayer: ConnectionLayer): string[] {
   return Object.values(connectionLayer).flat();
 }
 
-export function AssetDraftPanel({ asset, onConfirm, onDiscard }: AssetDraftPanelProps) {
+export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId }: AssetDraftPanelProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedAsset, setEditedAsset] = useState<CognitiveAsset>(() => cloneAsset(asset));
@@ -141,6 +142,17 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard }: AssetDraftPanel
     const toSave: CognitiveAsset = {
       ...maturedAsset,
       user_final_asset: userFinalAsset,
+      ...(currentMissionId
+        ? {
+            source_mission: currentMissionId,
+            full_package: {
+              ...(typeof maturedAsset.full_package === "object" && maturedAsset.full_package ? maturedAsset.full_package : {}),
+              ...(maturedAsset.source_mission && maturedAsset.source_mission !== currentMissionId
+                ? { ai_source_mission_text: maturedAsset.source_mission }
+                : {}),
+            },
+          }
+        : {}),
     };
     saveAndConfirmAsset(toSave);
     setConfirmed(true);
