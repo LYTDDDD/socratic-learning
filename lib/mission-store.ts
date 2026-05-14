@@ -82,6 +82,12 @@ export function deleteMission(id: string): void {
     const all = loadMissions();
     const filtered = all.filter((m) => m.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    const raw = localStorage.getItem("socratic-mission-reports");
+    if (raw) {
+      const links: { missionId: string; runId: string; createdAt: string }[] = JSON.parse(raw);
+      const cleaned = links.filter((l) => l.missionId !== id);
+      localStorage.setItem("socratic-mission-reports", JSON.stringify(cleaned));
+    }
   } catch {}
 }
 

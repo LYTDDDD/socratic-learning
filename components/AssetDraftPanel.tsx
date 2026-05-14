@@ -142,7 +142,17 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
     const toSave: CognitiveAsset = {
       ...maturedAsset,
       user_final_asset: userFinalAsset,
-      ...(currentMissionId && !maturedAsset.source_mission ? { source_mission: currentMissionId } : {}),
+      ...(currentMissionId
+        ? {
+            source_mission: currentMissionId,
+            full_package: {
+              ...(typeof maturedAsset.full_package === "object" && maturedAsset.full_package ? maturedAsset.full_package : {}),
+              ...(maturedAsset.source_mission && maturedAsset.source_mission !== currentMissionId
+                ? { ai_source_mission_text: maturedAsset.source_mission }
+                : {}),
+            },
+          }
+        : {}),
     };
     saveAndConfirmAsset(toSave);
     setConfirmed(true);

@@ -105,6 +105,17 @@ describe("deleteMission", () => {
     deleteMission(mission!.id);
     expect(loadMissions()).toHaveLength(0);
   });
+
+  it("cleans up associated report links", () => {
+    const mission = saveMission({ title: "With Reports", description: "", status: "active" });
+    assignReportToMission(mission!.id, "run_001");
+    assignReportToMission(mission!.id, "run_002");
+    expect(getReportsForMission(mission!.id)).toHaveLength(2);
+    deleteMission(mission!.id);
+    expect(getReportsForMission(mission!.id)).toHaveLength(0);
+    expect(getMissionForReport("run_001")).toBeNull();
+    expect(getMissionForReport("run_002")).toBeNull();
+  });
 });
 
 describe("getMissionById", () => {
