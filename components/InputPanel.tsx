@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
+import { getConfirmedRules } from "../lib/preference-rule-store";
 
 const initialInput: AnalyzeInput = {
   background: "",
@@ -121,7 +122,10 @@ export function InputPanel({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+          ...input,
+          preferenceRules: getConfirmedRules().map((r) => r.content),
+        }),
       });
       const result = (await response.json()) as AnalyzeResponse;
 

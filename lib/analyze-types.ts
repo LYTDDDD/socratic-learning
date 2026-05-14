@@ -6,6 +6,7 @@ export type AnalyzeInput = {
   conversation: string;
   notes: string;
   expectedOutput: string;
+  preferenceRules?: string[];
 };
 
 export type ExtractJsonResult = {
