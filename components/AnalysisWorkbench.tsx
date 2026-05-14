@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { InputPanel } from "./InputPanel";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { JsonViewer } from "./JsonViewer";
@@ -25,6 +25,7 @@ import {
   enablePreferenceRule,
   deletePreferenceRule,
   getConfirmedRules,
+  updatePreferenceRule,
 } from "../lib/preference-rule-store";
 
 type TabKey = "markdown" | "json" | "raw";
@@ -143,7 +144,18 @@ function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData })
 }
 
 function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
-  const rules = useMemo(() => loadPreferenceRules(), [refreshKey]);
+  const [rules, setRules] = useState<PreferenceRule[]>(() => loadPreferenceRules());
+  const [localRefresh, setLocalRefresh] = useState(0);
+
+  useEffect(() => {
+    setRules(loadPreferenceRules());
+  }, [refreshKey]);
+
+  function reloadRules() {
+    setRules(loadPreferenceRules());
+    setLocalRefresh((k) => k + 1);
+  }
+
   const drafts = rules.filter((r) => r.status === "draft");
   const confirmed = rules.filter((r) => r.status === "confirmed");
   const disabled = rules.filter((r) => r.status === "disabled");
@@ -152,18 +164,22 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
 
   function handleConfirm(id: string) {
     confirmPreferenceRule(id);
+    reloadRules();
   }
 
   function handleDisable(id: string) {
     disablePreferenceRule(id);
+    reloadRules();
   }
 
   function handleEnable(id: string) {
     enablePreferenceRule(id);
+    reloadRules();
   }
 
   function handleDelete(id: string) {
     deletePreferenceRule(id);
+    reloadRules();
   }
 
   function startEdit(rule: PreferenceRule) {
@@ -173,15 +189,9 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
 
   function saveEdit(id: string) {
     if (!editContent.trim()) return;
-    const all = loadPreferenceRules();
-    const idx = all.findIndex((r) => r.id === id);
-    if (idx >= 0) {
-      all[idx] = { ...all[idx], content: editContent.trim() };
-      try {
-        localStorage.setItem("socratic-preference-rules", JSON.stringify(all));
-      } catch {}
-    }
+    updatePreferenceRule(id, { content: editContent.trim() });
     setEditingId(null);
+    reloadRules();
   }
 
   return (
