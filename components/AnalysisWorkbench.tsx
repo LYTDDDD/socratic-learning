@@ -629,7 +629,12 @@ function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, o
   );
 }
 
-export function AnalysisWorkbench() {
+type AnalysisWorkbenchProps = {
+  currentMissionId?: string | null;
+  onSelectMission?: (missionId: string | null) => void;
+};
+
+export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelectMission }: AnalysisWorkbenchProps) {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("markdown");
@@ -637,8 +642,11 @@ export function AnalysisWorkbench() {
   const [assetRefreshKey, setAssetRefreshKey] = useState(0);
   const [dismissedDraft, setDismissedDraft] = useState(false);
   const [correctionRefreshKey, setCorrectionRefreshKey] = useState(0);
-  const [currentMissionId, setCurrentMissionId] = useState<string | null>(null);
+  const [internalMissionId, setInternalMissionId] = useState<string | null>(null);
   const [missionRefreshKey, setMissionRefreshKey] = useState(0);
+
+  const currentMissionId = externalMissionId ?? internalMissionId;
+  const setCurrentMissionId = onSelectMission ?? setInternalMissionId;
 
   const traceSummary = useMemo(() => {
     if (!result?.json) return null;
