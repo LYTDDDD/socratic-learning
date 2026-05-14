@@ -25,6 +25,56 @@
   - `chore/short-maintenance-name`
 - 完成后不要自行合并到 `main`，先交给 reviewer 审查。
 
+## PR 协作流程
+
+实现 AI 完成功能后必须把分支推送到远端，并创建 Pull Request。
+
+推荐命令：
+
+```bash
+git push -u origin <branch-name>
+```
+
+PR 要求：
+
+- base 必须是 `main`。
+- compare 必须是当前任务分支。
+- PR 标题应简明说明任务，例如 `feat: User Preference Rule`。
+- PR 描述必须包含“交付格式”中要求的 5 项内容。
+- 不要在 review 通过前自行合并 PR。
+
+如果可以使用 GitHub CLI，可用：
+
+```bash
+gh pr create --base main --head <branch-name> --title "<title>" --body "<summary>"
+```
+
+如果不能使用 GitHub CLI，则到 GitHub 页面点击 `Compare & pull request` 创建。
+
+## 审查问题传递规则
+
+- reviewer 的问题必须写在 PR 评论或 PR review 中，PR 是协作事实来源。
+- 聊天窗口里的临时说明不能替代 PR 评论；需要修复的问题必须同步到 PR。
+- 实现 AI 修复问题前，必须先阅读 PR 评论，不要重新猜需求。
+- 修复时继续推送到同一个分支，不要另开无关分支。
+- 修复完成后，必须在 PR 中回复：
+  1. 修了哪些 reviewer 问题
+  2. 修改了哪些文件
+  3. 运行了哪些验证命令及结果
+  4. 仍有哪些风险或不确定点
+- reviewer 复审通过前，PR 状态视为未完成。
+
+当 reviewer 给出类似以下问题时：
+
+```text
+P2：偏好规则面板操作后 UI 不刷新。
+位置：components/AnalysisWorkbench.tsx 的 PreferenceRulePanel。
+原因：rules 只依赖父级 refreshKey；确认、禁用、启用、删除、编辑只写 localStorage，没有触发组件重新读取。
+修复建议：PreferenceRulePanel 内维护 rules state，提供 reloadRules()；所有 mutation 后调用 reloadRules()；编辑操作改用 updatePreferenceRule。
+```
+
+实现 AI 必须按该问题逐项修复，并在 PR 中说明对应处理结果。
+
 ## 开工前
 
 - 先阅读当前任务、相关文档和现有代码。
