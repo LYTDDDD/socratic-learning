@@ -97,4 +97,54 @@ describe("parseAgentSteps", () => {
     const result = parseAgentSteps(raw);
     expect(result).toEqual([]);
   });
+
+  it("filters out entries with invalid agent type", () => {
+    const raw = JSON.stringify({
+      steps: [
+        { agent: "review", startedAt: "2025-01-01T00:00:00Z", status: "success", input: {}, output: null, error: null },
+        { agent: "unknown_agent", startedAt: "2025-01-01T00:00:01Z", status: "success", input: {}, output: null, error: null },
+      ],
+    });
+    const result = parseAgentSteps(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].agent).toBe("review");
+  });
+
+  it("filters out entries with invalid status", () => {
+    const raw = JSON.stringify({
+      steps: [
+        { agent: "review", startedAt: "2025-01-01T00:00:00Z", status: "success", input: {}, output: null, error: null },
+        { agent: "asset", startedAt: "2025-01-01T00:00:01Z", status: "unknown_status", input: {}, output: null, error: null },
+      ],
+    });
+    const result = parseAgentSteps(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].agent).toBe("review");
+  });
+
+  it("filters out entries with non-string startedAt", () => {
+    const raw = JSON.stringify({
+      steps: [
+        { agent: "review", startedAt: "2025-01-01T00:00:00Z", status: "success", input: {}, output: null, error: null },
+        { agent: "asset", startedAt: 12345, status: "success", input: {}, output: null, error: null },
+      ],
+    });
+    const result = parseAgentSteps(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].agent).toBe("review");
+  });
+
+  it("filters out non-object entries in steps array", () => {
+    const raw = JSON.stringify({
+      steps: [
+        "not an object",
+        null,
+        42,
+        { agent: "review", startedAt: "2025-01-01T00:00:00Z", status: "success", input: {}, output: null, error: null },
+      ],
+    });
+    const result = parseAgentSteps(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].agent).toBe("review");
+  });
 });

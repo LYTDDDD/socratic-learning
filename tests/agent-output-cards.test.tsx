@@ -407,5 +407,78 @@ describe("AgentOutputCards", () => {
 
       expect(screen.getByText("—")).toBeInTheDocument();
     });
+
+    it("shows dash for invalid date strings (NaN)", () => {
+      const steps: AgentStep[] = [
+        makeStep({
+          agent: "supervisor",
+          status: "success",
+          output: { reasoning: "test" },
+          startedAt: "invalid-date",
+          finishedAt: "also-invalid",
+        }),
+      ];
+      render(<AgentOutputCards steps={steps} />);
+
+      expect(screen.getByText("—")).toBeInTheDocument();
+    });
+
+    it("shows dash for negative duration", () => {
+      const steps: AgentStep[] = [
+        makeStep({
+          agent: "supervisor",
+          status: "success",
+          output: { reasoning: "test" },
+          startedAt: "2025-01-01T00:00:05.000Z",
+          finishedAt: "2025-01-01T00:00:01.000Z",
+        }),
+      ];
+      render(<AgentOutputCards steps={steps} />);
+
+      expect(screen.getByText("—")).toBeInTheDocument();
+    });
+  });
+
+  describe("depth score edge cases", () => {
+    it("does not render score bar when depth_score is not a number", () => {
+      const steps: AgentStep[] = [
+        makeStep({
+          agent: "depth_evaluation",
+          status: "success",
+          output: { depth_score: "high", blind_spots: [], improvement_directions: [] },
+        }),
+      ];
+      render(<AgentOutputCards steps={steps} />);
+
+      expect(screen.queryByText(/\/10/)).not.toBeInTheDocument();
+    });
+
+    it("clamps depth_score below 0 to 0", () => {
+      const steps: AgentStep[] = [
+        makeStep({
+          agent: "depth_evaluation",
+          status: "success",
+          output: { depth_score: -5, blind_spots: [], improvement_directions: [] },
+        }),
+      ];
+      render(<AgentOutputCards steps={steps} />);
+
+      const bar = document.querySelector("[style*='width']");
+      expect(bar).toHaveStyle({ width: "0%" });
+    });
+
+    it("clamps depth_score above 10 to 100%", () => {
+      const steps: AgentStep[] = [
+        makeStep({
+          agent: "depth_evaluation",
+          status: "success",
+          output: { depth_score: 15, blind_spots: [], improvement_directions: [] },
+        }),
+      ];
+      render(<AgentOutputCards steps={steps} />);
+
+      const bar = document.querySelector("[style*='width']");
+      expect(bar).toHaveStyle({ width: "100%" });
+    });
   });
 });
