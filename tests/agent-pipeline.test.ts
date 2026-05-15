@@ -23,7 +23,7 @@ function makeInput() {
 
 describe("runAgentPipeline", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("runs full pipeline when supervisor returns all steps", async () => {
@@ -370,6 +370,169 @@ describe("runAgentPipeline", () => {
     const firstCall = mockCallReviewModel.mock.calls[0];
     expect(firstCall[1]).toContain(input.originalGoal);
     expect(firstCall[1]).toContain(input.background);
+  });
+
+  it("skips AssetAgent LLM call when depth score < 6 and no blind_spots", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review", "depth_evaluation", "asset"],
+          reasoning: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          depth_score: 3,
+          blind_spots: [],
+          improvement_directions: ["improve"],
+          reasoning: "shallow",
+        }),
+      );
+
+    const result = await runAgentPipeline(makeInput());
+
+    expect(result.steps).toHaveLength(4);
+    const assetStep = result.steps.find((s) => s.agent === "asset");
+    expect(assetStep).toBeDefined();
+    expect(assetStep!.status).toBe("success");
+    expect(assetStep!.output!.has_asset).toBe(false);
+    expect(assetStep!.output!.reasoning).toContain("低于门槛");
+    expect(mockCallReviewModel).toHaveBeenCalledTimes(3);
+  });
+
+  it("runs AssetAgent when depth score >= 6", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review", "depth_evaluation", "asset"],
+          reasoning: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          depth_score: 7,
+          blind_spots: [],
+          improvement_directions: ["improve"],
+          reasoning: "deep",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "",
+          transferable_value: "value",
+          reasoning: "worth it",
+        }),
+      );
+
+    const result = await runAgentPipeline(makeInput());
+
+    expect(mockCallReviewModel).toHaveBeenCalledTimes(4);
+    const assetStep = result.steps.find((s) => s.agent === "asset");
+    expect(assetStep!.output!.has_asset).toBe(true);
+  });
+
+  it("runs AssetAgent when depth score < 6 but has blind_spots", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review", "depth_evaluation", "asset"],
+          reasoning: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          depth_score: 4,
+          blind_spots: ["blind1"],
+          improvement_directions: ["improve"],
+          reasoning: "has evidence",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          has_asset: false,
+          asset_type: "",
+          title: "",
+          core_insight: "",
+          original_judgment: "",
+          revised_judgment: "",
+          my_understanding: "",
+          transferable_value: "",
+          reasoning: "no asset",
+        }),
+      );
+
+    const result = await runAgentPipeline(makeInput());
+
+    expect(mockCallReviewModel).toHaveBeenCalledTimes(4);
+    const assetStep = result.steps.find((s) => s.agent === "asset");
+    expect(assetStep!.status).toBe("success");
+  });
+
+  it("runs AssetAgent normally when no depth_evaluation step exists", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review", "asset"],
+          reasoning: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          has_asset: false,
+          asset_type: "",
+          title: "",
+          core_insight: "",
+          original_judgment: "",
+          revised_judgment: "",
+          my_understanding: "",
+          transferable_value: "",
+          reasoning: "no asset",
+        }),
+      );
+
+    const result = await runAgentPipeline(makeInput());
+
+    expect(mockCallReviewModel).toHaveBeenCalledTimes(3);
+    const assetStep = result.steps.find((s) => s.agent === "asset");
+    expect(assetStep!.status).toBe("success");
   });
 });
 
@@ -1402,11 +1565,43 @@ describe("buildMultiAgentMarkdown", () => {
     const md = buildMultiAgentMarkdown(steps);
     expect(md).not.toContain("### AI 建议连接");
   });
+
+  it("builds markdown with misconceptions in review section", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "review",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          summary: "test",
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          misconceptions: [
+            { item: "误区1", type: "misconception", evidence: "证据1", correction: "纠正1" },
+            { item: "假设1", type: "hidden_assumption", evidence: "证据2", correction: "纠正2" },
+            { item: "探索1", type: "exploratory_thinking", evidence: "证据3", correction: "" },
+          ],
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const md = buildMultiAgentMarkdown(steps);
+    expect(md).toContain("### 误区与隐藏假设");
+    expect(md).toContain("**[误区]** 误区1");
+    expect(md).toContain("证据：证据1");
+    expect(md).toContain("纠正：纠正1");
+    expect(md).toContain("**[隐藏假设]** 假设1");
+    expect(md).toContain("**[探索性思考]** 探索1");
+  });
 });
 
 describe("runAgentPipeline callbacks", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("calls onStepStart and onStepComplete for each agent", async () => {
@@ -1574,7 +1769,7 @@ describe("runAgentPipeline callbacks", () => {
         JSON.stringify({ summary: "s", key_decisions: [], turning_points: [], key_takeaways: [] }),
       )
       .mockResolvedValueOnce(
-        JSON.stringify({ depth_score: 5, blind_spots: [], improvement_directions: [] }),
+        JSON.stringify({ depth_score: 7, blind_spots: [], improvement_directions: [] }),
       )
       .mockResolvedValueOnce(
         JSON.stringify({
@@ -1591,5 +1786,210 @@ describe("runAgentPipeline callbacks", () => {
     expect(onStepStart).toHaveBeenCalledWith("review", 1, 3);
     expect(onStepStart).toHaveBeenCalledWith("depth_evaluation", 2, 3);
     expect(onStepStart).toHaveBeenCalledWith("asset", 3, 3);
+  });
+});
+
+describe("runAgentPipeline retry", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("retries once by default and marks step as failed when all attempts fail", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockRejectedValueOnce(new Error("Review API error"))
+      .mockRejectedValueOnce(new Error("Review API error"));
+
+    const result = await runAgentPipeline(makeInput(), undefined, { maxRetries: 1, retryDelayMs: 0 });
+
+    expect(result.steps).toHaveLength(2);
+    expect(result.steps[1].agent).toBe("review");
+    expect(result.steps[1].status).toBe("failed");
+    expect(result.steps[1].error).toBe("Review API error");
+  });
+
+  it("retries with custom maxRetries=2", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockRejectedValueOnce(new Error("Error 1"))
+      .mockRejectedValueOnce(new Error("Error 2"))
+      .mockRejectedValueOnce(new Error("Error 3"));
+
+    const result = await runAgentPipeline(makeInput(), undefined, { maxRetries: 2, retryDelayMs: 0 });
+
+    expect(result.steps).toHaveLength(2);
+    expect(result.steps[1].agent).toBe("review");
+    expect(result.steps[1].status).toBe("failed");
+    expect(result.steps[1].error).toBe("Error 3");
+  });
+
+  it("marks step as success when retry succeeds", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockRejectedValueOnce(new Error("Transient error"))
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "retry success",
+        }),
+      );
+
+    const result = await runAgentPipeline(makeInput(), undefined, { maxRetries: 1, retryDelayMs: 0 });
+
+    expect(result.steps).toHaveLength(2);
+    expect(result.steps[1].agent).toBe("review");
+    expect(result.steps[1].status).toBe("success");
+    expect(result.steps[1].output).not.toBeNull();
+  });
+
+  it("calls onStepRetry callback on each retry attempt", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockRejectedValueOnce(new Error("Error 1"))
+      .mockRejectedValueOnce(new Error("Error 2"))
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "ok",
+        }),
+      );
+
+    const onStepRetry = vi.fn();
+    await runAgentPipeline(makeInput(), { onStepRetry }, { maxRetries: 2, retryDelayMs: 0 });
+
+    expect(onStepRetry).toHaveBeenCalledTimes(2);
+    expect(onStepRetry).toHaveBeenCalledWith("review", 1, 1, 1);
+    expect(onStepRetry).toHaveBeenCalledWith("review", 1, 1, 2);
+  });
+
+  it("respects retryDelayMs between attempts", async () => {
+    vi.useFakeTimers();
+
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockRejectedValueOnce(new Error("Error"))
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "ok",
+        }),
+      );
+
+    const onStepRetry = vi.fn();
+    const pipelinePromise = runAgentPipeline(
+      makeInput(),
+      { onStepRetry },
+      { maxRetries: 1, retryDelayMs: 500 },
+    );
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const result = await pipelinePromise;
+
+    expect(result.steps[1].status).toBe("success");
+    expect(onStepRetry).toHaveBeenCalledWith("review", 1, 1, 1);
+
+    vi.useRealTimers();
+  });
+
+  it("behaves the same as before when retryOptions is not passed", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockRejectedValueOnce(new Error("Review failed"));
+
+    const result = await runAgentPipeline(makeInput());
+
+    expect(result.steps).toHaveLength(2);
+    expect(result.steps[1].status).toBe("failed");
+    expect(result.steps[1].error).toBe("Review failed");
+  });
+
+  it("does not retry on success", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "ok",
+        }),
+      );
+
+    const onStepRetry = vi.fn();
+    const result = await runAgentPipeline(
+      makeInput(),
+      { onStepRetry },
+      { maxRetries: 3, retryDelayMs: 0 },
+    );
+
+    expect(result.steps[1].status).toBe("success");
+    expect(onStepRetry).not.toHaveBeenCalled();
+  });
+
+  it("calls onStepError only after all retries exhausted", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockRejectedValueOnce(new Error("E1"))
+      .mockRejectedValueOnce(new Error("E2"));
+
+    const onStepError = vi.fn();
+    const onStepRetry = vi.fn();
+    await runAgentPipeline(
+      makeInput(),
+      { onStepError, onStepRetry },
+      { maxRetries: 1, retryDelayMs: 0 },
+    );
+
+    expect(onStepRetry).toHaveBeenCalledTimes(1);
+    expect(onStepRetry).toHaveBeenCalledWith("review", 1, 1, 1);
+    expect(onStepError).toHaveBeenCalledTimes(1);
+    expect(onStepError).toHaveBeenCalledWith("review", 1, 1, "E2");
   });
 });

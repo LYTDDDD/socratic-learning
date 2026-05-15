@@ -1,4 +1,4 @@
-import type { AgentContext, AgentStep, AgentType } from "./agent-types";
+import type { AgentContext, AgentStep, AgentType, RetryOptions } from "./agent-types";
 import type { ConnectionLayer } from "./extract-asset";
 import { ASSET_TYPE_MAP } from "./agent-types";
 import { supervisorAgent, createStep, completeStep, failStep } from "./supervisor-agent";
@@ -12,6 +12,7 @@ export type PipelineCallbacks = {
   onStepStart?: (agent: AgentType, index: number, total: number) => void;
   onStepComplete?: (agent: AgentType, index: number, total: number, durationMs: number) => void;
   onStepError?: (agent: AgentType, index: number, total: number, error: string) => void;
+  onStepRetry?: (agent: AgentType, index: number, total: number, attempt: number) => void;
 };
 
 const agentRegistry: Record<AgentType, typeof supervisorAgent> = {
@@ -28,6 +29,7 @@ const AGENT_TIMEOUT_MS = 60000;
 export async function runAgentPipeline(
   input: AgentContext["input"],
   callbacks?: PipelineCallbacks,
+  retryOptions?: RetryOptions,
 ): Promise<{ steps: AgentStep[]; supervisorDecision: string }> {
   const steps: AgentStep[] = [];
   const context: AgentContext = { input, previousSteps: steps };
@@ -77,6 +79,30 @@ export async function runAgentPipeline(
     const stepType = plannedSteps[stepIdx];
     if (stepType === "supervisor") continue;
 
+    if (stepType === "asset") {
+      const depthStep = steps.find((s) => s.agent === "depth_evaluation" && s.status === "success");
+      if (depthStep?.output) {
+        const depthOutput = depthStep.output as Record<string, unknown>;
+        const depthScore = typeof depthOutput.depth_score === "number" ? depthOutput.depth_score : 0;
+        const hasEvidence = Array.isArray(depthOutput.blind_spots) && depthOutput.blind_spots.length > 0;
+        if (depthScore < 6 && !hasEvidence) {
+          const callbackIndex = stepIdx + 1;
+          callbacks?.onStepStart?.(stepType as AgentType, callbackIndex, total);
+          steps.push({
+            agent: stepType,
+            startedAt: new Date().toISOString(),
+            finishedAt: new Date().toISOString(),
+            input: {},
+            output: { has_asset: false, reasoning: `深度评分 ${depthScore} 低于门槛（6），且无充分证据支持资产提取` },
+            status: "success",
+            error: null,
+          });
+          callbacks?.onStepComplete?.(stepType as AgentType, callbackIndex, total, 0);
+          continue;
+        }
+      }
+    }
+
     const agent = agentRegistry[stepType as AgentType];
     if (!agent) continue;
 
@@ -88,27 +114,40 @@ export async function runAgentPipeline(
     callbacks?.onStepStart?.(stepType as AgentType, callbackIndex, total);
     const stepStartTime = Date.now();
 
-    try {
-      const outputPromise = agent.execute({ input, previousSteps: steps });
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(`Agent "${stepType}" timed out after ${AGENT_TIMEOUT_MS / 1000}s`)), AGENT_TIMEOUT_MS);
-      });
+    const maxRetries = retryOptions?.maxRetries ?? 0;
+    const retryDelayMs = retryOptions?.retryDelayMs ?? 1000;
+    let lastError: string | null = null;
+    let succeeded = false;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const output = await Promise.race([outputPromise, timeoutPromise]);
-        steps[steps.length - 1] = completeStep(steps[steps.length - 1], output);
-        callbacks?.onStepComplete?.(stepType as AgentType, callbackIndex, total, Date.now() - stepStartTime);
-      } finally {
-        clearTimeout(timeoutId!);
+        const outputPromise = agent.execute({ input, previousSteps: steps });
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error(`Agent "${stepType}" timed out after ${AGENT_TIMEOUT_MS / 1000}s`)), AGENT_TIMEOUT_MS);
+        });
+        try {
+          const output = await Promise.race([outputPromise, timeoutPromise]);
+          steps[steps.length - 1] = completeStep(steps[steps.length - 1], output);
+          callbacks?.onStepComplete?.(stepType as AgentType, callbackIndex, total, Date.now() - stepStartTime);
+          succeeded = true;
+          break;
+        } finally {
+          clearTimeout(timeoutId!);
+        }
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : `${stepType} agent failed`;
+        if (attempt < maxRetries) {
+          callbacks?.onStepRetry?.(stepType as AgentType, callbackIndex, total, attempt + 1);
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        }
       }
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : `${stepType} agent failed`;
-      console.error(`[AgentPipeline] Agent "${stepType}" failed:`, errMsg);
-      steps[steps.length - 1] = failStep(
-        steps[steps.length - 1],
-        errMsg,
-      );
-      callbacks?.onStepError?.(stepType as AgentType, callbackIndex, total, errMsg);
+    }
+
+    if (!succeeded) {
+      console.error(`[AgentPipeline] Agent "${stepType}" failed after ${maxRetries + 1} attempts:`, lastError);
+      steps[steps.length - 1] = failStep(steps[steps.length - 1], lastError ?? `${stepType} agent failed`);
+      callbacks?.onStepError?.(stepType as AgentType, callbackIndex, total, lastError ?? `${stepType} agent failed`);
     }
   }
 
@@ -293,6 +332,17 @@ export function buildMultiAgentMarkdown(steps: AgentStep[]): string {
         sections.push("");
         sections.push("### 核心收获");
         for (const k of o.key_takeaways as string[]) sections.push(`- ${k}`);
+      }
+      if (Array.isArray(o.misconceptions) && o.misconceptions.length > 0) {
+        sections.push("");
+        sections.push("### 误区与隐藏假设");
+        for (const m of o.misconceptions as Array<Record<string, string>>) {
+          const typeLabel = m.type === "misconception" ? "误区" : m.type === "hidden_assumption" ? "隐藏假设" : "探索性思考";
+          let line = `- **[${typeLabel}]** ${m.item ?? ""}`;
+          if (m.evidence) line += ` | 证据：${m.evidence}`;
+          if (m.correction) line += ` | 纠正：${m.correction}`;
+          sections.push(line);
+        }
       }
     } else if (step.agent === "depth_evaluation") {
       const o = step.output;

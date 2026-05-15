@@ -70,6 +70,7 @@ type InputPanelProps = {
 type SSEAgentStartEvent = { agent: AgentType; index: number; total: number };
 type SSEAgentCompleteEvent = { agent: AgentType; index: number; total: number; duration_ms: number };
 type SSEAgentErrorEvent = { agent: AgentType; index: number; total: number; error: string };
+type SSEAgentRetryEvent = { agent: AgentType; index: number; total: number; attempt: number };
 
 async function readSSEStream(
   response: Response,
@@ -123,6 +124,15 @@ async function readSSEStream(
         existing.error = evt.error;
       } else {
         progressSteps.push({ agent: evt.agent, status: "failed", error: evt.error });
+      }
+      onProgress([...progressSteps]);
+    } else if (eventType === "agent_retry") {
+      const evt = data as SSEAgentRetryEvent;
+      const existing = progressSteps.find((s) => s.agent === evt.agent);
+      if (existing) {
+        existing.status = "running";
+      } else {
+        progressSteps.push({ agent: evt.agent, status: "running" });
       }
       onProgress([...progressSteps]);
     } else if (eventType === "done") {

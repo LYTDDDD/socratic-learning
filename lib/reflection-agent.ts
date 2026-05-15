@@ -15,7 +15,12 @@ const REFLECTION_SYSTEM_PROMPT = `你是一个反思智能体（ReflectionAgent�
 - reflection_questions 应引导深入思考，而非简单的是非问题
 - action_items 应具体可执行，避免过于笼统
 - mindset_shifts 应指出潜在的思维盲点或可改进的思维模式
-- 只输出 JSON，不要输出其他内容`;
+- 只输出 JSON，不要输出其他内容
+
+输出前自检：
+1. reflection_questions 是否具体可回答（不能是"你学到了什么"这类泛泛的问题）
+2. action_items 是否具体可执行（不能是"继续学习"这类模糊建议）
+3. mindset_shifts 是否有对话中的证据支撑`;
 
 export const reflectionAgent: AgentDefinition = {
   type: "reflection",

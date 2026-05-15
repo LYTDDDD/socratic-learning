@@ -22,7 +22,12 @@ const ASSET_SYSTEM_PROMPT = `你是一个认知资产提取智能体（AssetAgen
 - asset_type 只能是 principle、mental_model、checklist、framework、insight 之一
 - core_insight 应简洁有力，一至两句话概括
 - transferable_value 应说明该资产在什么场景下可以复用
-- 只输出 JSON，不要输出其他内容`;
+- 只输出 JSON，不要输出其他内容
+
+输出前自检：
+1. has_asset=true 时，core_insight 是否可迁移到其他场景（不能只适用于当前对话）
+2. has_asset=true 时，original_judgment 和 revised_judgment 是否有实质区别（无变化不应提取资产）
+3. has_asset=false 时，reasoning 是否解释了为什么不值得提取`;
 
 export const assetAgent: AgentDefinition = {
   type: "asset",

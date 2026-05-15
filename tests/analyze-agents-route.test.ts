@@ -493,12 +493,16 @@ describe("POST /api/analyze-agents SSE mode", () => {
 
     expect(mockRunAgentPipeline).toHaveBeenCalledOnce();
     const callArgs = mockRunAgentPipeline.mock.calls[0];
-    expect(callArgs.length).toBe(2);
+    expect(callArgs.length).toBe(3);
     const callbacks = callArgs[1]!;
     expect(callbacks).toBeDefined();
     expect(typeof callbacks.onStepStart).toBe("function");
     expect(typeof callbacks.onStepComplete).toBe("function");
     expect(typeof callbacks.onStepError).toBe("function");
+    const retryOpts = callArgs[2]!;
+    expect(retryOpts).toBeDefined();
+    expect(retryOpts.maxRetries).toBe(1);
+    expect(retryOpts.retryDelayMs).toBe(1000);
   });
 
   it("SSE stream contains agent events from callbacks", async () => {

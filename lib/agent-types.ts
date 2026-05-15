@@ -64,11 +64,19 @@ export type SupervisorOutput = {
   reasoning: string;
 };
 
+export type MisconceptionItem = {
+  item: string;
+  type: "misconception" | "hidden_assumption" | "exploratory_thinking";
+  evidence: string;
+  correction: string;
+};
+
 export type ReviewOutput = {
   summary: string;
   key_decisions: string[];
   turning_points: string[];
   key_takeaways: string[];
+  misconceptions: MisconceptionItem[];
 };
 
 export type DepthEvaluationOutput = {
@@ -99,6 +107,12 @@ export type CuratorOutput = {
   }>;
   organization_tips: string[];
   suggested_tags: string[];
+};
+
+export type RetryOptions = {
+  maxRetries: number;
+  retryDelayMs: number;
+  retryableErrors?: string[];
 };
 
 export type ReflectionOutput = {
