@@ -1,16 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AgentStep, AgentType } from "../lib/agent-types";
-
-const agentNameMap: Record<AgentType, string> = {
-  supervisor: "编排器",
-  review: "复盘",
-  depth_evaluation: "深度评估",
-  asset: "资产决策",
-  curator: "整理建议",
-  reflection: "反思建议",
-};
+import { type AgentStep, type AgentType, AGENT_NAME_MAP } from "../lib/agent-types";
 
 function statusBadge(status: AgentStep["status"]) {
   if (status === "success") return "bg-green-100 text-green-800";
@@ -30,7 +21,9 @@ function calcDuration(step: AgentStep): string {
   if (!step.finishedAt) return "—";
   const start = new Date(step.startedAt).getTime();
   const end = new Date(step.finishedAt).getTime();
+  if (isNaN(start) || isNaN(end)) return "—";
   const ms = end - start;
+  if (isNaN(ms) || ms < 0) return "—";
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
@@ -61,7 +54,7 @@ function SupervisorOutput({ output }: { output: Record<string, unknown> }) {
             {steps.map((s, i) => (
               <span key={i} className="flex items-center gap-1">
                 <span className="rounded bg-moss/10 px-2 py-0.5 text-xs font-medium text-moss">
-                  {agentNameMap[s as AgentType] ?? String(s)}
+                  {AGENT_NAME_MAP[s as AgentType] ?? String(s)}
                 </span>
                 {i < steps.length - 1 && (
                   <svg className="h-3 w-3 text-ink/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -126,7 +119,8 @@ function ReviewOutput({ output }: { output: Record<string, unknown> }) {
 }
 
 function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) {
-  const depthScore = output.depth_score as number | undefined;
+  const rawDepthScore = output.depth_score;
+  const depthScore = typeof rawDepthScore === "number" ? rawDepthScore : null;
   const blindSpots = output.blind_spots as string[] | undefined;
   const improvementDirections = output.improvement_directions as string[] | undefined;
   const reasoning = output.reasoning as string | undefined;
@@ -139,11 +133,11 @@ function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) 
           <div className="flex items-center gap-3">
             <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-ink/10">
               <div
-                className={`h-full rounded-full transition-all ${depthScoreColor(depthScore)}`}
-                style={{ width: `${(depthScore / 10) * 100}%` }}
+                className={`h-full rounded-full transition-all ${depthScoreColor(Math.max(0, Math.min(10, depthScore)))}`}
+                style={{ width: `${(Math.max(0, Math.min(10, depthScore)) / 10) * 100}%` }}
               />
             </div>
-            <span className="text-sm font-semibold text-ink">{depthScore}/10</span>
+            <span className="text-sm font-semibold text-ink">{Math.max(0, Math.min(10, depthScore))}/10</span>
           </div>
         </div>
       )}
@@ -352,6 +346,7 @@ function AgentCard({ step, defaultExpanded }: { step: AgentStep; defaultExpanded
         className="flex w-full items-center gap-2 px-4 py-3 text-left transition hover:bg-paper/80"
         onClick={() => setExpanded((e) => !e)}
         type="button"
+        aria-expanded={expanded}
       >
         <svg
           className={`h-4 w-4 shrink-0 text-ink/40 transition-transform ${expanded ? "rotate-90" : ""}`}
@@ -362,7 +357,7 @@ function AgentCard({ step, defaultExpanded }: { step: AgentStep; defaultExpanded
         >
           <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span className="text-sm font-semibold text-ink">{agentNameMap[step.agent]}</span>
+        <span className="text-sm font-semibold text-ink">{AGENT_NAME_MAP[step.agent]}</span>
         <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-medium ${statusBadge(step.status)}`}>
           {statusLabel(step.status)}
         </span>
@@ -385,7 +380,6 @@ function AgentCard({ step, defaultExpanded }: { step: AgentStep; defaultExpanded
 
 type AgentOutputCardsProps = {
   steps: AgentStep[];
-  json: Record<string, unknown>;
 };
 
 export function AgentOutputCards({ steps }: AgentOutputCardsProps) {
@@ -402,7 +396,7 @@ export function AgentOutputCards({ steps }: AgentOutputCardsProps) {
   return (
     <div className="space-y-2">
       {successSteps.map((step, i) => (
-        <AgentCard key={step.agent} step={step} defaultExpanded={i === 0} />
+        <AgentCard key={`${step.agent}-${step.startedAt}`} step={step} defaultExpanded={i === 0} />
       ))}
     </div>
   );

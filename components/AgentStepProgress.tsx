@@ -1,15 +1,6 @@
 "use client";
 
-import type { AgentStep, AgentType } from "../lib/agent-types";
-
-const agentNameMap: Record<AgentType, string> = {
-  supervisor: "编排器",
-  review: "复盘",
-  depth_evaluation: "深度评估",
-  asset: "资产决策",
-  curator: "整理建议",
-  reflection: "反思建议",
-};
+import { type AgentStep, type AgentType, AGENT_NAME_MAP } from "../lib/agent-types";
 
 function formatDuration(startedAt: string, finishedAt: string | null): string | null {
   if (!finishedAt) return null;
@@ -70,7 +61,7 @@ export function AgentStepProgress({ steps }: { steps: AgentStep[] }) {
           const duration = formatDuration(step.startedAt, step.finishedAt);
 
           return (
-            <div key={step.agent}>
+            <div key={`${step.agent}-${step.startedAt}`}>
               <div className="flex items-center gap-2.5">
                 <StatusIcon status={step.status} />
                 <span className={`text-sm font-medium ${
@@ -78,7 +69,7 @@ export function AgentStepProgress({ steps }: { steps: AgentStep[] }) {
                   step.status === "running" ? "text-blue-600" :
                   "text-ink"
                 }`}>
-                  {agentNameMap[step.agent]}
+                  {AGENT_NAME_MAP[step.agent]}
                 </span>
                 {step.status === "skipped" ? (
                   <span className="text-xs text-ink/30">(跳过)</span>
@@ -108,14 +99,27 @@ export function AgentStepProgress({ steps }: { steps: AgentStep[] }) {
   );
 }
 
+const VALID_AGENT_TYPES: AgentType[] = ["supervisor", "review", "depth_evaluation", "asset", "curator", "reflection"];
+const VALID_STATUSES = ["running", "success", "failed", "skipped"];
+
+function isValidStep(item: unknown): item is AgentStep {
+  if (typeof item !== "object" || item === null) return false;
+  const s = item as Record<string, unknown>;
+  return (
+    typeof s.agent === "string" &&
+    VALID_AGENT_TYPES.includes(s.agent as AgentType) &&
+    typeof s.status === "string" &&
+    VALID_STATUSES.includes(s.status) &&
+    typeof s.startedAt === "string"
+  );
+}
+
 export function parseAgentSteps(raw: string | null | undefined): AgentStep[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && Array.isArray(parsed.steps)) {
-      return parsed.steps as AgentStep[];
-    }
-    return [];
+    if (!parsed.steps || !Array.isArray(parsed.steps)) return [];
+    return parsed.steps.filter(isValidStep);
   } catch {
     return [];
   }

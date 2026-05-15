@@ -802,7 +802,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
               {isMultiAgent ? (
                 <div className="space-y-6">
                   <AgentStepProgress steps={agentSteps} />
-                  <AgentOutputCards steps={agentSteps} json={(result?.json ?? {}) as Record<string, unknown>} />
+                  <AgentOutputCards steps={agentSteps} />
                 </div>
               ) : (
                 <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-line bg-paper text-sm text-ink/60">
