@@ -410,3 +410,153 @@ describe("POST /api/analyze-agents", () => {
     expect(data.error).toContain("asset");
   });
 });
+
+describe("POST /api/analyze-agents SSE mode", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRunAgentPipeline.mockResolvedValue({
+      steps: mockSteps,
+      supervisorDecision: "test reasoning",
+    });
+    mockBuildMultiAgentJson.mockReturnValue({ supervisor: { steps: ["review"] }, review: { summary: "test" } });
+    mockBuildMultiAgentMarkdown.mockReturnValue("## SupervisorAgent\n\ntest");
+  });
+
+  function makeSSERequest(body: unknown) {
+    return new Request("http://localhost:3000/api/analyze-agents?stream=1", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+      },
+      body: JSON.stringify(body),
+    }) as unknown as import("next/server").NextRequest;
+  }
+
+  it("returns SSE stream when Accept header includes text/event-stream", async () => {
+    const req = makeSSERequest(makeValidPayload());
+    const response = await POST(req);
+
+    expect(response.headers.get("Content-Type")).toBe("text/event-stream");
+    expect(response.headers.get("Cache-Control")).toBe("no-cache");
+  });
+
+  it("returns SSE stream when stream=1 query param is set", async () => {
+    const req = new Request("http://localhost:3000/api/analyze-agents?stream=1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(makeValidPayload()),
+    }) as unknown as import("next/server").NextRequest;
+
+    const response = await POST(req);
+    expect(response.headers.get("Content-Type")).toBe("text/event-stream");
+  });
+
+  it("returns JSON when no SSE headers or params", async () => {
+    const req = new Request("http://localhost:3000/api/analyze-agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(makeValidPayload()),
+    }) as unknown as import("next/server").NextRequest;
+
+    const response = await POST(req);
+    expect(response.headers.get("Content-Type")).toContain("application/json");
+  });
+
+  it("SSE stream contains done event with full result", async () => {
+    const req = makeSSERequest(makeValidPayload());
+    const response = await POST(req);
+
+    const reader = response.body?.getReader();
+    expect(reader).toBeTruthy();
+
+    const decoder = new TextDecoder();
+    let fullText = "";
+    while (true) {
+      const { done, value } = await reader!.read();
+      if (done) break;
+      fullText += decoder.decode(value, { stream: true });
+    }
+
+    expect(fullText).toContain("event: done");
+    const doneLine = fullText.split("\n").find((l) => l.startsWith("data: "));
+    expect(doneLine).toBeTruthy();
+    const doneData = JSON.parse(doneLine!.slice(6));
+    expect(doneData.parseStatus).toBe("success");
+    expect(doneData.json).toBeTruthy();
+    expect(doneData.markdown).toBeTruthy();
+  });
+
+  it("passes callbacks to runAgentPipeline in SSE mode", async () => {
+    const req = makeSSERequest(makeValidPayload());
+    await POST(req);
+
+    expect(mockRunAgentPipeline).toHaveBeenCalledOnce();
+    const callArgs = mockRunAgentPipeline.mock.calls[0];
+    expect(callArgs.length).toBe(2);
+    const callbacks = callArgs[1]!;
+    expect(callbacks).toBeDefined();
+    expect(typeof callbacks.onStepStart).toBe("function");
+    expect(typeof callbacks.onStepComplete).toBe("function");
+    expect(typeof callbacks.onStepError).toBe("function");
+  });
+
+  it("SSE stream contains agent events from callbacks", async () => {
+    mockRunAgentPipeline.mockImplementationOnce(async (_input, callbacks) => {
+      callbacks?.onStepStart?.("supervisor", 0, 0);
+      callbacks?.onStepComplete?.("supervisor", 0, 0, 100);
+      callbacks?.onStepStart?.("review", 1, 2);
+      callbacks?.onStepComplete?.("review", 1, 2, 200);
+      return { steps: mockSteps, supervisorDecision: "test" };
+    });
+
+    const req = makeSSERequest(makeValidPayload());
+    const response = await POST(req);
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let fullText = "";
+    while (true) {
+      const { done, value } = await reader!.read();
+      if (done) break;
+      fullText += decoder.decode(value, { stream: true });
+    }
+
+    expect(fullText).toContain("event: agent_start");
+    expect(fullText).toContain("event: agent_complete");
+    expect(fullText).toContain("event: done");
+  });
+
+  it("SSE stream includes agent_error event on failure", async () => {
+    mockRunAgentPipeline.mockImplementationOnce(async (_input, callbacks) => {
+      callbacks?.onStepStart?.("supervisor", 0, 0);
+      callbacks?.onStepComplete?.("supervisor", 0, 0, 100);
+      callbacks?.onStepStart?.("review", 1, 2);
+      callbacks?.onStepError?.("review", 1, 2, "Review failed");
+      return { steps: mockSteps, supervisorDecision: "test" };
+    });
+
+    const req = makeSSERequest(makeValidPayload());
+    const response = await POST(req);
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let fullText = "";
+    while (true) {
+      const { done, value } = await reader!.read();
+      if (done) break;
+      fullText += decoder.decode(value, { stream: true });
+    }
+
+    expect(fullText).toContain("event: agent_error");
+    expect(fullText).toContain("Review failed");
+  });
+
+  it("returns 400 JSON for invalid payload even in SSE mode", async () => {
+    const req = makeSSERequest({});
+    const response = await POST(req);
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("Content-Type")).toContain("application/json");
+  });
+});

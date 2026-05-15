@@ -1,10 +1,18 @@
 import type { AgentContext, AgentStep, AgentType } from "./agent-types";
+import type { ConnectionLayer } from "./extract-asset";
+import { ASSET_TYPE_MAP } from "./agent-types";
 import { supervisorAgent, createStep, completeStep, failStep } from "./supervisor-agent";
 import { reviewAgent } from "./review-agent";
 import { depthEvaluationAgent } from "./depth-evaluation-agent";
 import { assetAgent } from "./asset-agent";
 import { curatorAgent } from "./curator-agent";
 import { reflectionAgent } from "./reflection-agent";
+
+export type PipelineCallbacks = {
+  onStepStart?: (agent: AgentType, index: number, total: number) => void;
+  onStepComplete?: (agent: AgentType, index: number, total: number, durationMs: number) => void;
+  onStepError?: (agent: AgentType, index: number, total: number, error: string) => void;
+};
 
 const agentRegistry: Record<AgentType, typeof supervisorAgent> = {
   supervisor: supervisorAgent,
@@ -15,8 +23,11 @@ const agentRegistry: Record<AgentType, typeof supervisorAgent> = {
   reflection: reflectionAgent,
 };
 
+const AGENT_TIMEOUT_MS = 60000;
+
 export async function runAgentPipeline(
   input: AgentContext["input"],
+  callbacks?: PipelineCallbacks,
 ): Promise<{ steps: AgentStep[]; supervisorDecision: string }> {
   const steps: AgentStep[] = [];
   const context: AgentContext = { input, previousSteps: steps };
@@ -24,14 +35,19 @@ export async function runAgentPipeline(
   const supervisorStep = createStep(supervisorAgent, { input });
   steps.push(supervisorStep);
 
+  callbacks?.onStepStart?.("supervisor", 0, 0);
+  const supervisorStartTime = Date.now();
+
   let supervisorOutput: Record<string, unknown>;
   try {
     supervisorOutput = await supervisorAgent.execute(context);
     steps[0] = completeStep(steps[0], supervisorOutput);
+    callbacks?.onStepComplete?.("supervisor", 0, 0, Date.now() - supervisorStartTime);
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : "Supervisor failed";
     console.error("[AgentPipeline] Supervisor failed:", errMsg);
     steps[0] = failStep(steps[0], errMsg);
+    callbacks?.onStepError?.("supervisor", 0, 0, errMsg);
     supervisorOutput = {
       steps: ["review", "depth_evaluation", "asset", "curator", "reflection"],
       reasoning: "Supervisor failed, using default full pipeline",
@@ -55,7 +71,10 @@ export async function runAgentPipeline(
   const supervisorDecision =
     (supervisorOutput.reasoning as string) ?? "No reasoning provided";
 
-  for (const stepType of plannedSteps) {
+  const total = plannedSteps.length;
+
+  for (let stepIdx = 0; stepIdx < plannedSteps.length; stepIdx++) {
+    const stepType = plannedSteps[stepIdx];
     if (stepType === "supervisor") continue;
 
     const agent = agentRegistry[stepType as AgentType];
@@ -65,9 +84,20 @@ export async function runAgentPipeline(
     const step = createStep(agent, stepInput);
     steps.push(step);
 
+    const callbackIndex = stepIdx + 1;
+    callbacks?.onStepStart?.(stepType as AgentType, callbackIndex, total);
+    const stepStartTime = Date.now();
+
     try {
-      const output = await agent.execute({ input, previousSteps: steps });
+      const outputPromise = agent.execute({ input, previousSteps: steps });
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`Agent "${stepType}" timed out after ${AGENT_TIMEOUT_MS / 1000}s`)), AGENT_TIMEOUT_MS);
+      });
+      const output = await Promise.race([outputPromise, timeoutPromise]);
+      clearTimeout(timeoutId!);
       steps[steps.length - 1] = completeStep(steps[steps.length - 1], output);
+      callbacks?.onStepComplete?.(stepType as AgentType, callbackIndex, total, Date.now() - stepStartTime);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : `${stepType} agent failed`;
       console.error(`[AgentPipeline] Agent "${stepType}" failed:`, errMsg);
@@ -75,6 +105,7 @@ export async function runAgentPipeline(
         steps[steps.length - 1],
         errMsg,
       );
+      callbacks?.onStepError?.(stepType as AgentType, callbackIndex, total, errMsg);
     }
   }
 
@@ -90,6 +121,56 @@ function extractPreferenceRules(steps: AgentStep[]): string[] {
     }
   }
   return [];
+}
+
+function curatorConnectionsToConnectionLayer(
+  connections: Array<Record<string, string>>,
+): ConnectionLayer {
+  const layer: ConnectionLayer = {
+    related_concepts: [],
+    related_assets: [],
+    mental_models: [],
+    prior_experience: [],
+    opposite_cases: [],
+    application_scenarios: [],
+    open_questions: [],
+  };
+
+  const CONNECTION_TYPE_MAP: Record<string, keyof ConnectionLayer> = {
+    "因果": "related_concepts",
+    "类比": "mental_models",
+    "对比": "opposite_cases",
+    "层级": "related_concepts",
+    "时序": "prior_experience",
+    "应用": "application_scenarios",
+    "问题": "open_questions",
+    "concept": "related_concepts",
+    "model": "mental_models",
+    "experience": "prior_experience",
+    "opposite": "opposite_cases",
+    "application": "application_scenarios",
+    "question": "open_questions",
+    "asset": "related_assets",
+  };
+
+  for (const c of connections) {
+    const target = c.target_concept ?? "";
+    if (!target) continue;
+    const type = (c.connection_type ?? "").toLowerCase();
+    let matched = false;
+    for (const [key, field] of Object.entries(CONNECTION_TYPE_MAP)) {
+      if (type.includes(key)) {
+        layer[field].push(target);
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      layer.related_concepts.push(target);
+    }
+  }
+
+  return layer;
 }
 
 export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown> {
@@ -114,11 +195,21 @@ export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown>
     if (typeof a.revised_judgment === "string") draftAsset.revised_judgment = a.revised_judgment;
     if (typeof a.my_understanding === "string") draftAsset.my_understanding = a.my_understanding;
     if (typeof a.transferable_value === "string") draftAsset.transferable_value = a.transferable_value;
-    if (typeof a.asset_type === "string") draftAsset.type = a.asset_type;
+    if (typeof a.asset_type === "string") draftAsset.type = ASSET_TYPE_MAP[a.asset_type] ?? "ConceptCard";
+
+    const curatorOutput = result.curator as Record<string, unknown> | undefined;
+    const curatorConnections = curatorOutput?.connections;
+    if (Array.isArray(curatorConnections) && curatorConnections.length > 0) {
+      const connectionLayer = curatorConnectionsToConnectionLayer(
+        curatorConnections as Array<Record<string, string>>,
+      );
+      draftAsset.ai_suggested_connections = connectionLayer;
+      draftAsset.connection_layer = connectionLayer;
+    }
 
     result.asset_decision = {
       asset_candidate: a.has_asset === true,
-      recommended_asset_type: a.asset_type ?? "",
+      recommended_asset_type: (a.asset_type ? ASSET_TYPE_MAP[a.asset_type as string] ?? "ConceptCard" : ""),
       title: a.title ?? "",
       core_insight: a.core_insight ?? "",
       original_judgment: a.original_judgment ?? "",
@@ -167,6 +258,9 @@ export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown>
 export function buildMultiAgentMarkdown(steps: AgentStep[]): string {
   const sections: string[] = [];
 
+  const curatorStep = steps.find(s => s.agent === "curator" && s.status === "success");
+  const curatorConnections = curatorStep?.output?.connections ?? null;
+
   for (const step of steps) {
     if (step.status !== "success" || !step.output) continue;
 
@@ -214,10 +308,24 @@ export function buildMultiAgentMarkdown(steps: AgentStep[]): string {
       const o = step.output;
       sections.push(`**是否值得提取资产**：${o.has_asset ? "是" : "否"}`);
       if (o.has_asset) {
-        sections.push(`**资产类型**：${o.asset_type ?? "—"}`);
+        sections.push(`**资产类型**：${(o.asset_type ? ASSET_TYPE_MAP[o.asset_type as string] ?? o.asset_type : "—")}`);
         sections.push(`**标题**：${o.title ?? "—"}`);
         sections.push(`**核心洞察**：${o.core_insight ?? "—"}`);
         sections.push(`**可迁移价值**：${o.transferable_value ?? "—"}`);
+        if (Array.isArray(curatorConnections) && curatorConnections.length > 0) {
+          sections.push("");
+          sections.push("### AI 建议连接");
+          const layer = curatorConnectionsToConnectionLayer(
+            curatorConnections as Array<Record<string, string>>,
+          );
+          if (layer.related_concepts.length > 0) sections.push(`**相关概念**：${layer.related_concepts.join("、")}`);
+          if (layer.mental_models.length > 0) sections.push(`**心智模型**：${layer.mental_models.join("、")}`);
+          if (layer.prior_experience.length > 0) sections.push(`**先前经验**：${layer.prior_experience.join("、")}`);
+          if (layer.opposite_cases.length > 0) sections.push(`**对立案例**：${layer.opposite_cases.join("、")}`);
+          if (layer.application_scenarios.length > 0) sections.push(`**应用场景**：${layer.application_scenarios.join("、")}`);
+          if (layer.open_questions.length > 0) sections.push(`**开放问题**：${layer.open_questions.join("、")}`);
+          if (layer.related_assets.length > 0) sections.push(`**相关资产**：${layer.related_assets.join("、")}`);
+        }
       }
     } else if (step.agent === "curator") {
       const o = step.output;

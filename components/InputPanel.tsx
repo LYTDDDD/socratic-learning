@@ -2,6 +2,8 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
+import type { AgentProgressStep } from "./AgentStepProgress";
+import type { AgentType } from "../lib/agent-types";
 import { getConfirmedRules } from "../lib/preference-rule-store";
 
 const initialInput: AnalyzeInput = {
@@ -60,13 +62,115 @@ const fields: FieldConfig[] = [
 type InputPanelProps = {
   onAnalyzeStart?: () => void;
   onAnalyzeFinish?: (result: AnalyzeResponse) => void;
+  onAgentProgress?: (steps: AgentProgressStep[]) => void;
   currentMissionId?: string | null;
   initialInputOverride?: Partial<AnalyzeInput>;
 };
 
+type SSEAgentStartEvent = { agent: AgentType; index: number; total: number };
+type SSEAgentCompleteEvent = { agent: AgentType; index: number; total: number; duration_ms: number };
+type SSEAgentErrorEvent = { agent: AgentType; index: number; total: number; error: string };
+
+async function readSSEStream(
+  response: Response,
+  onProgress: (steps: AgentProgressStep[]) => void,
+  onDone: (result: AnalyzeResponse) => void,
+  onError: (error: string) => void,
+) {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    onError("无法读取 SSE 流");
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let currentEvent = "";
+  const progressSteps: AgentProgressStep[] = [];
+
+  function handleEvent(eventType: string, dataStr: string) {
+    let data: unknown;
+    try {
+      data = JSON.parse(dataStr);
+    } catch {
+      return;
+    }
+
+    if (eventType === "agent_start") {
+      const evt = data as SSEAgentStartEvent;
+      const existing = progressSteps.find((s) => s.agent === evt.agent);
+      if (existing) {
+        existing.status = "running";
+      } else {
+        progressSteps.push({ agent: evt.agent, status: "running" });
+      }
+      onProgress([...progressSteps]);
+    } else if (eventType === "agent_complete") {
+      const evt = data as SSEAgentCompleteEvent;
+      const existing = progressSteps.find((s) => s.agent === evt.agent);
+      if (existing) {
+        existing.status = "success";
+        existing.durationMs = evt.duration_ms;
+      } else {
+        progressSteps.push({ agent: evt.agent, status: "success", durationMs: evt.duration_ms });
+      }
+      onProgress([...progressSteps]);
+    } else if (eventType === "agent_error") {
+      const evt = data as SSEAgentErrorEvent;
+      const existing = progressSteps.find((s) => s.agent === evt.agent);
+      if (existing) {
+        existing.status = "failed";
+        existing.error = evt.error;
+      } else {
+        progressSteps.push({ agent: evt.agent, status: "failed", error: evt.error });
+      }
+      onProgress([...progressSteps]);
+    } else if (eventType === "done") {
+      onDone(data as AnalyzeResponse);
+    } else if (eventType === "error") {
+      const errData = data as { error: string };
+      onError(errData.error);
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      if (buffer.trim()) {
+        const remainingLines = buffer.split("\n");
+        for (const line of remainingLines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6);
+            if (dataStr.trim() && currentEvent) {
+              handleEvent(currentEvent, dataStr);
+            }
+          }
+        }
+      }
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (line.startsWith("event: ")) {
+        currentEvent = line.slice(7).trim();
+      } else if (line.startsWith("data: ")) {
+        const dataStr = line.slice(6);
+        handleEvent(currentEvent, dataStr);
+      }
+    }
+  }
+}
+
 export function InputPanel({
   onAnalyzeFinish,
   onAnalyzeStart,
+  onAgentProgress,
   currentMissionId,
   initialInputOverride,
 }: InputPanelProps) {
@@ -126,18 +230,84 @@ export function InputPanel({
     setReadyMessage("正在提交到 Analyze API。");
     onAnalyzeStart?.();
 
+    const requestBody = JSON.stringify({
+      ...input,
+      preferenceRules: getConfirmedRules().map((r) => r.content),
+      missionId: currentMissionId,
+    });
+
+    if (analysisMode === "multi-agent") {
+      try {
+        const response = await fetch("/api/analyze-agents?stream=1", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+          },
+          body: requestBody,
+        });
+
+        if (!response.ok && response.headers.get("content-type")?.includes("application/json")) {
+          const result = (await response.json()) as AnalyzeResponse;
+          setReadyMessage(result.error ?? "分析失败。");
+          onAnalyzeFinish?.(result);
+          return;
+        }
+
+        if (!response.ok) {
+          setReadyMessage("分析请求失败，请稍后重试。");
+          setIsSubmitting(false);
+          return;
+        }
+
+        await readSSEStream(
+          response,
+          (steps) => {
+            onAgentProgress?.(steps);
+          },
+          (result) => {
+            setReadyMessage(
+              result.error ??
+                (result.raw ? "模型调用完成，已收到 raw output。" : "Analyze API 已接收输入。"),
+            );
+            onAnalyzeFinish?.(result);
+          },
+          (error) => {
+            setReadyMessage(error);
+            onAnalyzeFinish?.({
+              markdown: null,
+              json: null,
+              raw: null,
+              parseStatus: "not_attempted",
+              error,
+              runLog: null,
+            });
+          },
+        );
+      } catch {
+        setReadyMessage("提交失败，请稍后重试。");
+        onAnalyzeFinish?.({
+          markdown: null,
+          json: null,
+          raw: null,
+          parseStatus: "not_attempted",
+          error: "提交失败，请稍后重试。",
+          runLog: null,
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     try {
-      const apiEndpoint = analysisMode === "multi-agent" ? "/api/analyze-agents" : "/api/analyze";
+      const apiEndpoint = "/api/analyze";
       const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...input,
-          preferenceRules: getConfirmedRules().map((r) => r.content),
-          missionId: currentMissionId,
-        }),
+        body: requestBody,
       });
       const result = (await response.json()) as AnalyzeResponse;
 

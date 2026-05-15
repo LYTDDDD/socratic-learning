@@ -5,6 +5,7 @@ import { generateRunId } from "../../../lib/run-log";
 import type { RunLog } from "../../../lib/run-log";
 import { OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION } from "../../../lib/prompt";
 import { runAgentPipeline, buildMultiAgentJson, buildMultiAgentMarkdown } from "../../../lib/agent-pipeline";
+import type { AgentType } from "../../../lib/agent-types";
 
 function getModelName(): string {
   try {
@@ -36,6 +37,150 @@ function parseAnalyzeInput(payload: unknown): AnalyzeInput {
       : [],
     missionId: typeof input.missionId === "string" ? input.missionId : null,
   };
+}
+
+function wantsSSE(request: NextRequest): boolean {
+  const accept = request.headers.get("accept") ?? "";
+  if (accept.includes("text/event-stream")) return true;
+  const url = new URL(request.url);
+  return url.searchParams.get("stream") === "1";
+}
+
+function encodeSSE(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+function buildFinalResult(
+  steps: Parameters<typeof buildMultiAgentJson>[0],
+  supervisorDecision: string,
+  run_id: string,
+  startedAt: number,
+  model_name: string,
+  input: { originalGoal: string; conversation: string },
+): { response: AnalyzeResponse; httpStatus: number } {
+  const markdown = buildMultiAgentMarkdown(steps);
+  const json = buildMultiAgentJson(steps);
+
+  const nonSupervisorSteps = steps.filter((s: { agent: string }) => s.agent !== "supervisor");
+  const failedSteps = nonSupervisorSteps.filter((s: { status: string }) => s.status === "failed");
+  const successSteps = nonSupervisorSteps.filter((s: { status: string }) => s.status === "success");
+
+  let request_status: "success" | "partial" | "failed";
+  let parseStatus: "success" | "partial" | "failed";
+  let error: string | null;
+  let httpStatus: number;
+
+  if (successSteps.length === 0) {
+    request_status = "failed";
+    parseStatus = "failed";
+    error = failedSteps.map((s: { agent: string; error: string | null }) => `${s.agent}: ${s.error}`).join("; ") || "所有 Agent 执行失败";
+    httpStatus = 500;
+  } else if (failedSteps.length > 0) {
+    request_status = "partial";
+    parseStatus = "partial";
+    error = `部分 Agent 执行失败：${failedSteps.map((s: { agent: string }) => s.agent).join(", ")}`;
+    httpStatus = 200;
+  } else {
+    request_status = "success";
+    parseStatus = "success";
+    error = null;
+    httpStatus = 200;
+  }
+
+  const runLog: RunLog = {
+    run_id,
+    created_at: new Date(startedAt).toISOString(),
+    input_snapshot: { originalGoal: input.originalGoal, conversation: input.conversation },
+    prompt_version: `multi-agent:${OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION}`,
+    model_name,
+    request_status,
+    parse_status: parseStatus,
+    duration_ms: Date.now() - startedAt,
+    error_message: error,
+  };
+
+  const response: AnalyzeResponse = {
+    markdown,
+    json,
+    raw: JSON.stringify({ steps, supervisorDecision }, null, 2),
+    parseStatus,
+    error,
+    runLog,
+  };
+
+  return { response, httpStatus };
+}
+
+function handleSSEStream(
+  input: AnalyzeInput,
+  run_id: string,
+  startedAt: number,
+  model_name: string,
+  request: NextRequest,
+): Response {
+  const encoder = new TextEncoder();
+  const abortController = new AbortController();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      function send(event: string, data: unknown) {
+        controller.enqueue(encoder.encode(encodeSSE(event, data)));
+      }
+
+      request.signal.addEventListener("abort", () => {
+        abortController.abort();
+        try { controller.close(); } catch {}
+      });
+
+      try {
+        const { steps, supervisorDecision } = await runAgentPipeline(
+          {
+            background: input.background,
+            originalGoal: input.originalGoal,
+            conversation: input.conversation,
+            notes: input.notes,
+            expectedOutput: input.expectedOutput,
+            preferenceRules: input.preferenceRules ?? [],
+          },
+          {
+            onStepStart: (agent: AgentType, index: number, total: number) => {
+              send("agent_start", { agent, index, total });
+            },
+            onStepComplete: (agent: AgentType, index: number, total: number, durationMs: number) => {
+              send("agent_complete", { agent, index, total, duration_ms: durationMs });
+            },
+            onStepError: (agent: AgentType, index: number, total: number, error: string) => {
+              send("agent_error", { agent, index, total, error });
+            },
+          },
+        );
+
+        const { response } = buildFinalResult(
+          steps,
+          supervisorDecision,
+          run_id,
+          startedAt,
+          model_name,
+          { originalGoal: input.originalGoal, conversation: input.conversation },
+        );
+
+        send("done", response);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "多 Agent 分析失败";
+        send("error", { error: errorMessage });
+      } finally {
+        try { controller.close(); } catch {}
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -102,6 +247,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (wantsSSE(request)) {
+    return handleSSEStream(input, run_id, startedAt, model_name, request);
+  }
+
   try {
     const { steps, supervisorDecision } = await runAgentPipeline({
       background: input.background,
@@ -112,58 +261,16 @@ export async function POST(request: NextRequest) {
       preferenceRules: input.preferenceRules ?? [],
     });
 
-    const markdown = buildMultiAgentMarkdown(steps);
-    const json = buildMultiAgentJson(steps);
-
-    const nonSupervisorSteps = steps.filter((s) => s.agent !== "supervisor");
-    const failedSteps = nonSupervisorSteps.filter((s) => s.status === "failed");
-    const successSteps = nonSupervisorSteps.filter((s) => s.status === "success");
-
-    let request_status: "success" | "partial" | "failed";
-    let parseStatus: "success" | "partial" | "failed";
-    let error: string | null;
-    let httpStatus: number;
-
-    if (successSteps.length === 0) {
-      request_status = "failed";
-      parseStatus = "failed";
-      error = failedSteps.map((s) => `${s.agent}: ${s.error}`).join("; ") || "所有 Agent 执行失败";
-      httpStatus = 500;
-    } else if (failedSteps.length > 0) {
-      request_status = "partial";
-      parseStatus = "partial";
-      error = `部分 Agent 执行失败：${failedSteps.map((s) => s.agent).join(", ")}`;
-      httpStatus = 200;
-    } else {
-      request_status = "success";
-      parseStatus = "success";
-      error = null;
-      httpStatus = 200;
-    }
-
-    const runLog: RunLog = {
+    const { response, httpStatus } = buildFinalResult(
+      steps,
+      supervisorDecision,
       run_id,
-      created_at: new Date(startedAt).toISOString(),
-      input_snapshot: { originalGoal: input.originalGoal, conversation: input.conversation },
-      prompt_version: `multi-agent:${OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION}`,
+      startedAt,
       model_name,
-      request_status,
-      parse_status: parseStatus,
-      duration_ms: Date.now() - startedAt,
-      error_message: error,
-    };
-
-    return NextResponse.json<AnalyzeResponse>(
-      {
-        markdown,
-        json,
-        raw: JSON.stringify({ steps, supervisorDecision }, null, 2),
-        parseStatus,
-        error,
-        runLog,
-      },
-      { status: httpStatus },
+      { originalGoal: input.originalGoal, conversation: input.conversation },
     );
+
+    return NextResponse.json<AnalyzeResponse>(response, { status: httpStatus });
   } catch (error) {
     const status =
       error instanceof ModelCallError && error.status ? error.status : 500;
