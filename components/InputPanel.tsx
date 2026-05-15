@@ -61,17 +61,23 @@ type InputPanelProps = {
   onAnalyzeStart?: () => void;
   onAnalyzeFinish?: (result: AnalyzeResponse) => void;
   currentMissionId?: string | null;
+  initialInputOverride?: Partial<AnalyzeInput>;
 };
 
 export function InputPanel({
   onAnalyzeFinish,
   onAnalyzeStart,
   currentMissionId,
+  initialInputOverride,
 }: InputPanelProps) {
-  const [input, setInput] = useState<AnalyzeInput>(initialInput);
+  const [input, setInput] = useState<AnalyzeInput>({
+    ...initialInput,
+    ...initialInputOverride,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [readyMessage, setReadyMessage] = useState("");
+  const [analysisMode, setAnalysisMode] = useState<"single" | "multi-agent">("single");
 
   const originalGoalMissing = useMemo(
     () => input.originalGoal.trim().length === 0,
@@ -121,7 +127,8 @@ export function InputPanel({
     onAnalyzeStart?.();
 
     try {
-      const response = await fetch("/api/analyze", {
+      const apiEndpoint = analysisMode === "multi-agent" ? "/api/analyze-agents" : "/api/analyze";
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -199,13 +206,39 @@ export function InputPanel({
           {readyMessage ||
             (!canSubmit ? `请补全必填输入：${requiredStatus}。` : "")}
         </p>
-        <button
-          className="inline-flex h-11 items-center justify-center rounded-lg bg-ink px-5 text-sm font-semibold text-white transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:bg-line disabled:text-ink/45"
-          disabled={!canSubmit || isSubmitting}
-          type="submit"
-        >
-          {isSubmitting ? "Submitting" : "Analyze"}
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 rounded-lg border border-line bg-white p-1">
+            <button
+              className={`rounded-md px-2 py-1 text-[10px] font-semibold transition ${
+                analysisMode === "single"
+                  ? "bg-ink text-white"
+                  : "text-ink/50 hover:text-ink"
+              }`}
+              onClick={() => setAnalysisMode("single")}
+              type="button"
+            >
+              单 Prompt
+            </button>
+            <button
+              className={`rounded-md px-2 py-1 text-[10px] font-semibold transition ${
+                analysisMode === "multi-agent"
+                  ? "bg-moss text-white"
+                  : "text-ink/50 hover:text-ink"
+              }`}
+              onClick={() => setAnalysisMode("multi-agent")}
+              type="button"
+            >
+              多 Agent
+            </button>
+          </div>
+          <button
+            className="inline-flex h-11 items-center justify-center rounded-lg bg-ink px-5 text-sm font-semibold text-white transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:bg-line disabled:text-ink/45"
+            disabled={!canSubmit || isSubmitting}
+            type="submit"
+          >
+            {isSubmitting ? "Submitting" : "Analyze"}
+          </button>
+        </div>
       </div>
     </form>
   );

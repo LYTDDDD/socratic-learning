@@ -64,10 +64,10 @@ export function DownloadButton({ result }: DownloadButtonProps) {
       label: "JSON",
       ext: "json",
       content:
-        result?.json != null && result.parseStatus === "success"
+        result?.json != null && (result.parseStatus === "success" || result.parseStatus === "partial")
           ? JSON.stringify(result.json, null, 2)
           : null,
-      available: result?.json != null && result.parseStatus === "success",
+      available: result?.json != null && (result.parseStatus === "success" || result.parseStatus === "partial"),
     },
     {
       label: "Raw Text",

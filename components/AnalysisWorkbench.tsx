@@ -10,7 +10,7 @@ import { HistoryPanel } from "./HistoryPanel";
 import { AssetDraftPanel } from "./AssetDraftPanel";
 import { AssetLibrary } from "./AssetLibrary";
 import { MissionPanel } from "./MissionPanel";
-import type { AnalyzeResponse } from "../lib/analyze-types";
+import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
 import type { RunLog } from "../lib/run-log";
 import type { Correction } from "../lib/correction-store";
 import { saveToHistory, loadHistory } from "../lib/history-store";
@@ -541,7 +541,7 @@ function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, o
   const sourceRunId = result.runLog?.run_id;
   const alreadySaved = sourceRunId ? hasAssetFromRun(sourceRunId) : false;
 
-  if (result.parseStatus !== "success" || !result.json) {
+  if ((result.parseStatus !== "success" && result.parseStatus !== "partial") || !result.json) {
     return (
       <div className="border-t border-line p-4">
         <div className="flex items-center gap-2">
@@ -632,9 +632,10 @@ function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, o
 type AnalysisWorkbenchProps = {
   currentMissionId?: string | null;
   onSelectMission?: (missionId: string | null) => void;
+  initialInputOverride?: Partial<AnalyzeInput>;
 };
 
-export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelectMission }: AnalysisWorkbenchProps) {
+export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelectMission, initialInputOverride }: AnalysisWorkbenchProps) {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("markdown");
@@ -718,6 +719,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           }}
           onAnalyzeFinish={handleAnalyzeFinish}
           currentMissionId={currentMissionId}
+          initialInputOverride={initialInputOverride}
         />
         <HistoryPanel onSelect={handleHistorySelect} refreshKey={historyRefreshKey} />
         <MissionPanel
