@@ -12,7 +12,7 @@ type JsonViewerProps = {
 export function JsonViewer({ json, parseStatus, raw }: JsonViewerProps) {
   const [showRaw, setShowRaw] = useState(false);
 
-  if (parseStatus === "not_attempted" || (parseStatus === "success" && json === null)) {
+  if (parseStatus === "not_attempted" || ((parseStatus === "success" || parseStatus === "partial") && json === null)) {
     return (
       <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-line bg-paper text-sm text-ink/60">
         暂无 JSON 数据。提交输入后，解析出的 JSON 会显示在这里。
@@ -41,6 +41,24 @@ export function JsonViewer({ json, parseStatus, raw }: JsonViewerProps) {
               </pre>
             )}
           </div>
+        )}
+      </div>
+    );
+  }
+
+  if (parseStatus === "partial") {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 rounded-md border border-amber-300/50 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          部分步骤执行失败，结果可能不完整
+        </div>
+        {json !== null && (
+          <pre className="overflow-auto whitespace-pre-wrap break-words rounded-lg bg-ink p-4 text-sm leading-6 text-white">
+            {JSON.stringify(json, null, 2)}
+          </pre>
         )}
       </div>
     );

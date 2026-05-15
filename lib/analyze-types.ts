@@ -21,7 +21,7 @@ export type AnalyzeResponse = {
   markdown: string | null;
   json: unknown | null;
   raw: string | null;
-  parseStatus: "success" | "failed" | "not_attempted";
+  parseStatus: "success" | "partial" | "failed" | "not_attempted";
   error: string | null;
   runLog: RunLog | null;
 };

@@ -314,6 +314,39 @@ describe("runAgentPipeline", () => {
     expect(result.steps.map((s) => s.agent)).toEqual(["supervisor", "review", "asset"]);
   });
 
+  it("falls back to review+asset when supervisor returns empty steps array after filtering", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({ steps: ["unknown_type", "also_unknown"], reasoning: "bad steps" }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "fallback review",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          has_asset: false,
+          asset_type: "",
+          title: "",
+          core_insight: "",
+          original_judgment: "",
+          revised_judgment: "",
+          my_understanding: "",
+          transferable_value: "",
+          reasoning: "none",
+        }),
+      );
+
+    const result = await runAgentPipeline(makeInput());
+
+    expect(result.steps).toHaveLength(3);
+    expect(result.steps.map((s) => s.agent)).toEqual(["supervisor", "review", "asset"]);
+  });
+
   it("passes input to supervisor execute", async () => {
     const input = makeInput();
     mockCallReviewModel.mockResolvedValueOnce(
@@ -484,6 +517,23 @@ describe("buildMultiAgentJson", () => {
       my_understanding: "understanding",
       transferable_value: "value",
       reasoning: "reason",
+      asset_candidate_package: {
+        summary: "insight",
+        judgment_change: {
+          before: "orig",
+          after: "revised",
+          trigger: "",
+        },
+        draft_asset: {
+          title: "Test Title",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "understanding",
+          transferable_value: "value",
+          type: "principle",
+        },
+      },
     });
     expect(result.asset).toBeDefined();
   });
@@ -515,6 +565,7 @@ describe("buildMultiAgentJson", () => {
     const decision = result.asset_decision as Record<string, unknown>;
     expect(decision.asset_candidate).toBe(false);
     expect(decision.recommended_asset_type).toBe("");
+    expect(decision.asset_candidate_package).toBeNull();
   });
 
   it("does not add asset_decision when asset agent failed", () => {

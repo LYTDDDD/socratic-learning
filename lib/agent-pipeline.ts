@@ -39,7 +39,7 @@ export async function runAgentPipeline(
   }
 
   const validAgentTypes: AgentType[] = ["review", "depth_evaluation", "asset", "curator", "reflection"];
-  const plannedSteps = ((supervisorOutput.steps as unknown[]) ?? [
+  let plannedSteps = ((supervisorOutput.steps as unknown[]) ?? [
     "review",
     "depth_evaluation",
     "asset",
@@ -48,6 +48,10 @@ export async function runAgentPipeline(
   ])
     .filter((s): s is string => typeof s === "string" && validAgentTypes.includes(s as AgentType))
     .filter((v, i, a) => a.indexOf(v) === i);
+
+  if (plannedSteps.length === 0) {
+    plannedSteps.push("review", "asset");
+  }
   const supervisorDecision =
     (supervisorOutput.reasoning as string) ?? "No reasoning provided";
 
@@ -103,6 +107,15 @@ export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown>
 
   if (result.asset) {
     const a = result.asset as Record<string, unknown>;
+    const draftAsset: Record<string, unknown> = {};
+    if (typeof a.title === "string") draftAsset.title = a.title;
+    if (typeof a.core_insight === "string") draftAsset.core_insight = a.core_insight;
+    if (typeof a.original_judgment === "string") draftAsset.original_judgment = a.original_judgment;
+    if (typeof a.revised_judgment === "string") draftAsset.revised_judgment = a.revised_judgment;
+    if (typeof a.my_understanding === "string") draftAsset.my_understanding = a.my_understanding;
+    if (typeof a.transferable_value === "string") draftAsset.transferable_value = a.transferable_value;
+    if (typeof a.asset_type === "string") draftAsset.type = a.asset_type;
+
     result.asset_decision = {
       asset_candidate: a.has_asset === true,
       recommended_asset_type: a.asset_type ?? "",
@@ -113,6 +126,17 @@ export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown>
       my_understanding: a.my_understanding ?? "",
       transferable_value: a.transferable_value ?? "",
       reasoning: a.reasoning ?? "",
+      asset_candidate_package: a.has_asset === true
+        ? {
+            summary: a.core_insight ?? "",
+            judgment_change: {
+              before: a.original_judgment ?? "",
+              after: a.revised_judgment ?? "",
+              trigger: "",
+            },
+            draft_asset: draftAsset,
+          }
+        : null,
     };
   }
 

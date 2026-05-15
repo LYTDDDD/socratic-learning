@@ -115,26 +115,55 @@ export async function POST(request: NextRequest) {
     const markdown = buildMultiAgentMarkdown(steps);
     const json = buildMultiAgentJson(steps);
 
+    const nonSupervisorSteps = steps.filter((s) => s.agent !== "supervisor");
+    const failedSteps = nonSupervisorSteps.filter((s) => s.status === "failed");
+    const successSteps = nonSupervisorSteps.filter((s) => s.status === "success");
+
+    let request_status: "success" | "partial" | "failed";
+    let parseStatus: "success" | "partial" | "failed";
+    let error: string | null;
+    let httpStatus: number;
+
+    if (successSteps.length === 0) {
+      request_status = "failed";
+      parseStatus = "failed";
+      error = failedSteps.map((s) => `${s.agent}: ${s.error}`).join("; ") || "所有 Agent 执行失败";
+      httpStatus = 500;
+    } else if (failedSteps.length > 0) {
+      request_status = "partial";
+      parseStatus = "partial";
+      error = `部分 Agent 执行失败：${failedSteps.map((s) => s.agent).join(", ")}`;
+      httpStatus = 200;
+    } else {
+      request_status = "success";
+      parseStatus = "success";
+      error = null;
+      httpStatus = 200;
+    }
+
     const runLog: RunLog = {
       run_id,
       created_at: new Date(startedAt).toISOString(),
       input_snapshot: { originalGoal: input.originalGoal, conversation: input.conversation },
       prompt_version: `multi-agent:${OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION}`,
       model_name,
-      request_status: "success",
-      parse_status: "success",
+      request_status,
+      parse_status: parseStatus,
       duration_ms: Date.now() - startedAt,
-      error_message: null,
+      error_message: error,
     };
 
-    return NextResponse.json<AnalyzeResponse>({
-      markdown,
-      json,
-      raw: JSON.stringify({ steps, supervisorDecision }, null, 2),
-      parseStatus: "success",
-      error: null,
-      runLog,
-    });
+    return NextResponse.json<AnalyzeResponse>(
+      {
+        markdown,
+        json,
+        raw: JSON.stringify({ steps, supervisorDecision }, null, 2),
+        parseStatus,
+        error,
+        runLog,
+      },
+      { status: httpStatus },
+    );
   } catch (error) {
     const status =
       error instanceof ModelCallError && error.status ? error.status : 500;

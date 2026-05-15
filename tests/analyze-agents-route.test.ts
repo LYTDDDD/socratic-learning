@@ -312,4 +312,101 @@ describe("POST /api/analyze-agents", () => {
 
     expect(mockRunAgentPipeline).toHaveBeenCalledOnce();
   });
+
+  it("returns 500 with parseStatus failed when all non-supervisor agents fail", async () => {
+    const failedSteps: AgentStep[] = [
+      {
+        agent: "supervisor",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: { steps: ["review", "asset"], reasoning: "test" },
+        status: "success",
+        error: null,
+      },
+      {
+        agent: "review",
+        startedAt: "2026-01-01T00:00:01Z",
+        finishedAt: "2026-01-01T00:00:02Z",
+        input: {},
+        output: null,
+        status: "failed",
+        error: "review error",
+      },
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:02Z",
+        finishedAt: "2026-01-01T00:00:03Z",
+        input: {},
+        output: null,
+        status: "failed",
+        error: "asset error",
+      },
+    ];
+    mockRunAgentPipeline.mockResolvedValueOnce({
+      steps: failedSteps,
+      supervisorDecision: "test",
+    });
+    mockBuildMultiAgentJson.mockReturnValueOnce({});
+    mockBuildMultiAgentMarkdown.mockReturnValueOnce("");
+
+    const req = makeNextRequest(makeValidPayload());
+    const response = await POST(req);
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data.parseStatus).toBe("failed");
+    expect(data.runLog.request_status).toBe("failed");
+    expect(data.runLog.parse_status).toBe("failed");
+    expect(data.error).toContain("review");
+    expect(data.error).toContain("asset");
+  });
+
+  it("returns 200 with parseStatus partial when some non-supervisor agents fail", async () => {
+    const partialSteps: AgentStep[] = [
+      {
+        agent: "supervisor",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: { steps: ["review", "asset"], reasoning: "test" },
+        status: "success",
+        error: null,
+      },
+      {
+        agent: "review",
+        startedAt: "2026-01-01T00:00:01Z",
+        finishedAt: "2026-01-01T00:00:02Z",
+        input: {},
+        output: { summary: "ok" },
+        status: "success",
+        error: null,
+      },
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:02Z",
+        finishedAt: "2026-01-01T00:00:03Z",
+        input: {},
+        output: null,
+        status: "failed",
+        error: "asset error",
+      },
+    ];
+    mockRunAgentPipeline.mockResolvedValueOnce({
+      steps: partialSteps,
+      supervisorDecision: "test",
+    });
+    mockBuildMultiAgentJson.mockReturnValueOnce({ review: { summary: "ok" } });
+    mockBuildMultiAgentMarkdown.mockReturnValueOnce("## ReviewAgent\n\nok");
+
+    const req = makeNextRequest(makeValidPayload());
+    const response = await POST(req);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.parseStatus).toBe("partial");
+    expect(data.runLog.request_status).toBe("partial");
+    expect(data.runLog.parse_status).toBe("partial");
+    expect(data.error).toContain("asset");
+  });
 });

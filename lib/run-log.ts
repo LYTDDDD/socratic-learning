@@ -4,8 +4,8 @@ export type RunLog = {
   input_snapshot: { originalGoal: string; conversation: string };
   prompt_version: string;
   model_name: string;
-  request_status: "success" | "failed" | "error";
-  parse_status: "success" | "failed" | "not_attempted";
+  request_status: "success" | "partial" | "failed" | "error";
+  parse_status: "success" | "partial" | "failed" | "not_attempted";
   duration_ms: number;
   error_message: string | null;
 };

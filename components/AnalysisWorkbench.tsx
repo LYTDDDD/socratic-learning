@@ -541,7 +541,7 @@ function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, o
   const sourceRunId = result.runLog?.run_id;
   const alreadySaved = sourceRunId ? hasAssetFromRun(sourceRunId) : false;
 
-  if (result.parseStatus !== "success" || !result.json) {
+  if ((result.parseStatus !== "success" && result.parseStatus !== "partial") || !result.json) {
     return (
       <div className="border-t border-line p-4">
         <div className="flex items-center gap-2">
