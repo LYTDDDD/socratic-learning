@@ -101,7 +101,7 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
 
       if (reviewTriggered && onReviewTriggered) {
         const activeSession = sessions.find((s) => s.id === activeSessionId);
-        onReviewTriggered(activeSessionId, activeSession?.missionId ?? currentMissionId);
+        onReviewTriggered(activeSessionId, activeSession?.missionId ?? null);
       }
     } catch (err) {
       addMessageToSession(activeSessionId, {

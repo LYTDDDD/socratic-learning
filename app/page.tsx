@@ -11,9 +11,7 @@ export default function Home() {
   const [currentMissionId, setCurrentMissionId] = useState<string | null>(null);
 
   function handleReviewTriggered(sessionId: string, missionId: string | null) {
-    if (missionId) {
-      setCurrentMissionId(missionId);
-    }
+    setCurrentMissionId(missionId);
     setMode("analysis");
   }
 
