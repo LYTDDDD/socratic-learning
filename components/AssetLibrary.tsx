@@ -259,11 +259,15 @@ function AssetDetail({ asset, onClose, onNavigateToHistory, onAssetUpdated }: { 
   const [liveAsset, setLiveAsset] = useState<CognitiveAsset>(asset);
   const specialEntries = Object.entries(liveAsset.special_fields);
   const [showAiConnections, setShowAiConnections] = useState(false);
-  const [subCards, setSubCards] = useState<KnowledgeSubCard[]>(() => loadKnowledgeSubCards(liveAsset.asset_id));
+  const [subCards, setSubCards] = useState<KnowledgeSubCard[]>([]);
   const [editingSubCard, setEditingSubCard] = useState<KnowledgeSubCard | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftMarkdown, setDraftMarkdown] = useState("");
   const [draftSource, setDraftSource] = useState<KnowledgeSubCard["source"]>("user_created");
+
+  useEffect(() => {
+    setSubCards(loadKnowledgeSubCards(liveAsset.asset_id));
+  }, [liveAsset.asset_id]);
   const suggestedSubCards = suggestSubCardDrafts(liveAsset);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(liveAsset.title);

@@ -34,7 +34,7 @@ type MissionPanelProps = {
 };
 
 export function MissionPanel({ refreshKey, currentMissionId, onSelectMission }: MissionPanelProps) {
-  const [missions, setMissions] = useState<Mission[]>(() => loadMissions());
+  const [missions, setMissions] = useState<Mission[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
