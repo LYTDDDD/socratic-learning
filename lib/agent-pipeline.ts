@@ -94,10 +94,13 @@ export async function runAgentPipeline(
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error(`Agent "${stepType}" timed out after ${AGENT_TIMEOUT_MS / 1000}s`)), AGENT_TIMEOUT_MS);
       });
-      const output = await Promise.race([outputPromise, timeoutPromise]);
-      clearTimeout(timeoutId!);
-      steps[steps.length - 1] = completeStep(steps[steps.length - 1], output);
-      callbacks?.onStepComplete?.(stepType as AgentType, callbackIndex, total, Date.now() - stepStartTime);
+      try {
+        const output = await Promise.race([outputPromise, timeoutPromise]);
+        steps[steps.length - 1] = completeStep(steps[steps.length - 1], output);
+        callbacks?.onStepComplete?.(stepType as AgentType, callbackIndex, total, Date.now() - stepStartTime);
+      } finally {
+        clearTimeout(timeoutId!);
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : `${stepType} agent failed`;
       console.error(`[AgentPipeline] Agent "${stepType}" failed:`, errMsg);

@@ -734,7 +734,6 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
             setIsLoading(true);
             setResult(null);
             setAgentProgress([]);
-            setActiveTab("agents");
           }}
           onAnalyzeFinish={handleAnalyzeFinish}
           onAgentProgress={setAgentProgress}
