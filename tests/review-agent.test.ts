@@ -157,4 +157,93 @@ describe("reviewAgent", () => {
 
     await expect(reviewAgent.execute(makeContext())).rejects.toThrow("Network error");
   });
+
+  it("parses misconceptions from LLM output", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        key_decisions: ["d1"],
+        turning_points: ["t1"],
+        key_takeaways: ["k1"],
+        summary: "test",
+        misconceptions: [
+          { item: "误区1", type: "misconception", evidence: "证据1", correction: "纠正1" },
+          { item: "假设1", type: "hidden_assumption", evidence: "证据2", correction: "纠正2" },
+          { item: "探索1", type: "exploratory_thinking", evidence: "证据3", correction: "" },
+        ],
+      }),
+    );
+
+    const result = await reviewAgent.execute(makeContext());
+    const mc = result.misconceptions as Array<Record<string, string>>;
+
+    expect(mc).toHaveLength(3);
+    expect(mc[0]).toEqual({ item: "误区1", type: "misconception", evidence: "证据1", correction: "纠正1" });
+    expect(mc[1]).toEqual({ item: "假设1", type: "hidden_assumption", evidence: "证据2", correction: "纠正2" });
+    expect(mc[2]).toEqual({ item: "探索1", type: "exploratory_thinking", evidence: "证据3", correction: "" });
+  });
+
+  it("returns empty misconceptions when LLM output has no misconceptions field", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({ key_decisions: [], turning_points: [], key_takeaways: [], summary: "test" }),
+    );
+
+    const result = await reviewAgent.execute(makeContext());
+    expect(result.misconceptions).toEqual([]);
+  });
+
+  it("filters out misconceptions without item string", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        key_decisions: [],
+        turning_points: [],
+        key_takeaways: [],
+        summary: "test",
+        misconceptions: [
+          { item: "valid", type: "misconception", evidence: "e", correction: "c" },
+          { type: "hidden_assumption", evidence: "e", correction: "c" },
+          42,
+          null,
+        ],
+      }),
+    );
+
+    const result = await reviewAgent.execute(makeContext());
+    const mc = result.misconceptions as Array<Record<string, string>>;
+
+    expect(mc).toHaveLength(1);
+    expect(mc[0].item).toBe("valid");
+  });
+
+  it("defaults invalid misconception type to exploratory_thinking", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        key_decisions: [],
+        turning_points: [],
+        key_takeaways: [],
+        summary: "test",
+        misconceptions: [
+          { item: "bad type", type: "invalid_type", evidence: "e", correction: "c" },
+        ],
+      }),
+    );
+
+    const result = await reviewAgent.execute(makeContext());
+    const mc = result.misconceptions as Array<Record<string, string>>;
+
+    expect(mc[0].type).toBe("exploratory_thinking");
+  });
+
+  it("returns empty misconceptions when JSON parse fails", async () => {
+    mockCallReviewModel.mockResolvedValueOnce("{broken json}");
+
+    const result = await reviewAgent.execute(makeContext());
+    expect(result.misconceptions).toEqual([]);
+  });
+
+  it("returns empty misconceptions when LLM output has no JSON", async () => {
+    mockCallReviewModel.mockResolvedValueOnce("Plain text without JSON");
+
+    const result = await reviewAgent.execute(makeContext());
+    expect(result.misconceptions).toEqual([]);
+  });
 });

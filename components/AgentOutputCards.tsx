@@ -75,6 +75,7 @@ function ReviewOutput({ output }: { output: Record<string, unknown> }) {
   const keyDecisions = output.key_decisions as string[] | undefined;
   const turningPoints = output.turning_points as string[] | undefined;
   const keyTakeaways = output.key_takeaways as string[] | undefined;
+  const misconceptions = output.misconceptions as Array<Record<string, string>> | undefined;
 
   return (
     <div className="space-y-3">
@@ -112,6 +113,27 @@ function ReviewOutput({ output }: { output: Record<string, unknown> }) {
               <li key={i} className="text-sm text-ink">{k}</li>
             ))}
           </ul>
+        </div>
+      )}
+      {misconceptions && misconceptions.length > 0 && (
+        <div>
+          <p className="mb-1 text-xs font-semibold text-ink/60">误区与隐藏假设</p>
+          <div className="space-y-1.5">
+            {misconceptions.map((m, i) => (
+              <div key={i} className="rounded border border-line bg-paper/50 px-2.5 py-1.5 text-sm">
+                <span className={`mr-1.5 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
+                  m.type === "misconception" ? "bg-rust/10 text-rust" :
+                  m.type === "hidden_assumption" ? "bg-amber-50 text-amber-800" :
+                  "bg-moss/10 text-moss"
+                }`}>
+                  {m.type === "misconception" ? "误区" : m.type === "hidden_assumption" ? "隐藏假设" : "探索性思考"}
+                </span>
+                <span className="text-ink/80">{m.item}</span>
+                {m.evidence && <span className="ml-1 text-xs text-ink/50">证据：{m.evidence}</span>}
+                {m.correction && <span className="ml-1 text-xs text-moss">纠正：{m.correction}</span>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

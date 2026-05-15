@@ -17,7 +17,12 @@ const DEPTH_EVALUATION_SYSTEM_PROMPT = `你是一个认知深度评估器（Dept
 - improvement_directions：列出可以提升认知深度的具体方向
 - reasoning：说明评分和识别盲点的依据
 - blind_spots 和 improvement_directions 各至少一项，最多五项
-- 只输出 JSON，不要输出其他内容`;
+- 只输出 JSON，不要输出其他内容
+
+输出前自检：
+1. depth_score >= 7 时，blind_spots 和 improvement_directions 是否非空（高分应有具体支撑）
+2. depth_score <= 3 时，是否给出了具体的改进方向（低分不能只说"不够深"）
+3. reasoning 是否包含对话中的具体引用（不能泛泛而谈）`;
 
 export const depthEvaluationAgent: AgentDefinition = {
   type: "depth_evaluation",

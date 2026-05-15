@@ -5,7 +5,9 @@ import { generateRunId } from "../../../lib/run-log";
 import type { RunLog } from "../../../lib/run-log";
 import { OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION } from "../../../lib/prompt";
 import { runAgentPipeline, buildMultiAgentJson, buildMultiAgentMarkdown } from "../../../lib/agent-pipeline";
-import type { AgentType } from "../../../lib/agent-types";
+import type { AgentType, RetryOptions } from "../../../lib/agent-types";
+
+const DEFAULT_RETRY_OPTIONS: RetryOptions = { maxRetries: 1, retryDelayMs: 1000 };
 
 function getModelName(): string {
   try {
@@ -152,7 +154,11 @@ function handleSSEStream(
             onStepError: (agent: AgentType, index: number, total: number, error: string) => {
               send("agent_error", { agent, index, total, error });
             },
+            onStepRetry: (agent: AgentType, index: number, total: number, attempt: number) => {
+              send("agent_retry", { agent, index, total, attempt });
+            },
           },
+          DEFAULT_RETRY_OPTIONS,
         );
 
         const { response } = buildFinalResult(
@@ -259,7 +265,7 @@ export async function POST(request: NextRequest) {
       notes: input.notes,
       expectedOutput: input.expectedOutput,
       preferenceRules: input.preferenceRules ?? [],
-    });
+    }, undefined, DEFAULT_RETRY_OPTIONS);
 
     const { response, httpStatus } = buildFinalResult(
       steps,
