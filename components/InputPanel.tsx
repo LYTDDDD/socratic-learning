@@ -61,14 +61,19 @@ type InputPanelProps = {
   onAnalyzeStart?: () => void;
   onAnalyzeFinish?: (result: AnalyzeResponse) => void;
   currentMissionId?: string | null;
+  initialInputOverride?: Partial<AnalyzeInput>;
 };
 
 export function InputPanel({
   onAnalyzeFinish,
   onAnalyzeStart,
   currentMissionId,
+  initialInputOverride,
 }: InputPanelProps) {
-  const [input, setInput] = useState<AnalyzeInput>(initialInput);
+  const [input, setInput] = useState<AnalyzeInput>({
+    ...initialInput,
+    ...initialInputOverride,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [readyMessage, setReadyMessage] = useState("");
