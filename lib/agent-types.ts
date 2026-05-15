@@ -16,6 +16,15 @@ export type AgentStep = {
   error: string | null;
 };
 
+export const AGENT_NAME_MAP: Record<AgentType, string> = {
+  supervisor: "编排器",
+  review: "复盘",
+  depth_evaluation: "深度评估",
+  asset: "资产决策",
+  curator: "整理建议",
+  reflection: "反思建议",
+};
+
 export type AgentPipelineResult = {
   steps: AgentStep[];
   supervisorDecision: string;
