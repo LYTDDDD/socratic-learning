@@ -509,7 +509,7 @@ describe("buildMultiAgentJson", () => {
 
     expect(result.asset_decision).toEqual({
       asset_candidate: true,
-      recommended_asset_type: "principle",
+      recommended_asset_type: "ConceptCard",
       title: "Test Title",
       core_insight: "insight",
       original_judgment: "orig",
@@ -531,7 +531,7 @@ describe("buildMultiAgentJson", () => {
           revised_judgment: "revised",
           my_understanding: "understanding",
           transferable_value: "value",
-          type: "principle",
+          type: "ConceptCard",
         },
       },
     });
@@ -698,6 +698,399 @@ describe("buildMultiAgentJson", () => {
     const ts = result.trace_summary as Record<string, unknown>;
     expect(ts.key_evidence_used).toBe("");
   });
+
+  it("maps asset_type principle to ConceptCard", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "T",
+          core_insight: "ci",
+          original_judgment: "oj",
+          revised_judgment: "rj",
+          my_understanding: "mu",
+          transferable_value: "tv",
+          reasoning: "r",
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    expect(decision.recommended_asset_type).toBe("ConceptCard");
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = pkg.draft_asset as Record<string, unknown>;
+    expect(draft.type).toBe("ConceptCard");
+  });
+
+  it("maps asset_type checklist to MethodCard", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "checklist",
+          title: "T",
+          core_insight: "ci",
+          original_judgment: "oj",
+          revised_judgment: "rj",
+          my_understanding: "mu",
+          transferable_value: "tv",
+          reasoning: "r",
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    expect(decision.recommended_asset_type).toBe("MethodCard");
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = pkg.draft_asset as Record<string, unknown>;
+    expect(draft.type).toBe("MethodCard");
+  });
+
+  it("maps asset_type insight to ReflectionCard", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "insight",
+          title: "T",
+          core_insight: "ci",
+          original_judgment: "oj",
+          revised_judgment: "rj",
+          my_understanding: "mu",
+          transferable_value: "tv",
+          reasoning: "r",
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    expect(decision.recommended_asset_type).toBe("ReflectionCard");
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = pkg.draft_asset as Record<string, unknown>;
+    expect(draft.type).toBe("ReflectionCard");
+  });
+
+  it("falls back unknown asset_type to ConceptCard", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "unknown_type",
+          title: "T",
+          core_insight: "ci",
+          original_judgment: "oj",
+          revised_judgment: "rj",
+          my_understanding: "mu",
+          transferable_value: "tv",
+          reasoning: "r",
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    expect(decision.recommended_asset_type).toBe("ConceptCard");
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = pkg.draft_asset as Record<string, unknown>;
+    expect(draft.type).toBe("ConceptCard");
+  });
+
+  it("returns empty string for recommended_asset_type when asset_type is empty", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: false,
+          asset_type: "",
+          title: "",
+          core_insight: "",
+          original_judgment: "",
+          revised_judgment: "",
+          my_understanding: "",
+          transferable_value: "",
+          reasoning: "none",
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    expect(decision.recommended_asset_type).toBe("");
+  });
+
+  it("injects curator connections into draft_asset ai_suggested_connections and connection_layer", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test Title",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "understanding",
+          transferable_value: "value",
+          reasoning: "reason",
+        },
+        status: "success",
+        error: null,
+      },
+      {
+        agent: "curator",
+        startedAt: "2026-01-01T00:00:01Z",
+        finishedAt: "2026-01-01T00:00:02Z",
+        input: {},
+        output: {
+          connections: [
+            { source_concept: "A", target_concept: "B", connection_type: "因果", reasoning: "r" },
+          ],
+          organization_tips: ["tip1"],
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = pkg.draft_asset as Record<string, unknown>;
+
+    expect(draft.ai_suggested_connections).toEqual({
+      related_concepts: ["B"],
+      related_assets: [],
+      mental_models: [],
+      prior_experience: [],
+      opposite_cases: [],
+      application_scenarios: [],
+      open_questions: [],
+    });
+    expect(draft.connection_layer).toEqual(draft.ai_suggested_connections);
+  });
+
+  it("does not add ai_suggested_connections when no curator step exists", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test Title",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "understanding",
+          transferable_value: "value",
+          reasoning: "reason",
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = pkg.draft_asset as Record<string, unknown>;
+
+    expect(draft).not.toHaveProperty("ai_suggested_connections");
+    expect(draft).not.toHaveProperty("connection_layer");
+  });
+
+  it("does not add ai_suggested_connections when curator step failed", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test Title",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "understanding",
+          transferable_value: "value",
+          reasoning: "reason",
+        },
+        status: "success",
+        error: null,
+      },
+      {
+        agent: "curator",
+        startedAt: "2026-01-01T00:00:01Z",
+        finishedAt: "2026-01-01T00:00:02Z",
+        input: {},
+        output: null,
+        status: "failed",
+        error: "Curator failed",
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = pkg.draft_asset as Record<string, unknown>;
+
+    expect(draft).not.toHaveProperty("ai_suggested_connections");
+    expect(draft).not.toHaveProperty("connection_layer");
+  });
+
+  it("maps curator connection_type to correct ConnectionLayer fields", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "",
+          transferable_value: "value",
+          reasoning: "",
+        },
+        status: "success",
+        error: null,
+      },
+      {
+        agent: "curator",
+        startedAt: "2026-01-01T00:00:01Z",
+        finishedAt: "2026-01-01T00:00:02Z",
+        input: {},
+        output: {
+          connections: [
+            { source_concept: "a", target_concept: "concept1", connection_type: "concept_relation", reasoning: "" },
+            { source_concept: "b", target_concept: "model1", connection_type: "mental_model", reasoning: "" },
+            { source_concept: "c", target_concept: "exp1", connection_type: "experience", reasoning: "" },
+            { source_concept: "d", target_concept: "opp1", connection_type: "opposite_case", reasoning: "" },
+            { source_concept: "e", target_concept: "app1", connection_type: "application", reasoning: "" },
+            { source_concept: "f", target_concept: "q1", connection_type: "question", reasoning: "" },
+            { source_concept: "g", target_concept: "default1", connection_type: "因果", reasoning: "" },
+          ],
+          organization_tips: [],
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = pkg.draft_asset as Record<string, unknown>;
+    const conn = draft.ai_suggested_connections as Record<string, string[]>;
+
+    expect(conn.related_concepts).toEqual(["concept1", "default1"]);
+    expect(conn.mental_models).toEqual(["model1"]);
+    expect(conn.prior_experience).toEqual(["exp1"]);
+    expect(conn.opposite_cases).toEqual(["opp1"]);
+    expect(conn.application_scenarios).toEqual(["app1"]);
+    expect(conn.open_questions).toEqual(["q1"]);
+  });
+
+  it("maps Chinese connection_type from CuratorAgent output", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "",
+          transferable_value: "value",
+          reasoning: "",
+        },
+        status: "success",
+        error: null,
+      },
+      {
+        agent: "curator",
+        startedAt: "2026-01-01T00:00:01Z",
+        finishedAt: "2026-01-01T00:00:02Z",
+        input: {},
+        output: {
+          connections: [
+            { source_concept: "a", target_concept: "因果1", connection_type: "因果", reasoning: "" },
+            { source_concept: "b", target_concept: "类比1", connection_type: "类比", reasoning: "" },
+            { source_concept: "c", target_concept: "对比1", connection_type: "对比", reasoning: "" },
+            { source_concept: "d", target_concept: "层级1", connection_type: "层级", reasoning: "" },
+            { source_concept: "e", target_concept: "时序1", connection_type: "时序", reasoning: "" },
+            { source_concept: "f", target_concept: "应用1", connection_type: "应用", reasoning: "" },
+            { source_concept: "g", target_concept: "问题1", connection_type: "问题", reasoning: "" },
+          ],
+          organization_tips: [],
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = pkg.draft_asset as Record<string, unknown>;
+    const conn = draft.ai_suggested_connections as Record<string, string[]>;
+
+    expect(conn.related_concepts).toEqual(["因果1", "层级1"]);
+    expect(conn.mental_models).toEqual(["类比1"]);
+    expect(conn.opposite_cases).toEqual(["对比1"]);
+    expect(conn.prior_experience).toEqual(["时序1"]);
+    expect(conn.application_scenarios).toEqual(["应用1"]);
+    expect(conn.open_questions).toEqual(["问题1"]);
+  });
 });
 
 describe("buildMultiAgentMarkdown", () => {
@@ -798,7 +1191,7 @@ describe("buildMultiAgentMarkdown", () => {
     const md = buildMultiAgentMarkdown(steps);
     expect(md).toContain("## AssetAgent");
     expect(md).toContain("是");
-    expect(md).toContain("principle");
+    expect(md).toContain("ConceptCard");
     expect(md).toContain("Test Principle");
     expect(md).toContain("Core insight");
     expect(md).toContain("Transferable");
@@ -943,5 +1336,260 @@ describe("buildMultiAgentMarkdown", () => {
 
   it("returns empty string for empty steps", () => {
     expect(buildMultiAgentMarkdown([])).toBe("");
+  });
+
+  it("adds AI suggested connections subsection in asset markdown when curator has connections", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test",
+          core_insight: "insight",
+          transferable_value: "value",
+        },
+        status: "success",
+        error: null,
+      },
+      {
+        agent: "curator",
+        startedAt: "2026-01-01T00:00:01Z",
+        finishedAt: "2026-01-01T00:00:02Z",
+        input: {},
+        output: {
+          connections: [
+            { source_concept: "A", target_concept: "B", connection_type: "concept", reasoning: "r" },
+            { source_concept: "C", target_concept: "D", connection_type: "model", reasoning: "r" },
+          ],
+          organization_tips: [],
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const md = buildMultiAgentMarkdown(steps);
+    expect(md).toContain("### AI 建议连接");
+    expect(md).toContain("相关概念");
+    expect(md).toContain("B");
+    expect(md).toContain("心智模型");
+    expect(md).toContain("D");
+  });
+
+  it("does not add AI suggested connections subsection when no curator connections", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test",
+          core_insight: "insight",
+          transferable_value: "value",
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const md = buildMultiAgentMarkdown(steps);
+    expect(md).not.toContain("### AI 建议连接");
+  });
+});
+
+describe("runAgentPipeline callbacks", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls onStepStart and onStepComplete for each agent", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review", "asset"],
+          reasoning: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          has_asset: false,
+          asset_type: "",
+          title: "",
+          core_insight: "",
+          original_judgment: "",
+          revised_judgment: "",
+          my_understanding: "",
+          transferable_value: "",
+          reasoning: "none",
+        }),
+      );
+
+    const onStepStart = vi.fn();
+    const onStepComplete = vi.fn();
+    const onStepError = vi.fn();
+
+    await runAgentPipeline(makeInput(), {
+      onStepStart,
+      onStepComplete,
+      onStepError,
+    });
+
+    expect(onStepStart).toHaveBeenCalledTimes(3);
+    expect(onStepStart).toHaveBeenCalledWith("supervisor", 0, 0);
+    expect(onStepStart).toHaveBeenCalledWith("review", 1, 2);
+    expect(onStepStart).toHaveBeenCalledWith("asset", 2, 2);
+
+    expect(onStepComplete).toHaveBeenCalledTimes(3);
+    expect(onStepComplete).toHaveBeenCalledWith("supervisor", 0, 0, expect.any(Number));
+    expect(onStepComplete).toHaveBeenCalledWith("review", 1, 2, expect.any(Number));
+    expect(onStepComplete).toHaveBeenCalledWith("asset", 2, 2, expect.any(Number));
+
+    expect(onStepError).not.toHaveBeenCalled();
+  });
+
+  it("calls onStepError when an agent fails", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review", "asset"],
+          reasoning: "test",
+        }),
+      )
+      .mockRejectedValueOnce(new Error("Review failed"))
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          has_asset: false,
+          asset_type: "",
+          title: "",
+          core_insight: "",
+          original_judgment: "",
+          revised_judgment: "",
+          my_understanding: "",
+          transferable_value: "",
+          reasoning: "none",
+        }),
+      );
+
+    const onStepStart = vi.fn();
+    const onStepComplete = vi.fn();
+    const onStepError = vi.fn();
+
+    await runAgentPipeline(makeInput(), {
+      onStepStart,
+      onStepComplete,
+      onStepError,
+    });
+
+    expect(onStepError).toHaveBeenCalledWith("review", 1, 2, "Review failed");
+    expect(onStepComplete).toHaveBeenCalledWith("supervisor", 0, 0, expect.any(Number));
+    expect(onStepComplete).toHaveBeenCalledWith("asset", 2, 2, expect.any(Number));
+  });
+
+  it("calls onStepError when supervisor fails", async () => {
+    mockCallReviewModel
+      .mockRejectedValueOnce(new Error("Supervisor down"))
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          has_asset: false,
+          asset_type: "",
+          title: "",
+          core_insight: "",
+          original_judgment: "",
+          revised_judgment: "",
+          my_understanding: "",
+          transferable_value: "",
+          reasoning: "none",
+        }),
+      );
+
+    const onStepStart = vi.fn();
+    const onStepComplete = vi.fn();
+    const onStepError = vi.fn();
+
+    await runAgentPipeline(makeInput(), {
+      onStepStart,
+      onStepComplete,
+      onStepError,
+    });
+
+    expect(onStepError).toHaveBeenCalledWith("supervisor", 0, 0, "Supervisor down");
+  });
+
+  it("works without callbacks (backward compatible)", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "test",
+        }),
+      );
+
+    const result = await runAgentPipeline(makeInput());
+
+    expect(result.steps).toHaveLength(2);
+    expect(result.steps[0].status).toBe("success");
+    expect(result.steps[1].status).toBe("success");
+  });
+
+  it("reports correct total based on planned steps", async () => {
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review", "depth_evaluation", "asset"],
+          reasoning: "3 steps",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({ summary: "s", key_decisions: [], turning_points: [], key_takeaways: [] }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({ depth_score: 5, blind_spots: [], improvement_directions: [] }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          has_asset: false, asset_type: "", title: "", core_insight: "",
+          original_judgment: "", revised_judgment: "", my_understanding: "",
+          transferable_value: "", reasoning: "",
+        }),
+      );
+
+    const onStepStart = vi.fn();
+    await runAgentPipeline(makeInput(), { onStepStart });
+
+    expect(onStepStart).toHaveBeenCalledWith("supervisor", 0, 0);
+    expect(onStepStart).toHaveBeenCalledWith("review", 1, 3);
+    expect(onStepStart).toHaveBeenCalledWith("depth_evaluation", 2, 3);
+    expect(onStepStart).toHaveBeenCalledWith("asset", 3, 3);
   });
 });

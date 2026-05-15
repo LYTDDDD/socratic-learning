@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { type AgentStep, type AgentType, AGENT_NAME_MAP } from "../lib/agent-types";
+import { type AgentStep, type AgentType, AGENT_NAME_MAP, ASSET_TYPE_MAP } from "../lib/agent-types";
 
 function statusBadge(status: AgentStep["status"]) {
-  if (status === "success") return "bg-green-100 text-green-800";
-  if (status === "failed") return "bg-red-100 text-red-800";
-  if (status === "running") return "bg-yellow-100 text-yellow-800";
+  if (status === "success") return "bg-moss/15 text-moss";
+  if (status === "failed") return "bg-rust/15 text-rust";
+  if (status === "running") return "bg-amber-50 text-amber-800";
   return "bg-ink/10 text-ink/50";
 }
 
@@ -29,10 +29,10 @@ function calcDuration(step: AgentStep): string {
 }
 
 function depthScoreColor(score: number): string {
-  if (score <= 3) return "bg-red-500";
-  if (score <= 5) return "bg-orange-400";
-  if (score <= 7) return "bg-yellow-400";
-  return "bg-green-500";
+  if (score <= 3) return "bg-rust";
+  if (score <= 5) return "bg-amber-500";
+  if (score <= 7) return "bg-amber-400";
+  return "bg-moss";
 }
 
 function SupervisorOutput({ output }: { output: Record<string, unknown> }) {
@@ -200,7 +200,7 @@ function AssetOutput({ output }: { output: Record<string, unknown> }) {
         <div>
           <p className="mb-1 text-xs font-semibold text-ink/60">资产类型</p>
           <span className="inline-block rounded bg-moss/10 px-2 py-0.5 text-xs font-medium text-moss">
-            {assetType}
+            {ASSET_TYPE_MAP[assetType] ?? assetType}
           </span>
         </div>
       )}

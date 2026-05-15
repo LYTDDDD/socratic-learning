@@ -11,6 +11,7 @@ import { AssetDraftPanel } from "./AssetDraftPanel";
 import { AssetLibrary } from "./AssetLibrary";
 import { MissionPanel } from "./MissionPanel";
 import { AgentStepProgress, parseAgentSteps } from "./AgentStepProgress";
+import type { AgentProgressStep } from "./AgentStepProgress";
 import { AgentOutputCards } from "./AgentOutputCards";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
 import type { RunLog } from "../lib/run-log";
@@ -42,9 +43,10 @@ const tabs: { key: TabKey; label: string }[] = [
 ];
 
 function statusBadge(status: string) {
-  if (status === "success") return "bg-green-100 text-green-800";
-  if (status === "failed") return "bg-red-100 text-red-800";
-  return "bg-yellow-100 text-yellow-800";
+  if (status === "success") return "bg-moss/15 text-moss";
+  if (status === "failed") return "bg-rust/15 text-rust";
+  if (status === "partial") return "bg-amber-50 text-amber-800";
+  return "bg-ink/5 text-ink/50";
 }
 
 function RunLogPanel({ runLog }: { runLog: RunLog }) {
@@ -133,7 +135,7 @@ function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData })
   ];
 
   return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+    <div className="rounded-lg border border-ink/15 bg-ink/5 p-4">
       <h3 className="mb-3 text-sm font-semibold text-ink">Trace Summary（轨迹摘要）</h3>
       <p className="mb-3 text-xs text-ink/50">系统判断依据</p>
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
@@ -648,6 +650,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   const [correctionRefreshKey, setCorrectionRefreshKey] = useState(0);
   const [internalMissionId, setInternalMissionId] = useState<string | null>(null);
   const [missionRefreshKey, setMissionRefreshKey] = useState(0);
+  const [agentProgress, setAgentProgress] = useState<AgentProgressStep[]>([]);
 
   const currentMissionId = externalMissionId ?? internalMissionId;
   const setCurrentMissionId = onSelectMission ?? setInternalMissionId;
@@ -678,6 +681,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     setResult(response);
     setIsLoading(false);
     setDismissedDraft(false);
+    setAgentProgress([]);
     const steps = parseAgentSteps(response.raw);
     if (steps.length > 0) {
       setActiveTab("agents");
@@ -729,8 +733,10 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           onAnalyzeStart={() => {
             setIsLoading(true);
             setResult(null);
+            setAgentProgress([]);
           }}
           onAnalyzeFinish={handleAnalyzeFinish}
+          onAgentProgress={setAgentProgress}
           currentMissionId={currentMissionId}
           initialInputOverride={initialInputOverride}
         />
@@ -801,8 +807,12 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
             <div className="p-5">
               {isMultiAgent ? (
                 <div className="space-y-6">
-                  <AgentStepProgress steps={agentSteps} />
+                  <AgentStepProgress steps={agentSteps} progressSteps={undefined} />
                   <AgentOutputCards steps={agentSteps} />
+                </div>
+              ) : isLoading && agentProgress.length > 0 ? (
+                <div className="space-y-6">
+                  <AgentStepProgress steps={[]} progressSteps={agentProgress} />
                 </div>
               ) : (
                 <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-line bg-paper text-sm text-ink/60">

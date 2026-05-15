@@ -6,6 +6,7 @@ import type {
   AgentContext,
   AgentDefinition,
 } from "../lib/agent-types";
+import { ASSET_TYPE_MAP } from "../lib/agent-types";
 
 describe("agent-types", () => {
   describe("AgentType", () => {
@@ -167,6 +168,28 @@ describe("agent-types", () => {
         previousSteps: [],
       });
       expect(result).toEqual({ reflection_questions: ["q1"] });
+    });
+  });
+
+  describe("ASSET_TYPE_MAP", () => {
+    it("contains all 7 mappings", () => {
+      const keys = Object.keys(ASSET_TYPE_MAP);
+      expect(keys).toHaveLength(7);
+      expect(keys).toContain("principle");
+      expect(keys).toContain("mental_model");
+      expect(keys).toContain("checklist");
+      expect(keys).toContain("framework");
+      expect(keys).toContain("insight");
+      expect(keys).toContain("misconception");
+      expect(keys).toContain("case");
+    });
+
+    it("maps all values to valid asset library types", () => {
+      const validTypes = ["ConceptCard", "MisconceptionCard", "MethodCard", "CaseCard", "ReflectionCard"];
+      const values = Object.values(ASSET_TYPE_MAP);
+      for (const v of values) {
+        expect(validTypes).toContain(v);
+      }
     });
   });
 });

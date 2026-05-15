@@ -25,7 +25,7 @@ export const reflectionAgent: AgentDefinition = {
     const sections = [
       `Background: ${context.input.background}`,
       `Original Goal: ${context.input.originalGoal}`,
-      `Conversation (first 2000 chars): ${context.input.conversation.slice(0, 2000)}`,
+      `Conversation (first 4000 chars): ${context.input.conversation.slice(0, 4000)}`,
       `Notes: ${context.input.notes}`,
       `Expected Output: ${context.input.expectedOutput}`,
     ];
