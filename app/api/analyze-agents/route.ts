@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { AnalyzeInput, AnalyzeResponse } from "../../../lib/analyze-types";
-import { ModelCallError } from "../../../lib/llm";
+import { getModelConfig, ModelCallError } from "../../../lib/llm";
 import { generateRunId } from "../../../lib/run-log";
 import type { RunLog } from "../../../lib/run-log";
 import { OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION } from "../../../lib/prompt";
 import { runAgentPipeline, buildMultiAgentJson, buildMultiAgentMarkdown } from "../../../lib/agent-pipeline";
+
+function getModelName(): string {
+  try {
+    return getModelConfig().model;
+  } catch {
+    return "unknown";
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -33,6 +41,7 @@ function parseAnalyzeInput(payload: unknown): AnalyzeInput {
 export async function POST(request: NextRequest) {
   const run_id = generateRunId();
   const startedAt = Date.now();
+  const model_name = getModelName();
 
   let payload: unknown;
   try {
@@ -43,7 +52,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date(startedAt).toISOString(),
       input_snapshot: { originalGoal: "", conversation: "" },
       prompt_version: OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION,
-      model_name: "multi-agent",
+      model_name,
       request_status: "error",
       parse_status: "not_attempted",
       duration_ms: Date.now() - startedAt,
@@ -74,7 +83,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date(startedAt).toISOString(),
       input_snapshot: { originalGoal: input.originalGoal, conversation: input.conversation },
       prompt_version: OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION,
-      model_name: "multi-agent",
+      model_name,
       request_status: "error",
       parse_status: "not_attempted",
       duration_ms: Date.now() - startedAt,
@@ -111,7 +120,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date(startedAt).toISOString(),
       input_snapshot: { originalGoal: input.originalGoal, conversation: input.conversation },
       prompt_version: `multi-agent:${OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION}`,
-      model_name: "multi-agent",
+      model_name,
       request_status: "success",
       parse_status: "success",
       duration_ms: Date.now() - startedAt,
@@ -136,7 +145,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date(startedAt).toISOString(),
       input_snapshot: { originalGoal: input.originalGoal, conversation: input.conversation },
       prompt_version: `multi-agent:${OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION}`,
-      model_name: "multi-agent",
+      model_name,
       request_status: "failed",
       parse_status: "not_attempted",
       duration_ms: Date.now() - startedAt,

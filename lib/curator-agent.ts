@@ -1,4 +1,5 @@
-import type { AgentDefinition, AgentContext, AgentStep } from "./agent-types";
+import type { AgentDefinition, AgentContext } from "./agent-types";
+import { buildPreviousStepsContext, buildPreferenceRulesSection } from "./agent-utils";
 import { callReviewModel } from "./llm";
 
 const CURATOR_SYSTEM_PROMPT = `你是一个知识整理智能体（CuratorAgent）。你的职责是根据对话内容给出知识整理和关联建议。
@@ -24,33 +25,6 @@ const CURATOR_SYSTEM_PROMPT = `你是一个知识整理智能体（CuratorAgent�
 - suggested_tags 应便于后续检索和分类
 - 只输出 JSON，不要输出其他内容`;
 
-function buildPreviousStepsContext(previousSteps: AgentStep[]): string {
-  const relevant = previousSteps.filter(
-    (s) =>
-      s.agent === "review" ||
-      s.agent === "depth_evaluation" ||
-      s.agent === "asset",
-  );
-  if (relevant.length === 0) return "";
-  return relevant
-    .map(
-      (s) =>
-        `[${s.agent} 步骤输出]\n${s.output ? JSON.stringify(s.output, null, 2) : "无输出"}`,
-    )
-    .join("\n\n");
-}
-
-function buildPreferenceRulesSection(rules: string[]): string {
-  if (rules.length === 0) return "";
-  return [
-    "",
-    "## 用户偏好规则",
-    "以下是用户已确认的偏好规则，请在整理建议时参考：",
-    "",
-    ...rules.map((rule, i) => `${i + 1}. ${rule}`),
-  ].join("\n");
-}
-
 export const curatorAgent: AgentDefinition = {
   type: "curator",
   name: "CuratorAgent",
@@ -64,12 +38,12 @@ export const curatorAgent: AgentDefinition = {
       `Expected Output: ${context.input.expectedOutput}`,
     ];
 
-    const prevCtx = buildPreviousStepsContext(context.previousSteps);
+    const prevCtx = buildPreviousStepsContext(context.previousSteps, ["review", "depth_evaluation", "asset"]);
     if (prevCtx) {
       sections.push(`\n前序步骤输出：\n${prevCtx}`);
     }
 
-    const rulesSection = buildPreferenceRulesSection(context.input.preferenceRules);
+    const rulesSection = buildPreferenceRulesSection(context.input.preferenceRules, "整理建议");
     if (rulesSection) {
       sections.push(rulesSection);
     }

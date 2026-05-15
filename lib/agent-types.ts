@@ -18,7 +18,6 @@ export type AgentStep = {
 
 export type AgentPipelineResult = {
   steps: AgentStep[];
-  finalOutput: Record<string, unknown>;
   supervisorDecision: string;
 };
 

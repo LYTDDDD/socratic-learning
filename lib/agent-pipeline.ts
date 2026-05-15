@@ -29,20 +29,25 @@ export async function runAgentPipeline(
     supervisorOutput = await supervisorAgent.execute(context);
     steps[0] = completeStep(steps[0], supervisorOutput);
   } catch (err) {
-    steps[0] = failStep(steps[0], err instanceof Error ? err.message : "Supervisor failed");
+    const errMsg = err instanceof Error ? err.message : "Supervisor failed";
+    console.error("[AgentPipeline] Supervisor failed:", errMsg);
+    steps[0] = failStep(steps[0], errMsg);
     supervisorOutput = {
       steps: ["review", "depth_evaluation", "asset", "curator", "reflection"],
       reasoning: "Supervisor failed, using default full pipeline",
     };
   }
 
-  const plannedSteps = (supervisorOutput.steps as string[]) ?? [
+  const validAgentTypes: AgentType[] = ["review", "depth_evaluation", "asset", "curator", "reflection"];
+  const plannedSteps = ((supervisorOutput.steps as unknown[]) ?? [
     "review",
     "depth_evaluation",
     "asset",
     "curator",
     "reflection",
-  ];
+  ])
+    .filter((s): s is string => typeof s === "string" && validAgentTypes.includes(s as AgentType))
+    .filter((v, i, a) => a.indexOf(v) === i);
   const supervisorDecision =
     (supervisorOutput.reasoning as string) ?? "No reasoning provided";
 
@@ -60,14 +65,27 @@ export async function runAgentPipeline(
       const output = await agent.execute({ input, previousSteps: steps });
       steps[steps.length - 1] = completeStep(steps[steps.length - 1], output);
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : `${stepType} agent failed`;
+      console.error(`[AgentPipeline] Agent "${stepType}" failed:`, errMsg);
       steps[steps.length - 1] = failStep(
         steps[steps.length - 1],
-        err instanceof Error ? err.message : `${stepType} agent failed`,
+        errMsg,
       );
     }
   }
 
   return { steps, supervisorDecision };
+}
+
+function extractPreferenceRules(steps: AgentStep[]): string[] {
+  for (const step of steps) {
+    const stepInput = step.input as Record<string, unknown> | undefined;
+    const pipelineInput = stepInput?.input as { preferenceRules?: string[] } | undefined;
+    if (pipelineInput?.preferenceRules && Array.isArray(pipelineInput.preferenceRules)) {
+      return pipelineInput.preferenceRules;
+    }
+  }
+  return [];
 }
 
 export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown> {
@@ -77,6 +95,46 @@ export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown>
     if (step.status === "success" && step.output) {
       result[step.agent] = step.output;
     }
+  }
+
+  if (result.review) {
+    result.mission_review = result.review;
+  }
+
+  if (result.asset) {
+    const a = result.asset as Record<string, unknown>;
+    result.asset_decision = {
+      asset_candidate: a.has_asset === true,
+      recommended_asset_type: a.asset_type ?? "",
+      title: a.title ?? "",
+      core_insight: a.core_insight ?? "",
+      original_judgment: a.original_judgment ?? "",
+      revised_judgment: a.revised_judgment ?? "",
+      my_understanding: a.my_understanding ?? "",
+      transferable_value: a.transferable_value ?? "",
+      reasoning: a.reasoning ?? "",
+    };
+  }
+
+  if (steps.length > 0) {
+    const supervisorStep = steps.find((s) => s.agent === "supervisor" && s.status === "success");
+    const successfulAgents = steps
+      .filter((s) => s.status === "success" && s.agent !== "supervisor")
+      .map((s) => s.agent);
+    const failedErrors = steps
+      .filter((s) => s.status === "failed" && s.error)
+      .map((s) => s.error as string);
+    const preferenceRules = extractPreferenceRules(steps);
+
+    result.trace_summary = {
+      mission_detected: true,
+      analysis_path: successfulAgents.join(" → "),
+      key_evidence_used: (supervisorStep?.output?.reasoning as string) ?? "",
+      policy_checks: preferenceRules.length > 0
+        ? `已应用 ${preferenceRules.length} 条偏好规则`
+        : "无偏好规则",
+      uncertainties: failedErrors,
+    };
   }
 
   return result;
@@ -163,6 +221,26 @@ export function buildMultiAgentMarkdown(steps: AgentStep[]): string {
       }
     }
 
+    sections.push("");
+  }
+
+  if (steps.length > 0) {
+    const supervisorStep = steps.find((s) => s.agent === "supervisor" && s.status === "success");
+    const successfulAgents = steps
+      .filter((s) => s.status === "success" && s.agent !== "supervisor")
+      .map((s) => s.agent);
+    const failedErrors = steps
+      .filter((s) => s.status === "failed" && s.error)
+      .map((s) => s.error as string);
+    const preferenceRules = extractPreferenceRules(steps);
+
+    sections.push("## Trace Summary（轨迹摘要）");
+    sections.push("");
+    sections.push(`**是否识别到任务**：是`);
+    sections.push(`**分析路径**：${successfulAgents.join(" → ") || "—"}`);
+    sections.push(`**关键证据**：${(supervisorStep?.output?.reasoning as string) ?? "—"}`);
+    sections.push(`**策略检查**：${preferenceRules.length > 0 ? `已应用 ${preferenceRules.length} 条偏好规则` : "无偏好规则"}`);
+    sections.push(`**不确定性**：${failedErrors.length > 0 ? failedErrors.join("；") : "—"}`);
     sections.push("");
   }
 

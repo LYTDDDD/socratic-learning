@@ -1,4 +1,5 @@
-import type { AgentDefinition, AgentContext, AgentStep } from "./agent-types";
+import type { AgentDefinition, AgentContext } from "./agent-types";
+import { buildPreviousStepsContext, buildPreferenceRulesSection } from "./agent-utils";
 import { callReviewModel } from "./llm";
 
 const REFLECTION_SYSTEM_PROMPT = `你是一个反思智能体（ReflectionAgent）。你的职责是根据对话内容给出个人反思和行动建议。
@@ -16,34 +17,6 @@ const REFLECTION_SYSTEM_PROMPT = `你是一个反思智能体（ReflectionAgent�
 - mindset_shifts 应指出潜在的思维盲点或可改进的思维模式
 - 只输出 JSON，不要输出其他内容`;
 
-function buildPreviousStepsContext(previousSteps: AgentStep[]): string {
-  const relevant = previousSteps.filter(
-    (s) =>
-      s.agent === "review" ||
-      s.agent === "depth_evaluation" ||
-      s.agent === "asset" ||
-      s.agent === "curator",
-  );
-  if (relevant.length === 0) return "";
-  return relevant
-    .map(
-      (s) =>
-        `[${s.agent} 步骤输出]\n${s.output ? JSON.stringify(s.output, null, 2) : "无输出"}`,
-    )
-    .join("\n\n");
-}
-
-function buildPreferenceRulesSection(rules: string[]): string {
-  if (rules.length === 0) return "";
-  return [
-    "",
-    "## 用户偏好规则",
-    "以下是用户已确认的偏好规则，请在反思建议时参考：",
-    "",
-    ...rules.map((rule, i) => `${i + 1}. ${rule}`),
-  ].join("\n");
-}
-
 export const reflectionAgent: AgentDefinition = {
   type: "reflection",
   name: "ReflectionAgent",
@@ -57,12 +30,12 @@ export const reflectionAgent: AgentDefinition = {
       `Expected Output: ${context.input.expectedOutput}`,
     ];
 
-    const prevCtx = buildPreviousStepsContext(context.previousSteps);
+    const prevCtx = buildPreviousStepsContext(context.previousSteps, ["review", "depth_evaluation", "asset", "curator"]);
     if (prevCtx) {
       sections.push(`\n前序步骤输出：\n${prevCtx}`);
     }
 
-    const rulesSection = buildPreferenceRulesSection(context.input.preferenceRules);
+    const rulesSection = buildPreferenceRulesSection(context.input.preferenceRules, "反思建议");
     if (rulesSection) {
       sections.push(rulesSection);
     }
