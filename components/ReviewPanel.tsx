@@ -5,6 +5,7 @@ import type { CognitiveAsset } from "../lib/extract-asset";
 import { loadAssets } from "../lib/asset-store";
 import { loadReviewRecords } from "../lib/review-record-store";
 import type { ReviewRecord } from "../lib/review-record-store";
+import { buildReviewPanelModel } from "../lib/review-panel-model";
 import { useAssetReview } from "../lib/use-asset-review";
 import { formatTime, typeBadgeColor, maturityBadge, resultBadgeColor, resultLabel } from "../lib/ui-utils";
 import { AssetReviewFlowView } from "./AssetReviewFlowView";
@@ -30,33 +31,10 @@ export function ReviewPanel({ refreshKey, currentMissionId }: ReviewPanelProps) 
     setAllRecords(loadReviewRecords());
   }, [refreshKey]);
 
-  const visibleAssets = useMemo(
-    () => currentMissionId
-      ? assets.filter((a) => a.source_mission === currentMissionId)
-      : assets,
-    [assets, currentMissionId],
+  const { visibleRecords, confirmedAssets, stats } = useMemo(
+    () => buildReviewPanelModel(assets, allRecords, currentMissionId),
+    [assets, allRecords, currentMissionId],
   );
-
-  const visibleRecords = useMemo(() => {
-    if (!currentMissionId) return allRecords;
-    const visibleAssetIds = new Set(visibleAssets.map((a) => a.asset_id));
-    return allRecords.filter((record) => visibleAssetIds.has(record.assetId));
-  }, [allRecords, currentMissionId, visibleAssets]);
-
-  const confirmedAssets = useMemo(
-    () => visibleAssets.filter((a) => a.status === "confirmed"),
-    [visibleAssets],
-  );
-
-  const stats = useMemo(() => {
-    const totalReviews = visibleRecords.length;
-    const goodCount = visibleRecords.filter((r) => r.result === "good").length;
-    const passRate = totalReviews > 0 ? Math.round((goodCount / totalReviews) * 100) : 0;
-    const reviewedAssetIds = new Set(visibleRecords.map((r) => r.assetId));
-    const neverReviewed = confirmedAssets.filter((a) => !reviewedAssetIds.has(a.asset_id));
-    const lastReviewAt = totalReviews > 0 ? visibleRecords[0].reviewedAt : null;
-    return { totalReviews, goodCount, passRate, neverReviewed, reviewedAssetIds, lastReviewAt };
-  }, [visibleRecords, confirmedAssets]);
 
   if (reviewFlow) {
     return (
