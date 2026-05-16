@@ -98,6 +98,7 @@ function sanitizeAssetField(value: unknown): string {
   if (typeof value !== "string") return "";
   let s = value.slice(0, MAX_ASSET_FIELD_LEN);
   s = s.replace(SANITIZE_RE, " ");
+  s = s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return s.trim();
 }
 
