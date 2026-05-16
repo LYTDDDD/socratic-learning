@@ -1,5 +1,5 @@
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReviewPanel } from "../components/ReviewPanel";
 import { saveAndConfirmAsset } from "../lib/asset-store";
 import type { CognitiveAsset } from "../lib/extract-asset";
@@ -26,13 +26,19 @@ class LocalStorageMock {
 }
 
 const mockLocalStorage = new LocalStorageMock();
+const createObjectURLMock = vi.fn((object: Blob | MediaSource) => "blob:review-records");
+const revokeObjectURLMock = vi.fn();
 
 beforeAll(() => {
   globalThis.localStorage = mockLocalStorage as unknown as Storage;
+  URL.createObjectURL = createObjectURLMock;
+  URL.revokeObjectURL = revokeObjectURLMock;
 });
 
 beforeEach(() => {
   localStorage.clear();
+  createObjectURLMock.mockClear();
+  revokeObjectURLMock.mockClear();
 });
 
 afterEach(() => {
@@ -161,5 +167,38 @@ describe("ReviewPanel", () => {
       expect(screen.getAllByText("Mission A Asset").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Mission B Asset").length).toBeGreaterThan(0);
     });
+  });
+
+  it("exports visible review records", async () => {
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    saveAndConfirmAsset(makeAsset({
+      asset_id: "asset_mission_a",
+      title: "Mission A Asset",
+      source_mission: "mission_a",
+    }));
+    saveAndConfirmAsset(makeAsset({
+      asset_id: "asset_mission_b",
+      title: "Mission B Asset",
+      source_mission: "mission_b",
+    }));
+    saveRecord("asset_mission_a", "Mission A Asset");
+    saveRecord("asset_mission_b", "Mission B Asset");
+
+    render(<ReviewPanel refreshKey={0} currentMissionId="mission_a" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Mission A Asset").length).toBeGreaterThan(0);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "导出记录" }));
+
+    expect(createObjectURLMock).toHaveBeenCalledOnce();
+    const blob = createObjectURLMock.mock.calls[0][0] as Blob;
+    const exported = JSON.parse(await blob.text());
+    expect(exported.scope).toEqual({ type: "mission", missionId: "mission_a" });
+    expect(exported.count).toBe(1);
+    expect(exported.records[0].assetId).toBe("asset_mission_a");
+    expect(clickSpy).toHaveBeenCalledOnce();
+    expect(revokeObjectURLMock).toHaveBeenCalledWith("blob:review-records");
+    clickSpy.mockRestore();
   });
 });
