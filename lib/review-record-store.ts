@@ -73,7 +73,10 @@ export function deleteReviewRecordsByAssetId(assetId: string): boolean {
     if (!raw) return true;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return true;
-    const remaining = parsed.filter((r: Record<string, unknown>) => r.assetId !== assetId);
+    const remaining = parsed.filter((item) => {
+      if (!item || typeof item !== "object") return true;
+      return (item as Partial<ReviewRecord>).assetId !== assetId;
+    });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
     return true;
   } catch {

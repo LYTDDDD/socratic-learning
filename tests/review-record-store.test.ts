@@ -146,6 +146,32 @@ describe("review-record-store", () => {
     expect(loadReviewRecords()[0].assetId).toBe("asset_2");
   });
 
+  it("deletes matching records when storage includes malformed entries", () => {
+    localStorage.setItem(
+      "socratic-review-records",
+      JSON.stringify([
+        null,
+        "bad",
+        {
+          ...makeRecord("asset_1"),
+          id: "review_target",
+          reviewedAt: "2026-05-14T00:00:00.000Z",
+          createdAt: "2026-05-14T00:00:00.000Z",
+        },
+        {
+          ...makeRecord("asset_2"),
+          id: "review_keep",
+          reviewedAt: "2026-05-15T00:00:00.000Z",
+          createdAt: "2026-05-15T00:00:00.000Z",
+        },
+      ]),
+    );
+
+    expect(deleteReviewRecordsByAssetId("asset_1")).toBe(true);
+    expect(loadReviewRecords()).toHaveLength(1);
+    expect(loadReviewRecords()[0].id).toBe("review_keep");
+  });
+
   it("deleteReviewRecordsByAssetId returns true when no records exist", () => {
     const result = deleteReviewRecordsByAssetId("nonexistent");
     expect(result).toBe(true);
