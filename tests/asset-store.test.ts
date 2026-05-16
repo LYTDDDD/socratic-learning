@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, vi, beforeAll } from "vitest";
 import { extractAssetFromResponse, inferAssetMaturity } from "../lib/extract-asset";
 import { saveAsset, loadAssets, confirmAsset, deleteAsset, searchAssets, saveAndConfirmAsset, hasAssetFromRun, updateAsset } from "../lib/asset-store";
+import { loadReviewRecords, saveReviewRecord } from "../lib/review-record-store";
 import type { CognitiveAsset } from "../lib/extract-asset";
 import type { AnalyzeResponse } from "../lib/analyze-types";
 
@@ -530,6 +531,79 @@ describe("asset-store", () => {
       saveAsset(makeDraftAsset({ asset_id: "asset_1" }));
       deleteAsset("non_existent_id");
       expect(loadAssets()).toHaveLength(1);
+    });
+
+    it("removes review records for the deleted asset", () => {
+      saveAsset(makeDraftAsset({ asset_id: "asset_1" }));
+      saveAsset(makeDraftAsset({ asset_id: "asset_2" }));
+      saveReviewRecord({
+        assetId: "asset_1",
+        assetTitle: "Asset 1",
+        assetMaturityBefore: "Reference",
+        assetMaturityAfter: "Reference",
+        reviewTypes: ["asset_card"],
+        questions: ["Q1"],
+        answers: ["A1"],
+        feedback: [{ question: "Q1", answer: "A1", evaluation: "good", comment: "ok" }],
+        overallAssessment: "ok",
+        maturitySuggestion: null,
+        result: "good",
+        maturityUpgradeSuggested: false,
+        assetUpdateSuggested: false,
+      });
+      saveReviewRecord({
+        assetId: "asset_2",
+        assetTitle: "Asset 2",
+        assetMaturityBefore: "Reference",
+        assetMaturityAfter: "Reference",
+        reviewTypes: ["asset_card"],
+        questions: ["Q2"],
+        answers: ["A2"],
+        feedback: [{ question: "Q2", answer: "A2", evaluation: "partial", comment: "ok" }],
+        overallAssessment: "ok",
+        maturitySuggestion: null,
+        result: "partial",
+        maturityUpgradeSuggested: false,
+        assetUpdateSuggested: false,
+      });
+
+      deleteAsset("asset_1");
+
+      expect(loadReviewRecords("asset_1")).toHaveLength(0);
+      expect(loadReviewRecords("asset_2")).toHaveLength(1);
+    });
+
+    it("warns when deleting linked review records fails", () => {
+      saveAsset(makeDraftAsset({ asset_id: "asset_1" }));
+      saveReviewRecord({
+        assetId: "asset_1",
+        assetTitle: "Asset 1",
+        assetMaturityBefore: "Reference",
+        assetMaturityAfter: "Reference",
+        reviewTypes: ["asset_card"],
+        questions: ["Q1"],
+        answers: ["A1"],
+        feedback: [{ question: "Q1", answer: "A1", evaluation: "good", comment: "ok" }],
+        overallAssessment: "ok",
+        maturitySuggestion: null,
+        result: "good",
+        maturityUpgradeSuggested: false,
+        assetUpdateSuggested: false,
+      });
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const originalSetItem = mockLocalStorage.setItem.bind(mockLocalStorage);
+      const setItemSpy = vi.spyOn(globalThis.localStorage, "setItem").mockImplementation((key, value) => {
+        if (key === "socratic-review-records") {
+          throw new Error("storage error");
+        }
+        originalSetItem(key, value);
+      });
+
+      deleteAsset("asset_1");
+
+      expect(warnSpy).toHaveBeenCalledWith("deleteAsset: failed to delete review records", "asset_1");
+      setItemSpy.mockRestore();
+      warnSpy.mockRestore();
     });
   });
 

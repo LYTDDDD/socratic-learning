@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
 
     const validEvaluations = new Set(["good", "partial", "needs_work"]);
     const feedback = Array.isArray(parsed.feedback)
-      ? (parsed.feedback as Array<Record<string, unknown>>).map((f) => ({
+      ? (parsed.feedback as unknown[]).filter(isRecord).map((f) => ({
           question: String(f.question ?? ""),
           answer: String(f.answer ?? ""),
           evaluation: validEvaluations.has(String(f.evaluation ?? "")) ? String(f.evaluation) as "good" | "partial" | "needs_work" : "partial",

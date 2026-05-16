@@ -1,5 +1,6 @@
 import type { CognitiveAsset, ConnectionLayer, UsageEvidence, AssetVersion } from "./extract-asset";
 import { generateVersionId } from "./extract-asset";
+import { deleteReviewRecordsByAssetId } from "./review-record-store";
 
 const STORAGE_KEY = "socratic-cognitive-assets";
 
@@ -168,6 +169,10 @@ export function deleteAsset(assetId: string): void {
     const assets = loadAssets();
     const filtered = assets.filter((a) => a.asset_id !== assetId);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    const reviewsDeleted = deleteReviewRecordsByAssetId(assetId);
+    if (!reviewsDeleted) {
+      console.warn("deleteAsset: failed to delete review records", assetId);
+    }
   } catch {}
 }
 

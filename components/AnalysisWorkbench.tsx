@@ -10,6 +10,7 @@ import { HistoryPanel } from "./HistoryPanel";
 import { AssetDraftPanel } from "./AssetDraftPanel";
 import { AssetLibrary } from "./AssetLibrary";
 import { MissionPanel } from "./MissionPanel";
+import { ReviewPanel } from "./ReviewPanel";
 import { AgentStepProgress, parseAgentSteps } from "./AgentStepProgress";
 import type { AgentProgressStep } from "./AgentStepProgress";
 import { AgentOutputCards } from "./AgentOutputCards";
@@ -728,6 +729,10 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     setAssetRefreshKey((k) => k + 1);
   }, []);
 
+  const handleAssetsChanged = useCallback(() => {
+    setAssetRefreshKey((k) => k + 1);
+  }, []);
+
   const handleDiscardAsset = useCallback(() => {
     setDismissedDraft(true);
   }, []);
@@ -760,7 +765,12 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           onSelectMission={setCurrentMissionId}
           refreshKey={missionRefreshKey}
         />
-        <AssetLibrary refreshKey={assetRefreshKey} onNavigateToHistory={handleNavigateToHistory} />
+        <AssetLibrary
+          refreshKey={assetRefreshKey}
+          onNavigateToHistory={handleNavigateToHistory}
+          onAssetsChanged={handleAssetsChanged}
+        />
+        <ReviewPanel refreshKey={assetRefreshKey} currentMissionId={currentMissionId} />
       </section>
 
       <section className="flex min-h-[420px] flex-col rounded-lg border border-line bg-white/80 shadow-sm">
