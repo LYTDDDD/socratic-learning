@@ -1,7 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import { type AgentStep, type AgentType, AGENT_NAME_MAP, ASSET_TYPE_MAP } from "../lib/agent-types";
+import { type AgentStep, type AgentType, AGENT_NAME_MAP, ASSET_TYPE_MAP, type DepthDimensions } from "../lib/agent-types";
+
+const DIMENSION_LABELS = [
+  { key: "judgment_shift", label: "判断力修正" },
+  { key: "boundary_clarity", label: "边界清晰度" },
+  { key: "transferability", label: "可迁移性" },
+  { key: "hidden_assumption", label: "隐藏假设" },
+  { key: "counterexample_awareness", label: "反例意识" },
+  { key: "framework_formation", label: "框架形成" },
+  { key: "behavior_impact", label: "行为影响" },
+] as const;
+
+const SPECIAL_FIELD_LABELS: Record<string, string> = {
+  definition: "定义",
+  boundary: "边界",
+  common_confusions: "常见混淆",
+  examples: "案例",
+  misconception_trigger: "触发条件",
+  correction_path: "纠正路径",
+  future_warning: "未来警示",
+  related_correct_concept: "相关正确概念",
+  when_to_use: "使用时机",
+  steps: "步骤",
+  pitfalls: "陷阱",
+  prerequisites: "前置条件",
+  background: "背景",
+  decision_point: "决策节点",
+  outcome: "结果",
+  key_lesson: "核心教训",
+  trigger_question: "触发问题",
+  insight: "核心洞察",
+  mindset_shift: "思维转变",
+  application_scenario: "应用场景",
+};
 
 function statusBadge(status: AgentStep["status"]) {
   if (status === "success") return "bg-moss/15 text-moss";
@@ -73,7 +106,19 @@ function SupervisorOutput({ output }: { output: Record<string, unknown> }) {
 function ReviewOutput({ output }: { output: Record<string, unknown> }) {
   const summary = output.summary as string | undefined;
   const keyDecisions = output.key_decisions as string[] | undefined;
-  const turningPoints = output.turning_points as string[] | undefined;
+  const rawTurningPoints = output.turning_points;
+  const turningPoints: Array<{ turning_point: string; evidence: string; why_it_matters: string }> = Array.isArray(rawTurningPoints)
+    ? rawTurningPoints.map((tp: unknown) => {
+        if (typeof tp === "string") return { turning_point: tp, evidence: "", why_it_matters: "" };
+        if (typeof tp === "object" && tp !== null) {
+          const obj = tp as Record<string, unknown>;
+          if (typeof obj.turning_point === "string") {
+            return { turning_point: obj.turning_point, evidence: String(obj.evidence ?? ""), why_it_matters: String(obj.why_it_matters ?? "") };
+          }
+        }
+        return null;
+      }).filter((tp): tp is { turning_point: string; evidence: string; why_it_matters: string } => tp !== null)
+    : [];
   const keyTakeaways = output.key_takeaways as string[] | undefined;
   const misconceptions = output.misconceptions as Array<Record<string, string>> | undefined;
 
@@ -97,12 +142,16 @@ function ReviewOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {turningPoints && turningPoints.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">转折点</p>
-          <ul className="list-inside list-disc space-y-0.5">
-            {turningPoints.map((t, i) => (
-              <li key={i} className="text-sm text-ink">{t}</li>
+          <p className="mb-1 text-xs font-semibold text-ink/60">关键转折</p>
+          <div className="space-y-2">
+            {turningPoints.map((tp, i) => (
+              <div key={i} className="rounded border border-line bg-paper/50 px-2.5 py-2 text-sm">
+                <p className="font-medium text-ink/80">{tp.turning_point}</p>
+                {tp.evidence && <p className="mt-0.5 text-xs text-ink/50">证据：{tp.evidence}</p>}
+                {tp.why_it_matters && <p className="text-xs text-moss">意义：{tp.why_it_matters}</p>}
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
       {keyTakeaways && keyTakeaways.length > 0 && (
@@ -146,6 +195,7 @@ function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) 
   const blindSpots = output.blind_spots as string[] | undefined;
   const improvementDirections = output.improvement_directions as string[] | undefined;
   const reasoning = output.reasoning as string | undefined;
+  const dimensions = output.dimensions as DepthDimensions | undefined;
 
   return (
     <div className="space-y-3">
@@ -160,6 +210,35 @@ function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) 
               />
             </div>
             <span className="text-sm font-semibold text-ink">{Math.max(0, Math.min(10, depthScore))}/10</span>
+          </div>
+        </div>
+      )}
+      {dimensions && (
+        <div>
+          <p className="mb-1 text-xs font-semibold text-ink/60">维度评分</p>
+          <div className="space-y-1.5">
+            {DIMENSION_LABELS.map(({ key, label }) => {
+              const dim = dimensions[key];
+              if (!dim) return null;
+              const pct = Math.max(0, Math.min(100, dim.score * 10));
+              return (
+                <div key={key} className="flex items-center gap-2 text-sm">
+                  <span className="w-20 shrink-0 text-ink/70">{label}</span>
+                  <div className="flex-1">
+                    <div className="h-2 rounded-full bg-ink/5">
+                      <div
+                        className={`h-2 rounded-full ${dim.score >= 7 ? "bg-moss" : dim.score >= 4 ? "bg-amber-400" : "bg-rust"}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="w-8 text-right text-xs text-ink/60">{dim.score}/10</span>
+                  {dim.uncertainty === "high" && (
+                    <span className="text-xs text-amber-600">⚠</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -199,6 +278,7 @@ function AssetOutput({ output }: { output: Record<string, unknown> }) {
   const title = output.title as string | undefined;
   const coreInsight = output.core_insight as string | undefined;
   const transferableValue = output.transferable_value as string | undefined;
+  const specialFields = output.special_fields as Record<string, unknown> | undefined;
 
   return (
     <div className="space-y-3">
@@ -242,6 +322,23 @@ function AssetOutput({ output }: { output: Record<string, unknown> }) {
         <div>
           <p className="mb-1 text-xs font-semibold text-ink/60">可迁移价值</p>
           <p className="text-sm text-ink">{transferableValue}</p>
+        </div>
+      )}
+      {specialFields && Object.keys(specialFields).length > 0 && (
+        <div className="mt-2 border-t border-line pt-2">
+          <p className="mb-1 text-xs font-semibold text-ink/60">专属字段</p>
+          <div className="space-y-1">
+            {Object.entries(specialFields).map(([key, value]) => (
+              <div key={key} className="text-sm">
+                <span className="text-ink/60">{SPECIAL_FIELD_LABELS[key] ?? key}：</span>
+                {Array.isArray(value) ? (
+                  <span>{value.join("、")}</span>
+                ) : (
+                  <span className="text-ink/80">{String(value)}</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

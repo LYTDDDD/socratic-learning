@@ -159,6 +159,7 @@ function handleSSEStream(
             },
           },
           DEFAULT_RETRY_OPTIONS,
+          request.signal,
         );
 
         const { response } = buildFinalResult(
@@ -265,7 +266,7 @@ export async function POST(request: NextRequest) {
       notes: input.notes,
       expectedOutput: input.expectedOutput,
       preferenceRules: input.preferenceRules ?? [],
-    }, undefined, DEFAULT_RETRY_OPTIONS);
+    }, undefined, DEFAULT_RETRY_OPTIONS, request.signal);
 
     const { response, httpStatus } = buildFinalResult(
       steps,

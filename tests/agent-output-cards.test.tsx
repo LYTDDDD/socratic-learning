@@ -67,7 +67,7 @@ describe("AgentOutputCards", () => {
           output: {
             summary: "本次复盘总结",
             key_decisions: ["决策一", "决策二"],
-            turning_points: ["转折点A"],
+            turning_points: [{ turning_point: "转折点A", evidence: "证据A", why_it_matters: "意义A" }],
             key_takeaways: ["收获B"],
           },
         }),
@@ -78,8 +78,10 @@ describe("AgentOutputCards", () => {
       expect(screen.getByText("本次复盘总结")).toBeInTheDocument();
       expect(screen.getByText("关键决策")).toBeInTheDocument();
       expect(screen.getByText("决策一")).toBeInTheDocument();
-      expect(screen.getByText("转折点")).toBeInTheDocument();
+      expect(screen.getByText("关键转折")).toBeInTheDocument();
       expect(screen.getByText("转折点A")).toBeInTheDocument();
+      expect(screen.getByText("证据：证据A")).toBeInTheDocument();
+      expect(screen.getByText("意义：意义A")).toBeInTheDocument();
       expect(screen.getByText("核心收获")).toBeInTheDocument();
       expect(screen.getByText("收获B")).toBeInTheDocument();
     });

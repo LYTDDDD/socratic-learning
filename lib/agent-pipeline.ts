@@ -30,9 +30,10 @@ export async function runAgentPipeline(
   input: AgentContext["input"],
   callbacks?: PipelineCallbacks,
   retryOptions?: RetryOptions,
+  signal?: AbortSignal,
 ): Promise<{ steps: AgentStep[]; supervisorDecision: string }> {
   const steps: AgentStep[] = [];
-  const context: AgentContext = { input, previousSteps: steps };
+  const context: AgentContext = { input, previousSteps: steps, signal };
 
   const supervisorStep = createStep(supervisorAgent, { input });
   steps.push(supervisorStep);
@@ -121,7 +122,7 @@ export async function runAgentPipeline(
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const outputPromise = agent.execute({ input, previousSteps: steps });
+        const outputPromise = agent.execute({ input, previousSteps: steps, signal });
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutId = setTimeout(() => reject(new Error(`Agent "${stepType}" timed out after ${AGENT_TIMEOUT_MS / 1000}s`)), AGENT_TIMEOUT_MS);
@@ -239,6 +240,11 @@ export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown>
     if (typeof a.transferable_value === "string") draftAsset.transferable_value = a.transferable_value;
     if (typeof a.asset_type === "string") draftAsset.type = ASSET_TYPE_MAP[a.asset_type] ?? "ConceptCard";
 
+    const specialFields = a.special_fields as Record<string, unknown> | undefined;
+    if (specialFields && Object.keys(specialFields).length > 0) {
+      draftAsset.special_fields = specialFields;
+    }
+
     const curatorOutput = result.curator as Record<string, unknown> | undefined;
     const curatorConnections = curatorOutput?.connections;
     if (Array.isArray(curatorConnections) && curatorConnections.length > 0) {
@@ -325,8 +331,17 @@ export function buildMultiAgentMarkdown(steps: AgentStep[]): string {
       }
       if (Array.isArray(o.turning_points)) {
         sections.push("");
-        sections.push("### 转折点");
-        for (const t of o.turning_points as string[]) sections.push(`- ${t}`);
+        sections.push("### 关键转折");
+        for (let ti = 0; ti < o.turning_points.length; ti++) {
+          const tp = o.turning_points[ti] as Record<string, string>;
+          if (typeof tp === "object" && tp !== null && typeof tp.turning_point === "string") {
+            sections.push(`- **转折${ti + 1}**：${tp.turning_point}`);
+            if (tp.evidence) sections.push(`  - 证据：${tp.evidence}`);
+            if (tp.why_it_matters) sections.push(`  - 意义：${tp.why_it_matters}`);
+          } else {
+            sections.push(`- ${String(tp)}`);
+          }
+        }
       }
       if (Array.isArray(o.key_takeaways)) {
         sections.push("");
@@ -347,6 +362,29 @@ export function buildMultiAgentMarkdown(steps: AgentStep[]): string {
     } else if (step.agent === "depth_evaluation") {
       const o = step.output;
       sections.push(`**深度评分**：${o.depth_score ?? "—"}/10`);
+      const dims = o.dimensions as Record<string, { score: number; evidence: string; uncertainty: string }> | undefined;
+      if (dims) {
+        const DIMENSION_LABELS: Array<{ key: string; label: string }> = [
+          { key: "judgment_shift", label: "判断力修正" },
+          { key: "boundary_clarity", label: "边界清晰度" },
+          { key: "transferability", label: "可迁移性" },
+          { key: "hidden_assumption", label: "隐藏假设" },
+          { key: "counterexample_awareness", label: "反例意识" },
+          { key: "framework_formation", label: "框架形成" },
+          { key: "behavior_impact", label: "行为影响" },
+        ];
+        sections.push("");
+        sections.push("### 维度评分");
+        sections.push("");
+        sections.push("| 维度 | 分数 | 不确定性 | 证据 |");
+        sections.push("|------|------|----------|------|");
+        for (const { key, label } of DIMENSION_LABELS) {
+          const dim = dims[key];
+          if (!dim) continue;
+          const uncertaintyLabel = dim.uncertainty === "low" ? "低" : dim.uncertainty === "high" ? "高" : "中";
+          sections.push(`| ${label} | ${dim.score}/10 | ${uncertaintyLabel} | ${dim.evidence} |`);
+        }
+      }
       if (Array.isArray(o.blind_spots)) {
         sections.push("");
         sections.push("### 盲点");

@@ -37,7 +37,7 @@ export const supervisorAgent: AgentDefinition = {
       `Expected Output: ${context.input.expectedOutput}`,
     ].join("\n\n");
 
-    const raw = await callReviewModel(SUPERVISOR_SYSTEM_PROMPT, userPrompt);
+    const raw = await callReviewModel(SUPERVISOR_SYSTEM_PROMPT, userPrompt, context.signal);
 
     try {
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
