@@ -169,7 +169,10 @@ export function deleteAsset(assetId: string): void {
     const assets = loadAssets();
     const filtered = assets.filter((a) => a.asset_id !== assetId);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-    deleteReviewRecordsByAssetId(assetId);
+    const reviewsDeleted = deleteReviewRecordsByAssetId(assetId);
+    if (!reviewsDeleted) {
+      console.warn("deleteAsset: failed to delete review records", assetId);
+    }
   } catch {}
 }
 
