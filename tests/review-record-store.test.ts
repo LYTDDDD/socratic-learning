@@ -100,6 +100,37 @@ describe("review-record-store", () => {
     expect(loadReviewRecords()[0].id).toBe("review_valid");
   });
 
+  it("drops records with invalid review result or feedback evaluation", () => {
+    localStorage.setItem(
+      "socratic-review-records",
+      JSON.stringify([
+        {
+          ...makeRecord(),
+          id: "review_bad_result",
+          reviewedAt: "2026-05-14T00:00:00.000Z",
+          createdAt: "2026-05-14T00:00:00.000Z",
+          result: "unknown",
+        },
+        {
+          ...makeRecord(),
+          id: "review_bad_feedback",
+          reviewedAt: "2026-05-15T00:00:00.000Z",
+          createdAt: "2026-05-15T00:00:00.000Z",
+          feedback: [{ question: "Q", answer: "A", evaluation: "unknown", comment: "C" }],
+        },
+        {
+          ...makeRecord(),
+          id: "review_valid",
+          reviewedAt: "2026-05-16T00:00:00.000Z",
+          createdAt: "2026-05-16T00:00:00.000Z",
+        },
+      ]),
+    );
+
+    expect(loadReviewRecords()).toHaveLength(1);
+    expect(loadReviewRecords()[0].id).toBe("review_valid");
+  });
+
   it("returns records sorted by reviewedAt descending", () => {
     localStorage.setItem(
       "socratic-review-records",
