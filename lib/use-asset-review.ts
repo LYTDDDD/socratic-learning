@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { CognitiveAsset } from "./extract-asset";
 import { saveReviewRecord, loadReviewRecords } from "./review-record-store";
 import type { ReviewFeedbackItem, ReviewMaturitySuggestion } from "./review-record-store";
@@ -26,8 +26,13 @@ function summarizeReviewResult(feedback: ReviewFeedbackItem[]): "good" | "partia
 
 export function useAssetReview(onRecordSaved?: () => void) {
   const [reviewFlow, setReviewFlow] = useState<ReviewFlowState>(null);
+  const requestIdRef = useRef(0);
+  const isSubmittingRef = useRef(false);
 
   const startReview = useCallback(async (asset: CognitiveAsset) => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    isSubmittingRef.current = false;
     setReviewFlow({ phase: "loading_questions", asset });
     try {
       const res = await fetch("/api/review", {
@@ -47,6 +52,7 @@ export function useAssetReview(onRecordSaved?: () => void) {
         }),
       });
       const data = await res.json();
+      if (requestIdRef.current !== requestId) return;
       if (data.error) {
         setReviewFlow({ phase: "error", asset, message: data.error });
         return;
@@ -58,6 +64,7 @@ export function useAssetReview(onRecordSaved?: () => void) {
       }
       setReviewFlow({ phase: "answering", asset, questions, answers: questions.map(() => "") });
     } catch (err) {
+      if (requestIdRef.current !== requestId) return;
       setReviewFlow({ phase: "error", asset, message: err instanceof Error ? err.message : "网络错误" });
     }
   }, []);
@@ -73,6 +80,10 @@ export function useAssetReview(onRecordSaved?: () => void) {
 
   const submitAnswers = useCallback(async () => {
     if (!reviewFlow || reviewFlow.phase !== "answering") return;
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     const { asset, questions, answers } = reviewFlow;
     setReviewFlow({ phase: "loading_feedback", asset });
     try {
@@ -94,11 +105,16 @@ export function useAssetReview(onRecordSaved?: () => void) {
         }),
       });
       const data = await res.json();
+      if (requestIdRef.current !== requestId) return;
       if (data.error) {
         setReviewFlow({ phase: "error", asset, message: data.error });
         return;
       }
-      const feedback: ReviewFeedbackItem[] = data.feedback ?? [];
+      const feedback: ReviewFeedbackItem[] = Array.isArray(data.feedback) ? data.feedback : [];
+      if (feedback.length === 0) {
+        setReviewFlow({ phase: "error", asset, message: "AI 未返回有效的复习反馈。" });
+        return;
+      }
       const maturitySuggestion: ReviewMaturitySuggestion | null = data.maturitySuggestion ?? null;
       const maturityUpgradeSuggested =
         Boolean(maturitySuggestion) &&
@@ -130,11 +146,18 @@ export function useAssetReview(onRecordSaved?: () => void) {
         onRecordSaved?.();
       }
     } catch (err) {
+      if (requestIdRef.current !== requestId) return;
       setReviewFlow({ phase: "error", asset, message: err instanceof Error ? err.message : "网络错误" });
+    } finally {
+      if (requestIdRef.current === requestId) {
+        isSubmittingRef.current = false;
+      }
     }
   }, [reviewFlow, onRecordSaved]);
 
   const exitReview = useCallback(() => {
+    requestIdRef.current += 1;
+    isSubmittingRef.current = false;
     setReviewFlow(null);
   }, []);
 

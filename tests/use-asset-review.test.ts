@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAssetReview } from "../lib/use-asset-review";
 import { renderHook, act } from "@testing-library/react";
+import { loadReviewRecords } from "../lib/review-record-store";
 
 class LocalStorageMock {
   private store: Record<string, string> = {};
@@ -205,6 +206,79 @@ describe("useAssetReview", () => {
     expect(result.current.reviewFlow).toBeNull();
   });
 
+  it("ignores pending question response after exitReview", async () => {
+    let resolveQuestions: (v: unknown) => void;
+    const questionsPromise = new Promise((resolve) => {
+      resolveQuestions = resolve;
+    });
+    const mockFetch = vi.fn().mockImplementation(() => questionsPromise);
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { result } = renderHook(() => useAssetReview());
+    const asset = makeAsset();
+
+    act(() => {
+      void result.current.startReview(asset);
+    });
+
+    act(() => {
+      result.current.exitReview();
+    });
+
+    await act(async () => {
+      resolveQuestions!({
+        json: () => Promise.resolve({ phase: "questions", questions: ["Q1?"], error: null }),
+      });
+      await questionsPromise;
+    });
+
+    expect(result.current.reviewFlow).toBeNull();
+  });
+
+  it("ignores older question response when a newer review starts", async () => {
+    let resolveFirst: (v: unknown) => void;
+    let resolveSecond: (v: unknown) => void;
+    const firstPromise = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondPromise = new Promise((resolve) => {
+      resolveSecond = resolve;
+    });
+    const mockFetch = vi.fn()
+      .mockImplementationOnce(() => firstPromise)
+      .mockImplementationOnce(() => secondPromise);
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { result } = renderHook(() => useAssetReview());
+    const firstAsset = makeAsset();
+    const secondAsset = { ...makeAsset(), asset_id: "asset_test_2", title: "Second Asset" };
+
+    act(() => {
+      void result.current.startReview(firstAsset);
+      void result.current.startReview(secondAsset);
+    });
+
+    await act(async () => {
+      resolveSecond!({
+        json: () => Promise.resolve({ phase: "questions", questions: ["Q2?"], error: null }),
+      });
+      await secondPromise;
+    });
+
+    expect(result.current.reviewFlow!.phase).toBe("answering");
+    expect(result.current.reviewFlow!.asset.asset_id).toBe("asset_test_2");
+
+    await act(async () => {
+      resolveFirst!({
+        json: () => Promise.resolve({ phase: "questions", questions: ["Q1?"], error: null }),
+      });
+      await firstPromise;
+    });
+
+    expect(result.current.reviewFlow!.phase).toBe("answering");
+    expect(result.current.reviewFlow!.asset.asset_id).toBe("asset_test_2");
+  });
+
   it("updateAnswer modifies answers array", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       json: () => Promise.resolve({ phase: "questions", questions: ["Q1?", "Q2?"], error: null }),
@@ -325,6 +399,93 @@ describe("useAssetReview", () => {
     if (result.current.reviewFlow!.phase === "error") {
       expect(result.current.reviewFlow!.message).toBe("Feedback generation failed");
     }
+  });
+
+  it("does not submit feedback twice from the same render", async () => {
+    let resolveFeedback: (v: unknown) => void;
+    const feedbackPromise = new Promise((resolve) => {
+      resolveFeedback = resolve;
+    });
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({
+        json: () => Promise.resolve({ phase: "questions", questions: ["Q1?"], error: null }),
+      })
+      .mockImplementationOnce(() => feedbackPromise);
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { result } = renderHook(() => useAssetReview());
+    const asset = makeAsset();
+
+    await act(async () => {
+      await result.current.startReview(asset);
+    });
+
+    act(() => {
+      result.current.updateAnswer(0, "My answer");
+    });
+
+    const submit = result.current.submitAnswers;
+    act(() => {
+      void submit();
+      void submit();
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolveFeedback!({
+        json: () => Promise.resolve({
+          phase: "feedback",
+          feedback: [{ question: "Q1?", answer: "My answer", evaluation: "good", comment: "Nice" }],
+          overallAssessment: "Good",
+          maturitySuggestion: null,
+          error: null,
+        }),
+      });
+      await feedbackPromise;
+    });
+
+    expect(loadReviewRecords()).toHaveLength(1);
+  });
+
+  it("does not save a review record when feedback is empty", async () => {
+    let callCount = 0;
+    const mockFetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          json: () => Promise.resolve({ phase: "questions", questions: ["Q1?"], error: null }),
+        });
+      }
+      return Promise.resolve({
+        json: () => Promise.resolve({
+          phase: "feedback",
+          feedback: [],
+          overallAssessment: "",
+          maturitySuggestion: null,
+          error: null,
+        }),
+      });
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { result } = renderHook(() => useAssetReview());
+    const asset = makeAsset();
+
+    await act(async () => {
+      await result.current.startReview(asset);
+    });
+
+    act(() => {
+      result.current.updateAnswer(0, "My answer");
+    });
+
+    await act(async () => {
+      await result.current.submitAnswers();
+    });
+
+    expect(result.current.reviewFlow!.phase).toBe("error");
+    expect(loadReviewRecords()).toHaveLength(0);
   });
 
   it("handles submitAnswers network exception", async () => {

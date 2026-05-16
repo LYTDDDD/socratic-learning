@@ -10,9 +10,10 @@ import { formatTime, typeBadgeColor, maturityBadge, resultBadgeColor, resultLabe
 
 type ReviewPanelProps = {
   refreshKey: number;
+  currentMissionId?: string | null;
 };
 
-export function ReviewPanel({ refreshKey }: ReviewPanelProps) {
+export function ReviewPanel({ refreshKey, currentMissionId }: ReviewPanelProps) {
   const [assets, setAssets] = useState<CognitiveAsset[]>([]);
   const [allRecords, setAllRecords] = useState<ReviewRecord[]>([]);
   const [collapsed, setCollapsed] = useState(false);
@@ -28,20 +29,33 @@ export function ReviewPanel({ refreshKey }: ReviewPanelProps) {
     setAllRecords(loadReviewRecords());
   }, [refreshKey]);
 
+  const visibleAssets = useMemo(
+    () => currentMissionId
+      ? assets.filter((a) => a.source_mission === currentMissionId)
+      : assets,
+    [assets, currentMissionId],
+  );
+
+  const visibleRecords = useMemo(() => {
+    if (!currentMissionId) return allRecords;
+    const visibleAssetIds = new Set(visibleAssets.map((a) => a.asset_id));
+    return allRecords.filter((record) => visibleAssetIds.has(record.assetId));
+  }, [allRecords, currentMissionId, visibleAssets]);
+
   const confirmedAssets = useMemo(
-    () => assets.filter((a) => a.status === "confirmed"),
-    [assets],
+    () => visibleAssets.filter((a) => a.status === "confirmed"),
+    [visibleAssets],
   );
 
   const stats = useMemo(() => {
-    const totalReviews = allRecords.length;
-    const goodCount = allRecords.filter((r) => r.result === "good").length;
+    const totalReviews = visibleRecords.length;
+    const goodCount = visibleRecords.filter((r) => r.result === "good").length;
     const passRate = totalReviews > 0 ? Math.round((goodCount / totalReviews) * 100) : 0;
-    const reviewedAssetIds = new Set(allRecords.map((r) => r.assetId));
+    const reviewedAssetIds = new Set(visibleRecords.map((r) => r.assetId));
     const neverReviewed = confirmedAssets.filter((a) => !reviewedAssetIds.has(a.asset_id));
-    const lastReviewAt = totalReviews > 0 ? allRecords[0].reviewedAt : null;
+    const lastReviewAt = totalReviews > 0 ? visibleRecords[0].reviewedAt : null;
     return { totalReviews, goodCount, passRate, neverReviewed, reviewedAssetIds, lastReviewAt };
-  }, [allRecords, confirmedAssets]);
+  }, [visibleRecords, confirmedAssets]);
 
   if (reviewFlow) {
     return (
@@ -263,7 +277,7 @@ export function ReviewPanel({ refreshKey }: ReviewPanelProps) {
                 {confirmedAssets
                   .filter((a) => stats.reviewedAssetIds.has(a.asset_id))
                   .map((asset) => {
-                    const assetRecords = allRecords.filter((r) => r.assetId === asset.asset_id);
+                    const assetRecords = visibleRecords.filter((r) => r.assetId === asset.asset_id);
                     const lastRecord = assetRecords[0];
                     return (
                       <li key={asset.asset_id} className="flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 transition hover:border-moss/40">
@@ -293,11 +307,11 @@ export function ReviewPanel({ refreshKey }: ReviewPanelProps) {
             </div>
           )}
 
-          {allRecords.length > 0 && (
+          {visibleRecords.length > 0 && (
             <div>
               <h4 className="mb-2 text-xs font-semibold text-ink/70">复习记录时间线</h4>
               <ul className="max-h-60 space-y-1.5 overflow-y-auto">
-                {allRecords.slice(0, 20).map((record) => (
+                {visibleRecords.slice(0, 20).map((record) => (
                   <li key={record.id} className="flex items-center gap-2 rounded-md border border-line bg-white px-3 py-1.5">
                     <span className={`inline-block shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${resultBadgeColor(record.result)}`}>
                       {resultLabel(record.result)}
@@ -309,7 +323,7 @@ export function ReviewPanel({ refreshKey }: ReviewPanelProps) {
                   </li>
                 ))}
               </ul>
-              {allRecords.length > 20 && (
+              {visibleRecords.length > 20 && (
                 <p className="mt-1 text-[10px] text-ink/40">仅显示最近 20 条</p>
               )}
             </div>

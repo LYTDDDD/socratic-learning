@@ -10,7 +10,8 @@ describe("ui-utils", () => {
 
     it("handles invalid date string gracefully", () => {
       const result = formatTime("not-a-date");
-      expect(result).toBeTruthy();
+      expect(result).toBe("not-a-date");
+      expect(result).not.toContain("NaN");
     });
   });
 

@@ -24,6 +24,7 @@ const ASSET_TYPES = ["All", "MethodCard", "MisconceptionCard", "ReflectionCard",
 type AssetLibraryProps = {
   refreshKey: number;
   onNavigateToHistory?: (sourceRunId: string) => void;
+  onAssetsChanged?: () => void;
 };
 
 function truncate(text: string, max: number): string {
@@ -239,7 +240,8 @@ function AssetDetail({ asset, onClose, onNavigateToHistory, onAssetUpdated }: { 
 
   const refreshReviewRecords = useCallback(() => {
     setReviewRecords(loadReviewRecords(liveAsset.asset_id));
-  }, [liveAsset.asset_id]);
+    onAssetUpdated?.();
+  }, [liveAsset.asset_id, onAssetUpdated]);
 
   const { reviewFlow: reviewState, startReview: hookStartReview, updateAnswer: updateReviewAnswer, submitAnswers: submitReviewAnswers, exitReview } = useAssetReview(refreshReviewRecords);
 
@@ -1048,7 +1050,7 @@ function AssetDetail({ asset, onClose, onNavigateToHistory, onAssetUpdated }: { 
   );
 }
 
-export function AssetLibrary({ refreshKey, onNavigateToHistory }: AssetLibraryProps) {
+export function AssetLibrary({ refreshKey, onNavigateToHistory, onAssetsChanged }: AssetLibraryProps) {
   const [assets, setAssets] = useState<CognitiveAsset[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("All");
@@ -1082,6 +1084,7 @@ export function AssetLibrary({ refreshKey, onNavigateToHistory }: AssetLibraryPr
     const assetId = asset.asset_id;
     deleteAsset(assetId);
     setAssets(loadAssets());
+    onAssetsChanged?.();
     if (expandedId === assetId) setExpandedId(null);
   }
 
@@ -1191,7 +1194,10 @@ export function AssetLibrary({ refreshKey, onNavigateToHistory }: AssetLibraryPr
       )}
 
       {expandedAsset && (
-        <AssetDetail asset={expandedAsset} onClose={() => setExpandedId(null)} onNavigateToHistory={onNavigateToHistory} onAssetUpdated={() => setAssets(loadAssets())} />
+        <AssetDetail asset={expandedAsset} onClose={() => setExpandedId(null)} onNavigateToHistory={onNavigateToHistory} onAssetUpdated={() => {
+          setAssets(loadAssets());
+          onAssetsChanged?.();
+        }} />
       )}
 
       {showReview && (
