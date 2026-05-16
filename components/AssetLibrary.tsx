@@ -13,8 +13,10 @@ import {
   type KnowledgeSubCard,
   type KnowledgeSubCardDraft,
 } from "../lib/knowledge-subcard";
-import { saveReviewRecord } from "../lib/review-record-store";
-import type { ReviewFeedbackItem, ReviewMaturitySuggestion } from "../lib/review-record-store";
+import { loadReviewRecords } from "../lib/review-record-store";
+import type { ReviewRecord } from "../lib/review-record-store";
+import { useAssetReview } from "../lib/use-asset-review";
+import { formatTime, typeBadgeColor, maturityBadge, statusBadge } from "../lib/ui-utils";
 import { getMissionById } from "../lib/mission-store";
 
 const ASSET_TYPES = ["All", "MethodCard", "MisconceptionCard", "ReflectionCard", "ConceptCard", "CaseCard"] as const;
@@ -23,47 +25,6 @@ type AssetLibraryProps = {
   refreshKey: number;
   onNavigateToHistory?: (sourceRunId: string) => void;
 };
-
-function typeBadgeColor(type: string): string {
-  switch (type) {
-    case "MethodCard":
-      return "bg-blue-100 text-blue-800";
-    case "MisconceptionCard":
-      return "bg-red-100 text-red-800";
-    case "ReflectionCard":
-      return "bg-purple-100 text-purple-800";
-    case "ConceptCard":
-      return "bg-green-100 text-green-800";
-    case "CaseCard":
-      return "bg-yellow-100 text-yellow-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-}
-
-function statusBadge(status: string): string {
-  if (status === "confirmed") return "bg-green-100 text-green-800";
-  return "bg-yellow-100 text-yellow-800";
-}
-
-function maturityBadge(maturity: string): string {
-  if (maturity === "Ability") return "bg-emerald-100 text-emerald-800";
-  if (maturity === "Understanding") return "bg-sky-100 text-sky-800";
-  return "bg-stone-100 text-stone-800";
-}
-
-function formatTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mi = String(d.getMinutes()).padStart(2, "0");
-    return `${mm}-${dd} ${hh}:${mi}`;
-  } catch {
-    return iso;
-  }
-}
 
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}...` : text;
@@ -75,12 +36,6 @@ function hasAnyConnection(connectionLayer: ConnectionLayer): boolean {
 
 function flattenConnectionLayer(connectionLayer: ConnectionLayer): string[] {
   return Object.values(connectionLayer).flat();
-}
-
-function summarizeReviewResult(feedback: ReviewFeedbackItem[]): "good" | "partial" | "needs_work" {
-  if (feedback.some((item) => item.evaluation === "needs_work")) return "needs_work";
-  if (feedback.some((item) => item.evaluation === "partial")) return "partial";
-  return "good";
 }
 
 function SubCardReviewModal({
@@ -279,14 +234,22 @@ function AssetDetail({ asset, onClose, onNavigateToHistory, onAssetUpdated }: { 
   const [editMode, setEditMode] = useState<"minor" | "version">("minor");
   const [changeReason, setChangeReason] = useState("");
   const [showVersionHistory, setShowVersionHistory] = useState(false);
-  const [reviewState, setReviewState] = useState<
-    | null
-    | { phase: "loading_questions" }
-    | { phase: "answering"; questions: string[]; answers: string[] }
-    | { phase: "loading_feedback" }
-    | { phase: "result"; feedback: ReviewFeedbackItem[]; overallAssessment: string; maturitySuggestion: ReviewMaturitySuggestion | null; recordSaved: boolean }
-    | { phase: "error"; message: string }
-  >(null);
+  const [reviewRecords, setReviewRecords] = useState<ReviewRecord[]>([]);
+  const [showReviewHistory, setShowReviewHistory] = useState(false);
+
+  const refreshReviewRecords = useCallback(() => {
+    setReviewRecords(loadReviewRecords(liveAsset.asset_id));
+  }, [liveAsset.asset_id]);
+
+  const { reviewFlow: reviewState, startReview: hookStartReview, updateAnswer: updateReviewAnswer, submitAnswers: submitReviewAnswers, exitReview } = useAssetReview(refreshReviewRecords);
+
+  useEffect(() => {
+    setReviewRecords(loadReviewRecords(liveAsset.asset_id));
+  }, [liveAsset.asset_id]);
+
+  function startReview() {
+    hookStartReview(liveAsset);
+  }
 
   function refreshSubCards() {
     setSubCards(loadKnowledgeSubCards(liveAsset.asset_id));
@@ -394,112 +357,6 @@ function AssetDetail({ asset, onClose, onNavigateToHistory, onAssetUpdated }: { 
     setLiveAsset(updated);
     setIsEditing(false);
     onAssetUpdated?.();
-  }
-
-  async function startReview() {
-    setReviewState({ phase: "loading_questions" });
-    try {
-      const res = await fetch("/api/review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phase: "questions",
-          assetId: liveAsset.asset_id,
-          assetTitle: liveAsset.title,
-          coreInsight: liveAsset.core_insight,
-          originalJudgment: liveAsset.original_judgment,
-          revisedJudgment: liveAsset.revised_judgment,
-          myUnderstanding: liveAsset.my_understanding,
-          transferableValue: liveAsset.transferable_value,
-          reviewQuestions: liveAsset.review_questions,
-          maturity: liveAsset.maturity,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        setReviewState({ phase: "error", message: data.error });
-        return;
-      }
-      const questions: string[] = data.questions ?? [];
-      if (questions.length === 0) {
-        setReviewState({ phase: "error", message: "AI 未生成评估问题。" });
-        return;
-      }
-      setReviewState({ phase: "answering", questions, answers: questions.map(() => "") });
-    } catch (err) {
-      setReviewState({ phase: "error", message: err instanceof Error ? err.message : "网络错误" });
-    }
-  }
-
-  function updateReviewAnswer(index: number, value: string) {
-    if (!reviewState || reviewState.phase !== "answering") return;
-    const answers = [...reviewState.answers];
-    answers[index] = value;
-    setReviewState({ ...reviewState, answers });
-  }
-
-  async function submitReviewAnswers() {
-    if (!reviewState || reviewState.phase !== "answering") return;
-    const questions = reviewState.questions;
-    const answers = reviewState.answers;
-    setReviewState({ phase: "loading_feedback" });
-    try {
-      const res = await fetch("/api/review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phase: "feedback",
-          assetId: liveAsset.asset_id,
-          assetTitle: liveAsset.title,
-          coreInsight: liveAsset.core_insight,
-          originalJudgment: liveAsset.original_judgment,
-          revisedJudgment: liveAsset.revised_judgment,
-          myUnderstanding: liveAsset.my_understanding,
-          transferableValue: liveAsset.transferable_value,
-          maturity: liveAsset.maturity,
-          questions,
-          answers,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        setReviewState({ phase: "error", message: data.error });
-        return;
-      }
-      const feedback: ReviewFeedbackItem[] = data.feedback ?? [];
-      const maturitySuggestion: ReviewMaturitySuggestion | null = data.maturitySuggestion ?? null;
-      const maturityUpgradeSuggested =
-        Boolean(maturitySuggestion) &&
-        maturitySuggestion?.suggested !== maturitySuggestion?.current;
-      const saved = saveReviewRecord({
-        assetId: liveAsset.asset_id,
-        assetTitle: liveAsset.title,
-        assetMaturityBefore: liveAsset.maturity,
-        assetMaturityAfter: maturitySuggestion?.suggested ?? liveAsset.maturity,
-        reviewTypes: ["asset_card"],
-        questions,
-        answers,
-        feedback,
-        overallAssessment: data.overallAssessment ?? "",
-        maturitySuggestion,
-        result: summarizeReviewResult(feedback),
-        maturityUpgradeSuggested,
-        assetUpdateSuggested: maturityUpgradeSuggested,
-      });
-      setReviewState({
-        phase: "result",
-        feedback,
-        overallAssessment: data.overallAssessment ?? "",
-        maturitySuggestion,
-        recordSaved: Boolean(saved),
-      });
-    } catch (err) {
-      setReviewState({ phase: "error", message: err instanceof Error ? err.message : "网络错误" });
-    }
-  }
-
-  function exitReview() {
-    setReviewState(null);
   }
 
   return (
@@ -1028,6 +885,71 @@ function AssetDetail({ asset, onClose, onNavigateToHistory, onAssetUpdated }: { 
                 </div>
               )}
             </div>
+          )}
+          {reviewRecords.length > 0 && (
+          <div className="border-t border-line pt-4">
+            <div className="mb-2 flex items-center gap-2">
+              <dt className="text-xs font-semibold text-ink/70">复习记录</dt>
+              <button
+                className="flex items-center gap-1 text-xs font-medium text-ink/50 transition hover:text-ink"
+                onClick={() => setShowReviewHistory((v) => !v)}
+                type="button"
+              >
+                <svg
+                  className={`h-3.5 w-3.5 transition-transform ${showReviewHistory ? "rotate-90" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {reviewRecords.length} 次
+              </button>
+            </div>
+            {showReviewHistory && (
+              <dd className="space-y-2">
+                {reviewRecords.map((record) => (
+                  <div key={record.id} className="rounded border border-line bg-paper/60 px-3 py-2">
+                    <div className="mb-1 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                          record.result === "good" ? "bg-moss/15 text-moss" :
+                          record.result === "partial" ? "bg-yellow-100 text-yellow-700" :
+                          "bg-rust/10 text-rust"
+                        }`}>
+                          {record.result === "good" ? "理解到位" : record.result === "partial" ? "部分理解" : "需要补充"}
+                        </span>
+                        {record.maturityUpgradeSuggested && (
+                          <span className="inline-block rounded bg-moss/10 px-1.5 py-0.5 text-[10px] font-medium text-moss">
+                            建议升级
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-ink/40">{formatTime(record.reviewedAt)}</span>
+                    </div>
+                    <p className="text-xs text-ink/60 line-clamp-2">{record.overallAssessment || "—"}</p>
+                    {record.feedback.length > 0 && (
+                      <div className="mt-1.5 space-y-1">
+                        {record.feedback.map((f, i) => (
+                          <div key={i} className="flex items-start gap-1.5">
+                            <span className={`mt-0.5 shrink-0 rounded px-1 py-0.5 text-[9px] font-medium ${
+                              f.evaluation === "good" ? "bg-moss/10 text-moss" :
+                              f.evaluation === "partial" ? "bg-yellow-50 text-yellow-600" :
+                              "bg-rust/5 text-rust"
+                            }`}>
+                              {f.evaluation === "good" ? "✓" : f.evaluation === "partial" ? "◐" : "✗"}
+                            </span>
+                            <p className="text-[11px] leading-4 text-ink/50 line-clamp-1">{f.question}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </dd>
+            )}
+          </div>
           )}
           <div className="border-t border-line pt-4">
             <dt className="mb-2 text-xs font-semibold text-ink/70">知识子卡</dt>

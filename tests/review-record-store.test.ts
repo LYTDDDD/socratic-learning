@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { loadReviewRecords, saveReviewRecord } from "../lib/review-record-store";
+import { loadReviewRecords, saveReviewRecord, deleteReviewRecordsByAssetId } from "../lib/review-record-store";
 
 class LocalStorageMock {
   private store: Record<string, string> = {};
@@ -98,5 +98,56 @@ describe("review-record-store", () => {
 
     expect(loadReviewRecords()).toHaveLength(1);
     expect(loadReviewRecords()[0].id).toBe("review_valid");
+  });
+
+  it("returns records sorted by reviewedAt descending", () => {
+    localStorage.setItem(
+      "socratic-review-records",
+      JSON.stringify([
+        {
+          ...makeRecord(),
+          id: "review_old",
+          reviewedAt: "2026-05-10T00:00:00.000Z",
+          createdAt: "2026-05-10T00:00:00.000Z",
+        },
+        {
+          ...makeRecord(),
+          id: "review_new",
+          reviewedAt: "2026-05-15T00:00:00.000Z",
+          createdAt: "2026-05-15T00:00:00.000Z",
+        },
+        {
+          ...makeRecord(),
+          id: "review_mid",
+          reviewedAt: "2026-05-12T00:00:00.000Z",
+          createdAt: "2026-05-12T00:00:00.000Z",
+        },
+      ]),
+    );
+
+    const records = loadReviewRecords();
+    expect(records).toHaveLength(3);
+    expect(records[0].id).toBe("review_new");
+    expect(records[1].id).toBe("review_mid");
+    expect(records[2].id).toBe("review_old");
+  });
+
+  it("deletes review records by asset id", () => {
+    saveReviewRecord(makeRecord("asset_1"));
+    saveReviewRecord(makeRecord("asset_2"));
+    saveReviewRecord(makeRecord("asset_1"));
+
+    expect(loadReviewRecords()).toHaveLength(3);
+    expect(loadReviewRecords("asset_1")).toHaveLength(2);
+
+    const result = deleteReviewRecordsByAssetId("asset_1");
+    expect(result).toBe(true);
+    expect(loadReviewRecords()).toHaveLength(1);
+    expect(loadReviewRecords()[0].assetId).toBe("asset_2");
+  });
+
+  it("deleteReviewRecordsByAssetId returns true when no records exist", () => {
+    const result = deleteReviewRecordsByAssetId("nonexistent");
+    expect(result).toBe(true);
   });
 });

@@ -58,10 +58,26 @@ export function loadReviewRecords(assetId?: string): ReviewRecord[] {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     const records = parsed.filter(isReviewRecord);
-    if (!assetId) return records;
-    return records.filter((record) => record.assetId === assetId);
-  } catch {
+    const sorted = records.sort((a, b) => b.reviewedAt.localeCompare(a.reviewedAt));
+    if (!assetId) return sorted;
+    return sorted.filter((record) => record.assetId === assetId);
+  } catch (err) {
+    console.warn("loadReviewRecords: failed to parse localStorage data", err);
     return [];
+  }
+}
+
+export function deleteReviewRecordsByAssetId(assetId: string): boolean {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return true;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return true;
+    const remaining = parsed.filter((r: Record<string, unknown>) => r.assetId !== assetId);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
+    return true;
+  } catch {
+    return false;
   }
 }
 
