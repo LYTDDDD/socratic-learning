@@ -5,6 +5,7 @@ import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
 import type { AgentProgressStep } from "./AgentStepProgress";
 import type { AgentType } from "../lib/agent-types";
 import { getConfirmedRules } from "../lib/preference-rule-store";
+import { loadAssets } from "../lib/asset-store";
 
 const initialInput: AnalyzeInput = {
   background: "",
@@ -240,10 +241,16 @@ export function InputPanel({
     setReadyMessage("正在提交到 Analyze API。");
     onAnalyzeStart?.();
 
+    const allAssets = loadAssets();
+    const existingAssets = allAssets
+      .filter((a) => a.status === "confirmed")
+      .map((a) => ({ asset_id: a.asset_id, title: a.title, asset_type: a.asset_type }));
+
     const requestBody = JSON.stringify({
       ...input,
       preferenceRules: getConfirmedRules().map((r) => r.content),
       missionId: currentMissionId,
+      existingAssets: existingAssets.length > 0 ? existingAssets : undefined,
     });
 
     if (analysisMode === "multi-agent") {

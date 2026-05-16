@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { type AgentStep, type AgentType, AGENT_NAME_MAP, ASSET_TYPE_MAP, type DepthDimensions } from "../lib/agent-types";
+import { type AgentStep, type AgentType, AGENT_NAME_MAP, ASSET_TYPE_MAP, type DepthDimensions, type AssetUpdateProposal } from "../lib/agent-types";
 
 const DIMENSION_LABELS = [
   { key: "judgment_shift", label: "判断力修正" },
@@ -279,6 +279,7 @@ function AssetOutput({ output }: { output: Record<string, unknown> }) {
   const coreInsight = output.core_insight as string | undefined;
   const transferableValue = output.transferable_value as string | undefined;
   const specialFields = output.special_fields as Record<string, unknown> | undefined;
+  const updateProposals = (output.update_proposals as AssetUpdateProposal[] | undefined) ?? [];
 
   return (
     <div className="space-y-3">
@@ -336,6 +337,27 @@ function AssetOutput({ output }: { output: Record<string, unknown> }) {
                 ) : (
                   <span className="text-ink/80">{String(value)}</span>
                 )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {updateProposals.length > 0 && (
+        <div className="mt-2 border-t border-line pt-2">
+          <p className="mb-1 text-xs font-semibold text-ink/60">资产更新建议</p>
+          <div className="space-y-1.5">
+            {updateProposals.map((p, i) => (
+              <div key={i} className="rounded border border-line bg-paper/50 px-2.5 py-1.5 text-sm">
+                <span className={`mr-1.5 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
+                  p.suggested_action === "minor_edit" ? "bg-amber-50 text-amber-800" :
+                  p.suggested_action === "create_new_version" ? "bg-moss/10 text-moss" :
+                  "bg-ink/5 text-ink/50"
+                }`}>
+                  {p.suggested_action === "minor_edit" ? "小修改" : p.suggested_action === "create_new_version" ? "新版本" : "忽略"}
+                </span>
+                <span className="text-ink/80">{p.related_asset_title}</span>
+                {p.reason && <p className="mt-0.5 text-xs text-ink/50">原因：{p.reason}</p>}
+                {p.evidence && <p className="text-xs text-ink/50">证据：{p.evidence}</p>}
               </div>
             ))}
           </div>

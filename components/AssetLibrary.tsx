@@ -1142,7 +1142,7 @@ export function AssetLibrary({ refreshKey, onNavigateToHistory }: AssetLibraryPr
     setAssets(loadAssets());
   }, [refreshKey]);
 
-  const filtered = assets.filter((a) => {
+  const filtered = useMemo(() => assets.filter((a) => {
     if (typeFilter !== "All" && a.asset_type !== typeFilter) return false;
     if (searchQuery.trim()) {
       const lower = searchQuery.toLowerCase();
@@ -1152,7 +1152,7 @@ export function AssetLibrary({ refreshKey, onNavigateToHistory }: AssetLibraryPr
       );
     }
     return true;
-  });
+  }), [assets, typeFilter, searchQuery]);
 
   function handleDelete(asset: CognitiveAsset) {
     const title = asset.title || asset.asset_id;

@@ -38,6 +38,9 @@ function parseAnalyzeInput(payload: unknown): AnalyzeInput {
       ? input.preferenceRules.filter((v): v is string => typeof v === "string")
       : [],
     missionId: typeof input.missionId === "string" ? input.missionId : null,
+    existingAssets: Array.isArray(input.existingAssets)
+      ? input.existingAssets.filter((v): v is Record<string, unknown> => typeof v === "object" && v !== null) as AnalyzeInput["existingAssets"]
+      : undefined,
   };
 }
 
@@ -143,6 +146,7 @@ function handleSSEStream(
             notes: input.notes,
             expectedOutput: input.expectedOutput,
             preferenceRules: input.preferenceRules ?? [],
+            existingAssets: input.existingAssets,
           },
           {
             onStepStart: (agent: AgentType, index: number, total: number) => {
@@ -266,6 +270,7 @@ export async function POST(request: NextRequest) {
       notes: input.notes,
       expectedOutput: input.expectedOutput,
       preferenceRules: input.preferenceRules ?? [],
+      existingAssets: input.existingAssets,
     }, undefined, DEFAULT_RETRY_OPTIONS, request.signal);
 
     const { response, httpStatus } = buildFinalResult(
