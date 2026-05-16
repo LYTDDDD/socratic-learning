@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { AnalysisWorkbench } from "../components/AnalysisWorkbench";
-import { ChatWorkspace } from "../components/ChatWorkspace";
+import dynamic from "next/dynamic";
 import { getSessionById } from "../lib/chat-store";
 import type { AnalyzeInput } from "../lib/analyze-types";
+
+const AnalysisWorkbench = dynamic(() => import("../components/AnalysisWorkbench").then((m) => ({ default: m.AnalysisWorkbench })), { ssr: false });
+const ChatWorkspace = dynamic(() => import("../components/ChatWorkspace").then((m) => ({ default: m.ChatWorkspace })), { ssr: false });
 
 type WorkspaceMode = "analysis" | "chat";
 

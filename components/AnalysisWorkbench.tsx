@@ -718,6 +718,24 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     }
   }, []);
 
+  const handleAnalyzeStart = useCallback(() => {
+    setIsLoading(true);
+    setResult(null);
+    setAgentProgress([]);
+  }, []);
+
+  const handleConfirmAsset = useCallback(() => {
+    setAssetRefreshKey((k) => k + 1);
+  }, []);
+
+  const handleDiscardAsset = useCallback(() => {
+    setDismissedDraft(true);
+  }, []);
+
+  const handleCorrectionAdded = useCallback(() => {
+    setCorrectionRefreshKey((k) => k + 1);
+  }, []);
+
   function getCopyContent(): string | null {
     if (!result) return null;
     if (activeTab === "markdown") return result.markdown;
@@ -730,11 +748,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     <div className="grid gap-5 py-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
       <section className="flex flex-col gap-4 rounded-lg border border-line bg-white/80 p-5 shadow-sm">
         <InputPanel
-          onAnalyzeStart={() => {
-            setIsLoading(true);
-            setResult(null);
-            setAgentProgress([]);
-          }}
+          onAnalyzeStart={handleAnalyzeStart}
           onAnalyzeFinish={handleAnalyzeFinish}
           onAgentProgress={setAgentProgress}
           currentMissionId={currentMissionId}
@@ -832,8 +846,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           result={result}
           draftAsset={draftAsset}
           assetRefreshKey={assetRefreshKey}
-          onConfirm={() => setAssetRefreshKey((k) => k + 1)}
-          onDiscard={() => setDismissedDraft(true)}
+          onConfirm={handleConfirmAsset}
+          onDiscard={handleDiscardAsset}
           currentMissionId={currentMissionId}
         />
 
@@ -853,7 +867,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           <div className="border-t border-line p-4">
             <CorrectionPanel
               existingCorrections={corrections}
-              onCorrectionAdded={() => setCorrectionRefreshKey((k) => k + 1)}
+              onCorrectionAdded={handleCorrectionAdded}
               reportId={currentRunId}
             />
           </div>

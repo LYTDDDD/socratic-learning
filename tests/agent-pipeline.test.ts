@@ -1272,6 +1272,75 @@ describe("buildMultiAgentJson", () => {
     expect(conn.application_scenarios).toEqual(["应用1"]);
     expect(conn.open_questions).toEqual(["问题1"]);
   });
+
+  it("includes update_proposals in asset_decision when present", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "",
+          transferable_value: "value",
+          reasoning: "reason",
+          update_proposals: [
+            {
+              related_asset_id: "asset_1",
+              related_asset_title: "已有资产1",
+              suggested_action: "minor_edit",
+              reason: "需要小修改",
+              evidence: "对话证据",
+              suggested_changes: { core_insight: "更新洞察" },
+            },
+          ],
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    expect(decision.update_proposals).toBeDefined();
+    expect(Array.isArray(decision.update_proposals)).toBe(true);
+    expect((decision.update_proposals as Array<Record<string, unknown>>)[0].related_asset_id).toBe("asset_1");
+    expect((decision.update_proposals as Array<Record<string, unknown>>)[0].suggested_action).toBe("minor_edit");
+  });
+
+  it("does not add update_proposals in asset_decision when not present", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "",
+          transferable_value: "value",
+          reasoning: "reason",
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const result = buildMultiAgentJson(steps);
+    const decision = result.asset_decision as Record<string, unknown>;
+    expect(decision.update_proposals).toBeUndefined();
+  });
 });
 
 describe("buildMultiAgentMarkdown", () => {
@@ -1642,6 +1711,83 @@ describe("buildMultiAgentMarkdown", () => {
     expect(md).toContain("**转折1**：从A转向B");
     expect(md).toContain("证据：对话第3轮");
     expect(md).toContain("意义：改变了整体方向");
+  });
+
+  it("includes update_proposals in asset markdown section", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test",
+          core_insight: "insight",
+          transferable_value: "value",
+          update_proposals: [
+            {
+              related_asset_id: "asset_1",
+              related_asset_title: "已有资产1",
+              suggested_action: "minor_edit",
+              reason: "需要小修改",
+              evidence: "对话证据",
+            },
+            {
+              related_asset_id: "asset_2",
+              related_asset_title: "已有资产2",
+              suggested_action: "create_new_version",
+              reason: "重大转变",
+              evidence: "对话第5轮",
+            },
+            {
+              related_asset_id: "asset_3",
+              related_asset_title: "已有资产3",
+              suggested_action: "ignore",
+              reason: "不相关",
+              evidence: "",
+            },
+          ],
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const md = buildMultiAgentMarkdown(steps);
+    expect(md).toContain("### 资产更新建议");
+    expect(md).toContain("**[小修改]**");
+    expect(md).toContain("已有资产1");
+    expect(md).toContain("需要小修改");
+    expect(md).toContain("**[新版本]**");
+    expect(md).toContain("已有资产2");
+    expect(md).toContain("**[忽略]**");
+    expect(md).toContain("已有资产3");
+    expect(md).toContain("对话证据");
+  });
+
+  it("does not include update_proposals section when no proposals", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test",
+          core_insight: "insight",
+          transferable_value: "value",
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const md = buildMultiAgentMarkdown(steps);
+    expect(md).not.toContain("### 资产更新建议");
   });
 });
 

@@ -1,4 +1,4 @@
-import type { AgentDefinition, AgentContext } from "./agent-types";
+import type { AgentDefinition, AgentContext, AssetUpdateAction } from "./agent-types";
 import { ASSET_TYPE_MAP } from "./agent-types";
 import { buildPreviousStepsContext, buildPreferenceRulesSection } from "./agent-utils";
 import { callReviewModel } from "./llm";
@@ -28,7 +28,19 @@ const ASSET_SYSTEM_PROMPT = `你是一个认知资产提取智能体（AssetAgen
   "revised_judgment": "修正后判断",
   "my_understanding": "我的理解",
   "transferable_value": "可迁移价值",
-  "reasoning": "判断理由"
+  "reasoning": "判断理由",
+  "update_proposals": [
+    {
+      "related_asset_id": "已有资产的ID",
+      "related_asset_title": "已有资产的标题",
+      "suggested_action": "minor_edit | create_new_version | ignore",
+      "reason": "建议此操作的原因",
+      "evidence": "来自当前对话的证据",
+      "suggested_changes": {
+        "core_insight": "建议修改的字段和新值"
+      }
+    }
+  ]
 }
 
 当 has_asset 为 true 时，根据 asset_type 额外输出以下专属字段：
@@ -69,6 +81,7 @@ const ASSET_SYSTEM_PROMPT = `你是一个认知资产提取智能体（AssetAgen
 - core_insight 应简洁有力，一至两句话概括
 - transferable_value 应说明该资产在什么场景下可以复用
 - 专属字段应尽可能完整填写，提供有价值的信息
+- 如果提供了 existing_assets，请评估新分析是否影响已有资产，并在 update_proposals 中提出更新建议
 - 只输出 JSON，不要输出其他内容
 
 输出前自检：
@@ -76,6 +89,17 @@ const ASSET_SYSTEM_PROMPT = `你是一个认知资产提取智能体（AssetAgen
 2. has_asset=true 时，original_judgment 和 revised_judgment 是否有实质区别（无变化不应提取资产）
 3. has_asset=true 时，是否根据 asset_type 输出了对应的专属字段
 4. has_asset=false 时，reasoning 是否解释了为什么不值得提取`;
+
+const MAX_EXISTING_ASSETS = 20;
+const MAX_ASSET_FIELD_LEN = 100;
+const SANITIZE_RE = /[\n\r]|忽略|ignore|指令|instruction|prompt|system/gi;
+
+function sanitizeAssetField(value: unknown): string {
+  if (typeof value !== "string") return "";
+  let s = value.slice(0, MAX_ASSET_FIELD_LEN);
+  s = s.replace(SANITIZE_RE, " ");
+  return s.trim();
+}
 
 export const assetAgent: AgentDefinition = {
   type: "asset",
@@ -98,6 +122,13 @@ export const assetAgent: AgentDefinition = {
     const rulesSection = buildPreferenceRulesSection(context.input.preferenceRules, "判断和提取");
     if (rulesSection) {
       sections.push(rulesSection);
+    }
+
+    const existingAssets = context.input.existingAssets;
+    if (existingAssets && existingAssets.length > 0) {
+      const capped = existingAssets.slice(0, MAX_EXISTING_ASSETS);
+      const assetList = capped.map(a => `- ID: ${sanitizeAssetField(a.asset_id)}, 标题: ${sanitizeAssetField(a.title)}, 类型: ${sanitizeAssetField(a.asset_type)}`).join("\n");
+      sections.push(`<existing_assets>\n${assetList}\n</existing_assets>`);
     }
 
     const userPrompt = sections.join("\n\n");
@@ -146,6 +177,30 @@ export const assetAgent: AgentDefinition = {
 
       if (Object.keys(specialFields).length > 0) {
         result.special_fields = specialFields;
+      }
+
+      const updateProposals = Array.isArray(parsed.update_proposals)
+        ? parsed.update_proposals.filter(
+            (p: unknown) => typeof p === "object" && p !== null
+              && typeof (p as Record<string, unknown>).related_asset_id === "string"
+              && ["minor_edit", "create_new_version", "ignore"].includes(String((p as Record<string, unknown>).suggested_action))
+          ).map((p: unknown) => {
+            const obj = p as Record<string, unknown>;
+            return {
+              related_asset_id: String(obj.related_asset_id ?? ""),
+              related_asset_title: String(obj.related_asset_title ?? ""),
+              suggested_action: String(obj.suggested_action) as AssetUpdateAction,
+              reason: String(obj.reason ?? ""),
+              evidence: String(obj.evidence ?? ""),
+              suggested_changes: typeof obj.suggested_changes === "object" && obj.suggested_changes !== null
+                ? obj.suggested_changes as Record<string, unknown>
+                : undefined,
+            };
+          })
+        : [];
+
+      if (updateProposals.length > 0) {
+        result.update_proposals = updateProposals;
       }
 
       return result;

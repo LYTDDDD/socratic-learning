@@ -286,6 +286,10 @@ export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown>
           }
         : null,
     };
+
+    if (Array.isArray(a.update_proposals) && a.update_proposals.length > 0) {
+      (result.asset_decision as Record<string, unknown>).update_proposals = a.update_proposals;
+    }
   }
 
   if (steps.length > 0) {
@@ -425,6 +429,17 @@ export function buildMultiAgentMarkdown(steps: AgentStep[]): string {
           if (layer.application_scenarios.length > 0) sections.push(`**应用场景**：${layer.application_scenarios.join("、")}`);
           if (layer.open_questions.length > 0) sections.push(`**开放问题**：${layer.open_questions.join("、")}`);
           if (layer.related_assets.length > 0) sections.push(`**相关资产**：${layer.related_assets.join("、")}`);
+        }
+      }
+      const updateProposals = o.update_proposals as Array<Record<string, unknown>> | undefined;
+      if (Array.isArray(updateProposals) && updateProposals.length > 0) {
+        sections.push("");
+        sections.push("### 资产更新建议");
+        for (const p of updateProposals) {
+          const actionLabel = p.suggested_action === "minor_edit" ? "小修改" : p.suggested_action === "create_new_version" ? "新版本" : "忽略";
+          let line = `- **[${actionLabel}]** "${String(p.related_asset_title ?? "")}" — 原因：${String(p.reason ?? "")}`;
+          if (p.evidence) line += ` | 证据：${String(p.evidence)}`;
+          sections.push(line);
         }
       }
     } else if (step.agent === "curator") {

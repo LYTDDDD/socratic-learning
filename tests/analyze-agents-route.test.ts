@@ -224,6 +224,52 @@ describe("POST /api/analyze-agents", () => {
     expect(pipelineInput.preferenceRules).toEqual(["valid rule", "another rule"]);
   });
 
+  it("passes existingAssets to runAgentPipeline when provided", async () => {
+    const req = makeNextRequest({
+      ...makeValidPayload(),
+      existingAssets: [
+        { asset_id: "asset_1", title: "已有资产1", asset_type: "ConceptCard" },
+        { asset_id: "asset_2", title: "已有资产2", asset_type: "MethodCard" },
+      ],
+    });
+
+    await POST(req);
+
+    expect(mockRunAgentPipeline).toHaveBeenCalledOnce();
+    const pipelineInput = mockRunAgentPipeline.mock.calls[0][0];
+    expect(pipelineInput.existingAssets).toBeDefined();
+    expect(pipelineInput.existingAssets).toHaveLength(2);
+    expect(pipelineInput.existingAssets![0].asset_id).toBe("asset_1");
+    expect(pipelineInput.existingAssets![1].title).toBe("已有资产2");
+  });
+
+  it("filters non-object items from existingAssets", async () => {
+    const req = makeNextRequest({
+      ...makeValidPayload(),
+      existingAssets: [
+        { asset_id: "asset_1", title: "有效资产", asset_type: "ConceptCard" },
+        "invalid string",
+        42,
+        null,
+      ],
+    });
+
+    await POST(req);
+
+    const pipelineInput = mockRunAgentPipeline.mock.calls[0][0];
+    expect(pipelineInput.existingAssets).toHaveLength(1);
+    expect(pipelineInput.existingAssets![0].asset_id).toBe("asset_1");
+  });
+
+  it("defaults existingAssets to undefined when not provided", async () => {
+    const req = makeNextRequest(makeValidPayload());
+
+    await POST(req);
+
+    const pipelineInput = mockRunAgentPipeline.mock.calls[0][0];
+    expect(pipelineInput.existingAssets).toBeUndefined();
+  });
+
   it("returns 500 when runAgentPipeline throws a generic error", async () => {
     mockRunAgentPipeline.mockRejectedValueOnce(new Error("Pipeline crashed"));
 

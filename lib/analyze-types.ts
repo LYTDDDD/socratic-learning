@@ -1,4 +1,5 @@
 import type { RunLog } from "./run-log";
+import type { CognitiveAsset } from "./extract-asset";
 
 export type AnalyzeInput = {
   background: string;
@@ -8,6 +9,7 @@ export type AnalyzeInput = {
   expectedOutput: string;
   preferenceRules?: string[];
   missionId?: string | null;
+  existingAssets?: CognitiveAsset[];
 };
 
 export type ExtractJsonResult = {

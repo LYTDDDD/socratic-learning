@@ -1,3 +1,5 @@
+import type { CognitiveAsset } from "./extract-asset";
+
 export type AgentType =
   | "supervisor"
   | "review"
@@ -48,6 +50,7 @@ export type AgentContext = {
     notes: string;
     expectedOutput: string;
     preferenceRules: string[];
+    existingAssets?: CognitiveAsset[];
   };
   previousSteps: AgentStep[];
   signal?: AbortSignal;
@@ -152,6 +155,17 @@ export type CardSpecialFields =
   | { type: "CaseCard"; fields: CaseCardFields }
   | { type: "ReflectionCard"; fields: ReflectionCardFields };
 
+export type AssetUpdateAction = "minor_edit" | "create_new_version" | "ignore";
+
+export type AssetUpdateProposal = {
+  related_asset_id: string;
+  related_asset_title: string;
+  suggested_action: AssetUpdateAction;
+  reason: string;
+  evidence: string;
+  suggested_changes?: Record<string, unknown>;
+};
+
 export type AssetOutput = {
   has_asset: boolean;
   asset_type: string;
@@ -163,6 +177,7 @@ export type AssetOutput = {
   transferable_value: string;
   reasoning: string;
   special_fields?: Record<string, unknown>;
+  update_proposals?: AssetUpdateProposal[];
 };
 
 export type CuratorOutput = {
