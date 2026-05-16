@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import type { CognitiveAsset } from "../lib/extract-asset";
 import { loadAssets } from "../lib/asset-store";
+import { reviewRecordsExportFilename, serializeReviewRecordsExport } from "../lib/review-record-export";
 import { loadReviewRecords } from "../lib/review-record-store";
 import type { ReviewRecord } from "../lib/review-record-store";
 import { buildReviewPanelModel } from "../lib/review-panel-model";
@@ -35,6 +36,19 @@ export function ReviewPanel({ refreshKey, currentMissionId }: ReviewPanelProps) 
     () => buildReviewPanelModel(assets, allRecords, currentMissionId),
     [assets, allRecords, currentMissionId],
   );
+
+  const handleExportRecords = useCallback(() => {
+    if (visibleRecords.length === 0) return;
+    const exportedAt = new Date();
+    const content = serializeReviewRecordsExport(visibleRecords, currentMissionId ?? null, exportedAt.toISOString());
+    const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = reviewRecordsExportFilename(currentMissionId ?? null, exportedAt);
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [currentMissionId, visibleRecords]);
 
   if (reviewFlow) {
     return (
@@ -70,13 +84,23 @@ export function ReviewPanel({ refreshKey, currentMissionId }: ReviewPanelProps) 
           </svg>
           <h3 className="text-sm font-semibold text-ink">复习中心</h3>
         </div>
-        <button
-          className="rounded px-2 py-1 text-xs font-medium text-ink/50 transition hover:bg-paper hover:text-ink"
-          onClick={() => setCollapsed((c) => !c)}
-          type="button"
-        >
-          {collapsed ? "展开" : "收起"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="rounded px-2 py-1 text-xs font-medium text-ink/50 transition hover:bg-paper hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={visibleRecords.length === 0}
+            onClick={handleExportRecords}
+            type="button"
+          >
+            导出记录
+          </button>
+          <button
+            className="rounded px-2 py-1 text-xs font-medium text-ink/50 transition hover:bg-paper hover:text-ink"
+            onClick={() => setCollapsed((c) => !c)}
+            type="button"
+          >
+            {collapsed ? "展开" : "收起"}
+          </button>
+        </div>
       </div>
 
       {!collapsed && (
