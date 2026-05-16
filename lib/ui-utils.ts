@@ -51,3 +51,21 @@ export function resultLabel(result: string): string {
   if (result === "partial") return "部分理解";
   return "需要补充";
 }
+
+export function feedbackSurfaceColor(evaluation: string): string {
+  if (evaluation === "good") return "border-moss/30 bg-moss/5";
+  if (evaluation === "partial") return "border-yellow-300/30 bg-yellow-50";
+  return "border-rust/20 bg-rust/5";
+}
+
+export function feedbackMarkerBadge(evaluation: string): string {
+  if (evaluation === "good") return "bg-moss/10 text-moss";
+  if (evaluation === "partial") return "bg-yellow-50 text-yellow-600";
+  return "bg-rust/5 text-rust";
+}
+
+export function feedbackMarkerLabel(evaluation: string): string {
+  if (evaluation === "good") return "✓";
+  if (evaluation === "partial") return "◐";
+  return "✗";
+}

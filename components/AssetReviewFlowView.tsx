@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { feedbackSurfaceColor, resultBadgeColor, resultLabel } from "../lib/ui-utils";
 import type { ReviewFlowState } from "../lib/use-asset-review";
 
 type ActiveReviewFlow = NonNullable<ReviewFlowState>;
@@ -83,18 +84,10 @@ export function AssetReviewFlowView({
       {reviewFlow.phase === "result" && (
         <div className="space-y-3">
           {reviewFlow.feedback.map((feedback, index) => (
-            <div key={index} className={`rounded-lg border p-3 ${
-              feedback.evaluation === "good" ? "border-moss/30 bg-moss/5" :
-              feedback.evaluation === "partial" ? "border-yellow-300/30 bg-yellow-50" :
-              "border-rust/20 bg-rust/5"
-            }`}>
+            <div key={index} className={`rounded-lg border p-3 ${feedbackSurfaceColor(feedback.evaluation)}`}>
               <div className="mb-1 flex items-center gap-2">
-                <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                  feedback.evaluation === "good" ? "bg-moss/15 text-moss" :
-                  feedback.evaluation === "partial" ? "bg-yellow-100 text-yellow-700" :
-                  "bg-rust/10 text-rust"
-                }`}>
-                  {feedback.evaluation === "good" ? "理解到位" : feedback.evaluation === "partial" ? "部分理解" : "需要补充"}
+                <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${resultBadgeColor(feedback.evaluation)}`}>
+                  {resultLabel(feedback.evaluation)}
                 </span>
                 <span className="text-[10px] text-ink/40">问题 {index + 1}</span>
               </div>

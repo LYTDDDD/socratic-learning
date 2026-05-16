@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { formatTime, typeBadgeColor, maturityBadge, statusBadge, resultBadgeColor, resultLabel } from "../lib/ui-utils";
+import {
+  feedbackMarkerBadge,
+  feedbackMarkerLabel,
+  feedbackSurfaceColor,
+  formatTime,
+  maturityBadge,
+  resultBadgeColor,
+  resultLabel,
+  statusBadge,
+  typeBadgeColor,
+} from "../lib/ui-utils";
 
 describe("ui-utils", () => {
   describe("formatTime", () => {
@@ -90,6 +100,30 @@ describe("ui-utils", () => {
 
     it("returns correct label for needs_work", () => {
       expect(resultLabel("needs_work")).toBe("需要补充");
+    });
+  });
+
+  describe("feedbackSurfaceColor", () => {
+    it("returns result surface colors", () => {
+      expect(feedbackSurfaceColor("good")).toBe("border-moss/30 bg-moss/5");
+      expect(feedbackSurfaceColor("partial")).toBe("border-yellow-300/30 bg-yellow-50");
+      expect(feedbackSurfaceColor("needs_work")).toBe("border-rust/20 bg-rust/5");
+    });
+  });
+
+  describe("feedbackMarkerBadge", () => {
+    it("returns compact marker colors", () => {
+      expect(feedbackMarkerBadge("good")).toBe("bg-moss/10 text-moss");
+      expect(feedbackMarkerBadge("partial")).toBe("bg-yellow-50 text-yellow-600");
+      expect(feedbackMarkerBadge("needs_work")).toBe("bg-rust/5 text-rust");
+    });
+  });
+
+  describe("feedbackMarkerLabel", () => {
+    it("returns compact marker labels", () => {
+      expect(feedbackMarkerLabel("good")).toBe("✓");
+      expect(feedbackMarkerLabel("partial")).toBe("◐");
+      expect(feedbackMarkerLabel("needs_work")).toBe("✗");
     });
   });
 });
