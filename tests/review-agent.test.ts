@@ -10,7 +10,7 @@ import { callReviewModel } from "../lib/llm";
 
 const mockCallReviewModel = vi.mocked(callReviewModel);
 
-function makeContext(overrides?: Partial<AgentContext["input"]>, previousSteps?: AgentStep[]): AgentContext {
+function makeContext(overrides?: Partial<AgentContext["input"]>, previousSteps?: AgentStep[], signal?: AbortSignal): AgentContext {
   return {
     input: {
       background: "test bg",
@@ -22,6 +22,7 @@ function makeContext(overrides?: Partial<AgentContext["input"]>, previousSteps?:
       ...overrides,
     },
     previousSteps: previousSteps ?? [],
+    signal,
   };
 }
 
@@ -34,7 +35,7 @@ describe("reviewAgent", () => {
     mockCallReviewModel.mockResolvedValueOnce(
       JSON.stringify({
         key_decisions: ["选择了微服务架构"],
-        turning_points: ["从单体转向微服务"],
+        turning_points: [{ turning_point: "从单体转向微服务", evidence: "对话中提到", why_it_matters: "架构转变" }],
         key_takeaways: ["团队规模决定架构选择"],
         summary: "对话复盘总结",
       }),
@@ -43,7 +44,7 @@ describe("reviewAgent", () => {
     const result = await reviewAgent.execute(makeContext());
 
     expect(result.key_decisions).toEqual(["选择了微服务架构"]);
-    expect(result.turning_points).toEqual(["从单体转向微服务"]);
+    expect(result.turning_points).toEqual([{ turning_point: "从单体转向微服务", evidence: "对话中提到", why_it_matters: "架构转变" }]);
     expect(result.key_takeaways).toEqual(["团队规模决定架构选择"]);
     expect(result.summary).toBe("对话复盘总结");
   });
@@ -162,7 +163,7 @@ describe("reviewAgent", () => {
     mockCallReviewModel.mockResolvedValueOnce(
       JSON.stringify({
         key_decisions: ["d1"],
-        turning_points: ["t1"],
+        turning_points: [{ turning_point: "t1", evidence: "", why_it_matters: "" }],
         key_takeaways: ["k1"],
         summary: "test",
         misconceptions: [
@@ -245,5 +246,84 @@ describe("reviewAgent", () => {
 
     const result = await reviewAgent.execute(makeContext());
     expect(result.misconceptions).toEqual([]);
+  });
+
+  it("parses structured turning_points from LLM output", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        key_decisions: ["d1"],
+        turning_points: [
+          { turning_point: "转折1", evidence: "证据1", why_it_matters: "意义1" },
+          { turning_point: "转折2", evidence: "证据2", why_it_matters: "意义2" },
+        ],
+        key_takeaways: ["k1"],
+        summary: "test",
+      }),
+    );
+
+    const result = await reviewAgent.execute(makeContext());
+    const tp = result.turning_points as Array<Record<string, string>>;
+
+    expect(tp).toHaveLength(2);
+    expect(tp[0]).toEqual({ turning_point: "转折1", evidence: "证据1", why_it_matters: "意义1" });
+    expect(tp[1]).toEqual({ turning_point: "转折2", evidence: "证据2", why_it_matters: "意义2" });
+  });
+
+  it("filters out turning_points without turning_point string and degrades strings", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        key_decisions: [],
+        turning_points: [
+          { turning_point: "valid", evidence: "e", why_it_matters: "m" },
+          { evidence: "no turning_point field", why_it_matters: "m" },
+          42,
+          null,
+          "string instead of object",
+        ],
+        key_takeaways: [],
+        summary: "test",
+      }),
+    );
+
+    const result = await reviewAgent.execute(makeContext());
+    const tp = result.turning_points as Array<Record<string, string>>;
+
+    expect(tp).toHaveLength(2);
+    expect(tp[0].turning_point).toBe("valid");
+    expect(tp[1].turning_point).toBe("string instead of object");
+    expect(tp[1].evidence).toBe("");
+    expect(tp[1].why_it_matters).toBe("");
+  });
+
+  it("defaults missing evidence and why_it_matters to empty string", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        key_decisions: [],
+        turning_points: [
+          { turning_point: "only name" },
+        ],
+        key_takeaways: [],
+        summary: "test",
+      }),
+    );
+
+    const result = await reviewAgent.execute(makeContext());
+    const tp = result.turning_points as Array<Record<string, string>>;
+
+    expect(tp[0]).toEqual({ turning_point: "only name", evidence: "", why_it_matters: "" });
+  });
+
+  it("passes signal to callReviewModel", async () => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({ key_decisions: [], turning_points: [], key_takeaways: [], summary: "test" }),
+    );
+
+    await reviewAgent.execute(makeContext({}, [], signal));
+
+    expect(mockCallReviewModel).toHaveBeenCalledTimes(1);
+    expect(mockCallReviewModel.mock.calls[0][2]).toBe(signal);
   });
 });

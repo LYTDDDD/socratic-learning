@@ -208,7 +208,7 @@ describe("assetAgent", () => {
     expect(userPrompt).toContain("用户偏好规则");
   });
 
-  it("truncates conversation to 2000 chars", async () => {
+  it("truncates conversation to 4000 chars", async () => {
     const longConv = "y".repeat(5000);
     mockCallReviewModel.mockResolvedValueOnce(
       JSON.stringify({ has_asset: false, asset_type: "", title: "", core_insight: "", original_judgment: "", revised_judgment: "", my_understanding: "", transferable_value: "", reasoning: "none" }),
@@ -217,7 +217,8 @@ describe("assetAgent", () => {
     await assetAgent.execute(makeContext({ conversation: longConv }));
 
     const userPrompt = mockCallReviewModel.mock.calls[0][1];
-    expect(userPrompt).toContain("y".repeat(2000));
+    expect(userPrompt).toContain("y".repeat(4000));
+    expect(userPrompt).not.toContain("y".repeat(4001));
   });
 
   it("has correct type, name, and description", () => {
@@ -230,5 +231,159 @@ describe("assetAgent", () => {
     mockCallReviewModel.mockRejectedValueOnce(new Error("Timeout"));
 
     await expect(assetAgent.execute(makeContext())).rejects.toThrow("Timeout");
+  });
+
+  it("parses ConceptCard special fields for principle asset_type", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        has_asset: true,
+        asset_type: "principle",
+        title: "约束驱动选型",
+        core_insight: "先看约束再选架构",
+        original_judgment: "微服务更现代",
+        revised_judgment: "模块化单体更适合",
+        my_understanding: "选型不是追新",
+        transferable_value: "可迁移到其他决策",
+        reasoning: "对话涉及重要认知转变",
+        definition: "在约束条件下做技术选型",
+        boundary: "适用于技术架构决策",
+        common_confusions: ["追新就是好", "流行就是适合"],
+        examples: ["某项目从微服务回退到单体"],
+      }),
+    );
+
+    const result = await assetAgent.execute(makeContext());
+
+    expect(result.special_fields).toBeDefined();
+    const sf = result.special_fields as Record<string, unknown>;
+    expect(sf.definition).toBe("在约束条件下做技术选型");
+    expect(sf.boundary).toBe("适用于技术架构决策");
+    expect(sf.common_confusions).toEqual(["追新就是好", "流行就是适合"]);
+    expect(sf.examples).toEqual(["某项目从微服务回退到单体"]);
+  });
+
+  it("parses MethodCard special fields for checklist asset_type", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        has_asset: true,
+        asset_type: "checklist",
+        title: "代码审查清单",
+        core_insight: "系统化审查减少遗漏",
+        original_judgment: "凭感觉审查",
+        revised_judgment: "按清单逐项审查",
+        my_understanding: "清单比直觉可靠",
+        transferable_value: "适用于所有审查场景",
+        reasoning: "发现系统化方法的价值",
+        when_to_use: "每次提交代码前",
+        steps: ["检查命名", "检查边界", "检查错误处理"],
+        pitfalls: ["过度审查", "忽略上下文"],
+        prerequisites: ["了解代码规范"],
+      }),
+    );
+
+    const result = await assetAgent.execute(makeContext());
+
+    expect(result.special_fields).toBeDefined();
+    const sf = result.special_fields as Record<string, unknown>;
+    expect(sf.when_to_use).toBe("每次提交代码前");
+    expect(sf.steps).toEqual(["检查命名", "检查边界", "检查错误处理"]);
+    expect(sf.pitfalls).toEqual(["过度审查", "忽略上下文"]);
+    expect(sf.prerequisites).toEqual(["了解代码规范"]);
+  });
+
+  it("parses ReflectionCard special fields for insight asset_type", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        has_asset: true,
+        asset_type: "insight",
+        title: "简化优先",
+        core_insight: "简单方案往往更可持续",
+        original_judgment: "功能越多越好",
+        revised_judgment: "精简功能更有效",
+        my_understanding: "少即是多",
+        transferable_value: "适用于产品决策",
+        reasoning: "从过度设计中反思",
+        trigger_question: "这个功能真的必要吗？",
+        insight: "简单方案往往更可持续",
+        mindset_shift: "从加法思维到减法思维",
+        application_scenario: "产品功能规划",
+      }),
+    );
+
+    const result = await assetAgent.execute(makeContext());
+
+    expect(result.special_fields).toBeDefined();
+    const sf = result.special_fields as Record<string, unknown>;
+    expect(sf.trigger_question).toBe("这个功能真的必要吗？");
+    expect(sf.insight).toBe("简单方案往往更可持续");
+    expect(sf.mindset_shift).toBe("从加法思维到减法思维");
+    expect(sf.application_scenario).toBe("产品功能规划");
+  });
+
+  it("omits special_fields when no special fields are present", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        has_asset: false,
+        asset_type: "",
+        title: "",
+        core_insight: "",
+        original_judgment: "",
+        revised_judgment: "",
+        my_understanding: "",
+        transferable_value: "",
+        reasoning: "不值得提取",
+      }),
+    );
+
+    const result = await assetAgent.execute(makeContext());
+
+    expect(result.special_fields).toBeUndefined();
+  });
+
+  it("handles missing special field values gracefully", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        has_asset: true,
+        asset_type: "principle",
+        title: "部分字段缺失",
+        core_insight: "测试",
+        original_judgment: "A",
+        revised_judgment: "B",
+        my_understanding: "",
+        transferable_value: "",
+        reasoning: "test",
+      }),
+    );
+
+    const result = await assetAgent.execute(makeContext());
+
+    expect(result.special_fields).toBeUndefined();
+  });
+
+  it("filters non-string values in array special fields", async () => {
+    mockCallReviewModel.mockResolvedValueOnce(
+      JSON.stringify({
+        has_asset: true,
+        asset_type: "checklist",
+        title: "混合类型数组",
+        core_insight: "测试",
+        original_judgment: "A",
+        revised_judgment: "B",
+        my_understanding: "",
+        transferable_value: "",
+        reasoning: "test",
+        when_to_use: "任何时候",
+        steps: ["步骤1", 123, null, "步骤2"],
+        pitfalls: [],
+        prerequisites: ["前置1"],
+      }),
+    );
+
+    const result = await assetAgent.execute(makeContext());
+
+    const sf = result.special_fields as Record<string, unknown>;
+    expect(sf.steps).toEqual(["步骤1", "步骤2"]);
+    expect(sf.pitfalls).toEqual([]);
+    expect(sf.prerequisites).toEqual(["前置1"]);
   });
 });

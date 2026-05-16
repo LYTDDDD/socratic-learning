@@ -78,7 +78,7 @@ function buildUserContent(input: AnalyzeInput) {
   return sections.join("\n");
 }
 
-export async function callAnalysisModel(prompt: string, input: AnalyzeInput) {
+export async function callAnalysisModel(prompt: string, input: AnalyzeInput, signal?: AbortSignal) {
   const { apiKey, baseUrl, model } = getModelConfig();
   const requestBody = JSON.stringify({
     model,
@@ -94,7 +94,7 @@ export async function callAnalysisModel(prompt: string, input: AnalyzeInput) {
     ],
     temperature: 0.2,
   });
-  const response = await requestModel(baseUrl, apiKey, requestBody);
+  const response = await requestModel(baseUrl, apiKey, requestBody, signal);
 
   let data: ChatCompletionResponse;
 
@@ -120,7 +120,7 @@ export async function callAnalysisModel(prompt: string, input: AnalyzeInput) {
   return rawOutput;
 }
 
-export async function callReviewModel(systemPrompt: string, userPrompt: string) {
+export async function callReviewModel(systemPrompt: string, userPrompt: string, signal?: AbortSignal) {
   const { apiKey, baseUrl, model } = getModelConfig();
   const requestBody = JSON.stringify({
     model,
@@ -136,7 +136,7 @@ export async function callReviewModel(systemPrompt: string, userPrompt: string) 
     ],
     temperature: 0.3,
   });
-  const response = await requestModel(baseUrl, apiKey, requestBody);
+  const response = await requestModel(baseUrl, apiKey, requestBody, signal);
 
   let data: ChatCompletionResponse;
 
@@ -162,10 +162,11 @@ export async function callReviewModel(systemPrompt: string, userPrompt: string) 
   return rawOutput;
 }
 
-function requestModel(baseUrl: string, apiKey: string, body: string) {
+function requestModel(baseUrl: string, apiKey: string, body: string, signal?: AbortSignal) {
   const url = new URL(`${baseUrl}/chat/completions`);
 
   return new Promise<{ status: number; body: string }>((resolve, reject) => {
+    let aborted = false;
     const request = https.request(
       {
         hostname: url.hostname,
@@ -195,11 +196,25 @@ function requestModel(baseUrl: string, apiKey: string, body: string) {
       },
     );
 
+    if (signal) {
+      if (signal.aborted) {
+        aborted = true;
+        request.destroy(new Error("Request aborted"));
+        return reject(new Error("Request aborted"));
+      }
+      signal.addEventListener("abort", () => {
+        aborted = true;
+        request.destroy(new Error("Request aborted"));
+        reject(new Error("Request aborted"));
+      }, { once: true });
+    }
+
     request.on("timeout", () => {
       request.destroy(new ModelCallError("模型调用超时。"));
     });
 
     request.on("error", (error) => {
+      if (aborted) return;
       reject(
         error instanceof ModelCallError
           ? error

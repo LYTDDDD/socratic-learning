@@ -21,6 +21,18 @@ function makeInput() {
   };
 }
 
+function makeAllDimensions(score: number) {
+  return {
+    judgment_shift: { score, evidence: "test", uncertainty: "medium" as const },
+    boundary_clarity: { score, evidence: "test", uncertainty: "medium" as const },
+    transferability: { score, evidence: "test", uncertainty: "medium" as const },
+    hidden_assumption: { score, evidence: "test", uncertainty: "medium" as const },
+    counterexample_awareness: { score, evidence: "test", uncertainty: "medium" as const },
+    framework_formation: { score, evidence: "test", uncertainty: "medium" as const },
+    behavior_impact: { score, evidence: "test", uncertainty: "medium" as const },
+  };
+}
+
 describe("runAgentPipeline", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -37,7 +49,7 @@ describe("runAgentPipeline", () => {
       .mockResolvedValueOnce(
         JSON.stringify({
           key_decisions: ["d1"],
-          turning_points: ["t1"],
+          turning_points: [{ turning_point: "t1", evidence: "", why_it_matters: "" }],
           key_takeaways: ["k1"],
           summary: "review summary",
         }),
@@ -45,6 +57,7 @@ describe("runAgentPipeline", () => {
       .mockResolvedValueOnce(
         JSON.stringify({
           depth_score: 7,
+          dimensions: makeAllDimensions(7),
           blind_spots: ["b1"],
           improvement_directions: ["i1"],
           reasoning: "depth reasoning",
@@ -154,6 +167,7 @@ describe("runAgentPipeline", () => {
       .mockResolvedValueOnce(
         JSON.stringify({
           depth_score: 3,
+          dimensions: makeAllDimensions(3),
           blind_spots: [],
           improvement_directions: [],
           reasoning: "fallback depth",
@@ -266,6 +280,7 @@ describe("runAgentPipeline", () => {
       .mockResolvedValueOnce(
         JSON.stringify({
           depth_score: 5,
+          dimensions: makeAllDimensions(5),
           blind_spots: [],
           improvement_directions: [],
           reasoning: "test",
@@ -391,6 +406,7 @@ describe("runAgentPipeline", () => {
       .mockResolvedValueOnce(
         JSON.stringify({
           depth_score: 3,
+          dimensions: makeAllDimensions(3),
           blind_spots: [],
           improvement_directions: ["improve"],
           reasoning: "shallow",
@@ -427,6 +443,7 @@ describe("runAgentPipeline", () => {
       .mockResolvedValueOnce(
         JSON.stringify({
           depth_score: 7,
+          dimensions: makeAllDimensions(7),
           blind_spots: [],
           improvement_directions: ["improve"],
           reasoning: "deep",
@@ -472,6 +489,7 @@ describe("runAgentPipeline", () => {
       .mockResolvedValueOnce(
         JSON.stringify({
           depth_score: 4,
+          dimensions: makeAllDimensions(4),
           blind_spots: ["blind1"],
           improvement_directions: ["improve"],
           reasoning: "has evidence",
@@ -562,7 +580,7 @@ describe("buildMultiAgentJson", () => {
         startedAt: "2026-01-01T00:00:02Z",
         finishedAt: "2026-01-01T00:00:03Z",
         input: {},
-        output: { depth_score: 7 },
+        output: { depth_score: 7, dimensions: makeAllDimensions(7) },
         status: "success",
         error: null,
       },
@@ -571,7 +589,7 @@ describe("buildMultiAgentJson", () => {
     const result = buildMultiAgentJson(steps);
 
     expect(result.supervisor).toEqual({ steps: ["review"], reasoning: "test" });
-    expect(result.depth_evaluation).toEqual({ depth_score: 7 });
+    expect(result.depth_evaluation).toEqual({ depth_score: 7, dimensions: makeAllDimensions(7) });
     expect(result).not.toHaveProperty("review");
     expect(result.trace_summary).toBeDefined();
   });
@@ -609,7 +627,7 @@ describe("buildMultiAgentJson", () => {
         output: {
           summary: "test summary",
           key_decisions: ["d1"],
-          turning_points: ["t1"],
+          turning_points: [{ turning_point: "t1", evidence: "", why_it_matters: "" }],
           key_takeaways: ["k1"],
         },
         status: "success",
@@ -622,7 +640,7 @@ describe("buildMultiAgentJson", () => {
     expect(result.mission_review).toEqual({
       summary: "test summary",
       key_decisions: ["d1"],
-      turning_points: ["t1"],
+      turning_points: [{ turning_point: "t1", evidence: "", why_it_matters: "" }],
       key_takeaways: ["k1"],
     });
     expect(result.review).toEqual(result.mission_review);
@@ -1287,7 +1305,7 @@ describe("buildMultiAgentMarkdown", () => {
         output: {
           summary: "Test summary",
           key_decisions: ["dec1"],
-          turning_points: ["tp1"],
+          turning_points: [{ turning_point: "tp1", evidence: "", why_it_matters: "" }],
           key_takeaways: ["kt1"],
         },
         status: "success",
@@ -1300,7 +1318,7 @@ describe("buildMultiAgentMarkdown", () => {
     expect(md).toContain("Test summary");
     expect(md).toContain("关键决策");
     expect(md).toContain("dec1");
-    expect(md).toContain("转折点");
+    expect(md).toContain("关键转折");
     expect(md).toContain("tp1");
     expect(md).toContain("核心收获");
     expect(md).toContain("kt1");
@@ -1315,6 +1333,7 @@ describe("buildMultiAgentMarkdown", () => {
         input: {},
         output: {
           depth_score: 8,
+          dimensions: makeAllDimensions(8),
           blind_spots: ["blind1"],
           improvement_directions: ["imp1"],
         },
@@ -1597,6 +1616,33 @@ describe("buildMultiAgentMarkdown", () => {
     expect(md).toContain("**[隐藏假设]** 假设1");
     expect(md).toContain("**[探索性思考]** 探索1");
   });
+
+  it("builds markdown with structured turning_points including evidence and significance", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "review",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          summary: "test",
+          key_decisions: [],
+          turning_points: [
+            { turning_point: "从A转向B", evidence: "对话第3轮", why_it_matters: "改变了整体方向" },
+          ],
+          key_takeaways: [],
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const md = buildMultiAgentMarkdown(steps);
+    expect(md).toContain("### 关键转折");
+    expect(md).toContain("**转折1**：从A转向B");
+    expect(md).toContain("证据：对话第3轮");
+    expect(md).toContain("意义：改变了整体方向");
+  });
 });
 
 describe("runAgentPipeline callbacks", () => {
@@ -1769,7 +1815,7 @@ describe("runAgentPipeline callbacks", () => {
         JSON.stringify({ summary: "s", key_decisions: [], turning_points: [], key_takeaways: [] }),
       )
       .mockResolvedValueOnce(
-        JSON.stringify({ depth_score: 7, blind_spots: [], improvement_directions: [] }),
+        JSON.stringify({ depth_score: 7, dimensions: makeAllDimensions(7), blind_spots: [], improvement_directions: [] }),
       )
       .mockResolvedValueOnce(
         JSON.stringify({
@@ -1991,5 +2037,49 @@ describe("runAgentPipeline retry", () => {
     expect(onStepRetry).toHaveBeenCalledWith("review", 1, 1, 1);
     expect(onStepError).toHaveBeenCalledTimes(1);
     expect(onStepError).toHaveBeenCalledWith("review", 1, 1, "E2");
+  });
+});
+
+describe("runAgentPipeline signal", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("passes signal to agent execute context", async () => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    mockCallReviewModel
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          steps: ["review"],
+          reasoning: "test",
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          key_decisions: [],
+          turning_points: [],
+          key_takeaways: [],
+          summary: "test",
+        }),
+      );
+
+    await runAgentPipeline(makeInput(), undefined, undefined, signal);
+
+    expect(mockCallReviewModel).toHaveBeenCalled();
+    expect(mockCallReviewModel.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("aborts pipeline when signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const signal = controller.signal;
+
+    mockCallReviewModel.mockRejectedValueOnce(new Error("Request aborted"));
+
+    const result = await runAgentPipeline(makeInput(), undefined, undefined, signal);
+
+    expect(result.steps[0].status).toBe("failed");
   });
 });

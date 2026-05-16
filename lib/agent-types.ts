@@ -50,6 +50,7 @@ export type AgentContext = {
     preferenceRules: string[];
   };
   previousSteps: AgentStep[];
+  signal?: AbortSignal;
 };
 
 export type AgentDefinition = {
@@ -71,20 +72,85 @@ export type MisconceptionItem = {
   correction: string;
 };
 
+export type TurningPoint = {
+  turning_point: string;
+  evidence: string;
+  why_it_matters: string;
+};
+
 export type ReviewOutput = {
   summary: string;
   key_decisions: string[];
-  turning_points: string[];
+  turning_points: TurningPoint[];
   key_takeaways: string[];
   misconceptions: MisconceptionItem[];
 };
 
+export type DimensionScore = {
+  score: number;
+  evidence: string;
+  uncertainty: "low" | "medium" | "high";
+};
+
+export type DepthDimensions = {
+  judgment_shift: DimensionScore;
+  boundary_clarity: DimensionScore;
+  transferability: DimensionScore;
+  hidden_assumption: DimensionScore;
+  counterexample_awareness: DimensionScore;
+  framework_formation: DimensionScore;
+  behavior_impact: DimensionScore;
+};
+
 export type DepthEvaluationOutput = {
   depth_score: number;
+  dimensions: DepthDimensions;
   blind_spots: string[];
   improvement_directions: string[];
   reasoning: string;
 };
+
+export type ConceptCardFields = {
+  definition: string;
+  boundary: string;
+  common_confusions: string[];
+  examples: string[];
+};
+
+export type MisconceptionCardFields = {
+  misconception_trigger: string;
+  correction_path: string;
+  future_warning: string;
+  related_correct_concept: string;
+};
+
+export type MethodCardFields = {
+  when_to_use: string;
+  steps: string[];
+  pitfalls: string[];
+  prerequisites: string[];
+};
+
+export type CaseCardFields = {
+  background: string;
+  decision_point: string;
+  outcome: string;
+  key_lesson: string;
+};
+
+export type ReflectionCardFields = {
+  trigger_question: string;
+  insight: string;
+  mindset_shift: string;
+  application_scenario: string;
+};
+
+export type CardSpecialFields =
+  | { type: "ConceptCard"; fields: ConceptCardFields }
+  | { type: "MisconceptionCard"; fields: MisconceptionCardFields }
+  | { type: "MethodCard"; fields: MethodCardFields }
+  | { type: "CaseCard"; fields: CaseCardFields }
+  | { type: "ReflectionCard"; fields: ReflectionCardFields };
 
 export type AssetOutput = {
   has_asset: boolean;
@@ -96,6 +162,7 @@ export type AssetOutput = {
   my_understanding: string;
   transferable_value: string;
   reasoning: string;
+  special_fields?: Record<string, unknown>;
 };
 
 export type CuratorOutput = {

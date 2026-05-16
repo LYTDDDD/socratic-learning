@@ -6,7 +6,13 @@ const REVIEW_SYSTEM_PROMPT = `你是一个对话复盘分析器（ReviewAgent）
 请根据输入内容，输出一个 JSON 对象，格式如下：
 {
   "key_decisions": ["决策1", "决策2"],
-  "turning_points": ["转折点1", "转折点2"],
+  "turning_points": [
+    {
+      "turning_point": "关键转折点描述",
+      "evidence": "来自对话的证据",
+      "why_it_matters": "为什么重要"
+    }
+  ],
   "key_takeaways": ["收获1", "收获2"],
   "summary": "整体复盘总结",
   "misconceptions": [
@@ -21,7 +27,10 @@ const REVIEW_SYSTEM_PROMPT = `你是一个对话复盘分析器（ReviewAgent）
 
 规则：
 - key_decisions：列出对话中做出的关键决策或选择
-- turning_points：列出对话中思路或方向发生转变的关键时刻
+- turning_points：列出对话中思路或方向发生转变的关键时刻，每项必须包含：
+  - turning_point：转折点描述
+  - evidence：来自对话的具体证据
+  - why_it_matters：该转折为什么对认知或结果有重要影响
 - key_takeaways：列出从对话中获得的核心收获或洞察
 - summary：用一段话概括整个对话的复盘结论
 - misconceptions：识别对话中的误区、隐藏假设或值得探索的思考
@@ -35,7 +44,9 @@ const REVIEW_SYSTEM_PROMPT = `你是一个对话复盘分析器（ReviewAgent）
 输出前自检：
 1. key_takeaways 是否只是对话总结（应提炼可迁移认知，非复述）
 2. misconceptions 中的每项是否有 evidence 支持（无证据的不应标记为 misconception）
-3. 是否将探索性思考误判为误区（exploratory_thinking 和 misconception 要区分）`;
+3. 是否将探索性思考误判为误区（exploratory_thinking 和 misconception 要区分）
+4. turning_points 中每项的 evidence 是否来自对话原文（不能凭空编造）
+5. turning_points 中每项的 why_it_matters 是否解释了该转折的影响（不能只是复述转折点）`;
 
 export const reviewAgent: AgentDefinition = {
   type: "review",
@@ -63,7 +74,7 @@ export const reviewAgent: AgentDefinition = {
       .filter(Boolean)
       .join("\n\n");
 
-    const raw = await callReviewModel(REVIEW_SYSTEM_PROMPT, userPrompt);
+    const raw = await callReviewModel(REVIEW_SYSTEM_PROMPT, userPrompt, context.signal);
 
     try {
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -90,13 +101,29 @@ export const reviewAgent: AgentDefinition = {
             };
           })
         : [];
+      const turningPoints = Array.isArray(parsed.turning_points)
+        ? parsed.turning_points
+          .map((tp: unknown) => {
+            if (typeof tp === "string") {
+              return { turning_point: tp, evidence: "", why_it_matters: "" };
+            }
+            if (typeof tp === "object" && tp !== null && typeof (tp as Record<string, unknown>).turning_point === "string") {
+              const obj = tp as Record<string, unknown>;
+              return {
+                turning_point: String(obj.turning_point ?? ""),
+                evidence: String(obj.evidence ?? ""),
+                why_it_matters: String(obj.why_it_matters ?? ""),
+              };
+            }
+            return null;
+          })
+          .filter((tp: { turning_point: string; evidence: string; why_it_matters: string } | null): tp is { turning_point: string; evidence: string; why_it_matters: string } => tp !== null)
+        : [];
       return {
         key_decisions: Array.isArray(parsed.key_decisions)
           ? parsed.key_decisions
           : [],
-        turning_points: Array.isArray(parsed.turning_points)
-          ? parsed.turning_points
-          : [],
+        turning_points: turningPoints,
         key_takeaways: Array.isArray(parsed.key_takeaways)
           ? parsed.key_takeaways
           : [],

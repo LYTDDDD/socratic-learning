@@ -49,7 +49,7 @@ export const curatorAgent: AgentDefinition = {
     }
 
     const userPrompt = sections.join("\n\n");
-    const raw = await callReviewModel(CURATOR_SYSTEM_PROMPT, userPrompt);
+    const raw = await callReviewModel(CURATOR_SYSTEM_PROMPT, userPrompt, context.signal);
 
     try {
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
