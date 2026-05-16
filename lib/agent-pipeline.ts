@@ -80,6 +80,10 @@ export async function runAgentPipeline(
     const stepType = plannedSteps[stepIdx];
     if (stepType === "supervisor") continue;
 
+    if (signal?.aborted) {
+      return { steps, supervisorDecision };
+    }
+
     if (stepType === "asset") {
       const depthStep = steps.find((s) => s.agent === "depth_evaluation" && s.status === "success");
       if (depthStep?.output) {
@@ -138,6 +142,11 @@ export async function runAgentPipeline(
         }
       } catch (err) {
         lastError = err instanceof Error ? err.message : `${stepType} agent failed`;
+        if (signal?.aborted) {
+          steps[steps.length - 1] = failStep(steps[steps.length - 1], lastError ?? "Request aborted");
+          callbacks?.onStepError?.(stepType as AgentType, callbackIndex, total, lastError ?? "Request aborted");
+          return { steps, supervisorDecision };
+        }
         if (attempt < maxRetries) {
           callbacks?.onStepRetry?.(stepType as AgentType, callbackIndex, total, attempt + 1);
           await new Promise((resolve) => setTimeout(resolve, retryDelayMs));

@@ -205,6 +205,7 @@ function requestModel(baseUrl: string, apiKey: string, body: string, signal?: Ab
       signal.addEventListener("abort", () => {
         aborted = true;
         request.destroy(new Error("Request aborted"));
+        reject(new Error("Request aborted"));
       }, { once: true });
     }
 
