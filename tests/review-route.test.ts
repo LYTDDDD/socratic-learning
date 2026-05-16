@@ -250,6 +250,34 @@ describe("POST /api/review — feedback phase", () => {
     expect(data.feedback[0].evaluation).toBe("partial");
   });
 
+  it("ignores non-object feedback items from model output", async () => {
+    mockExtractJsonFromOutput.mockReturnValueOnce({
+      success: true,
+      json: {
+        feedback: [
+          null,
+          "bad item",
+          { question: "Question 1", answer: "Answer 1", evaluation: "good", comment: "Good" },
+        ],
+        overallAssessment: "Mixed model output",
+        maturitySuggestion: null,
+      },
+    });
+
+    const req = makeNextRequest(makeFeedbackPayload());
+    const response = await POST(req);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.feedback).toHaveLength(1);
+    expect(data.feedback[0]).toMatchObject({
+      question: "Question 1",
+      answer: "Answer 1",
+      evaluation: "good",
+      comment: "Good",
+    });
+  });
+
   it("handles null maturitySuggestion", async () => {
     mockExtractJsonFromOutput.mockReturnValueOnce({
       success: true,
