@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const prompt = await readOfflineMissionAnalysisPrompt();
-    let raw = await callAnalysisModel(prompt, input);
+    let raw = await callAnalysisModel(prompt, input, request.signal);
     let extracted = extractJsonFromOutput(raw);
 
     if (!extracted.success && getParseRetryLimit() > 0) {
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       const retryPrompt = jsonEmphasis + prompt;
 
       try {
-        const retryRaw = await callAnalysisModel(retryPrompt, input);
+        const retryRaw = await callAnalysisModel(retryPrompt, input, request.signal);
         const retryExtracted = extractJsonFromOutput(retryRaw);
         if (retryExtracted.success) {
           raw = retryRaw;
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
 
           const jsonOnlyPrompt = "请根据以下输入，只输出 JSON Result（用 ```json 代码块包裹），不要输出 Markdown 报告。JSON 结构必须包含以下顶层字段：mission_review、depth_evaluation、asset_decision、trace_summary。其中 asset_decision 必须包含 asset_candidate（布尔值）、recommended_asset_type 和 asset_candidate_package。\n\n---\n\n" + prompt;
           try {
-            const retry2Raw = await callAnalysisModel(jsonOnlyPrompt, input);
+            const retry2Raw = await callAnalysisModel(jsonOnlyPrompt, input, request.signal);
             const retry2Extracted = extractJsonFromOutput(retry2Raw);
             if (retry2Extracted.success) {
               const markdownFromFirst = raw;

@@ -86,9 +86,15 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
         }),
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const errorMessage =
+          typeof data.error === "string" && data.error.trim()
+            ? data.error
+            : `HTTP ${res.status}`;
+        throw new Error(errorMessage);
+      }
 
-      const data = await res.json();
       const assistantContent: string = data.reply ?? data.content ?? data.message ?? "";
       const reviewTriggered: boolean = data.reviewTriggered === true;
 

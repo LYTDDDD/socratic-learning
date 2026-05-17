@@ -71,6 +71,7 @@ describe("POST /api/analyze", () => {
     expect(data.runLog.request_status).toBe("success");
     expect(data.runLog.parse_status).toBe("success");
     expect(data.runLog.model_name).toBe("test-model");
+    expect(mockCallAnalysisModel.mock.calls[0][2]).toBe(req.signal);
   });
 
   it("returns 400 when originalGoal is missing", async () => {
