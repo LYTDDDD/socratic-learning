@@ -13,10 +13,9 @@ import { AssetReviewFlowView } from "./AssetReviewFlowView";
 
 type ReviewPanelProps = {
   refreshKey: number;
-  currentMissionId?: string | null;
 };
 
-export function ReviewPanel({ refreshKey, currentMissionId }: ReviewPanelProps) {
+export function ReviewPanel({ refreshKey }: ReviewPanelProps) {
   const [assets, setAssets] = useState<CognitiveAsset[]>([]);
   const [allRecords, setAllRecords] = useState<ReviewRecord[]>([]);
   const [collapsed, setCollapsed] = useState(false);
@@ -33,22 +32,22 @@ export function ReviewPanel({ refreshKey, currentMissionId }: ReviewPanelProps) 
   }, [refreshKey]);
 
   const { visibleRecords, confirmedAssets, stats } = useMemo(
-    () => buildReviewPanelModel(assets, allRecords, currentMissionId),
-    [assets, allRecords, currentMissionId],
+    () => buildReviewPanelModel(assets, allRecords, null),
+    [assets, allRecords],
   );
 
   const handleExportRecords = useCallback(() => {
     if (visibleRecords.length === 0) return;
     const exportedAt = new Date();
-    const content = serializeReviewRecordsExport(visibleRecords, currentMissionId ?? null, exportedAt.toISOString());
+    const content = serializeReviewRecordsExport(visibleRecords, null, exportedAt.toISOString());
     const blob = new Blob([content], { type: "application/json;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = reviewRecordsExportFilename(currentMissionId ?? null, exportedAt);
+    link.download = reviewRecordsExportFilename(null, exportedAt);
     link.click();
     URL.revokeObjectURL(url);
-  }, [currentMissionId, visibleRecords]);
+  }, [visibleRecords]);
 
   if (reviewFlow) {
     return (

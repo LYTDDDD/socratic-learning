@@ -125,7 +125,7 @@ function saveRecord(assetId: string, assetTitle: string) {
 }
 
 describe("ReviewPanel", () => {
-  it("filters assets and records by currentMissionId", async () => {
+  it("shows all assets and records regardless of mission", async () => {
     saveAndConfirmAsset(makeAsset({
       asset_id: "asset_mission_a",
       title: "Mission A Asset",
@@ -139,12 +139,12 @@ describe("ReviewPanel", () => {
     saveRecord("asset_mission_a", "Mission A Asset");
     saveRecord("asset_mission_b", "Mission B Asset");
 
-    render(<ReviewPanel refreshKey={0} currentMissionId="mission_a" />);
+    render(<ReviewPanel refreshKey={0} />);
 
     await waitFor(() => {
       expect(screen.getAllByText("Mission A Asset").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Mission B Asset").length).toBeGreaterThan(0);
     });
-    expect(screen.queryByText("Mission B Asset")).not.toBeInTheDocument();
   });
 
   it("shows all assets and records when no mission is selected", async () => {
@@ -184,7 +184,7 @@ describe("ReviewPanel", () => {
     saveRecord("asset_mission_a", "Mission A Asset");
     saveRecord("asset_mission_b", "Mission B Asset");
 
-    render(<ReviewPanel refreshKey={0} currentMissionId="mission_a" />);
+    render(<ReviewPanel refreshKey={0} />);
 
     await waitFor(() => {
       expect(screen.getAllByText("Mission A Asset").length).toBeGreaterThan(0);
@@ -194,9 +194,11 @@ describe("ReviewPanel", () => {
     expect(createObjectURLMock).toHaveBeenCalledOnce();
     const blob = createObjectURLMock.mock.calls[0][0] as Blob;
     const exported = JSON.parse(await blob.text());
-    expect(exported.scope).toEqual({ type: "mission", missionId: "mission_a" });
-    expect(exported.count).toBe(1);
-    expect(exported.records[0].assetId).toBe("asset_mission_a");
+    expect(exported.scope).toEqual({ type: "all", missionId: null });
+    expect(exported.count).toBe(2);
+    const assetIds = exported.records.map((r: { assetId: string }) => r.assetId);
+    expect(assetIds).toContain("asset_mission_a");
+    expect(assetIds).toContain("asset_mission_b");
     expect(clickSpy).toHaveBeenCalledOnce();
     expect(revokeObjectURLMock).toHaveBeenCalledWith("blob:review-records");
     clickSpy.mockRestore();

@@ -9,6 +9,7 @@ import {
   addMessageToSession,
 } from "../lib/chat-store";
 import { getMissionById } from "../lib/mission-store";
+import { Send, MessageSquarePlus, Trash2, Sparkles, Zap } from "lucide-react";
 
 type ChatWorkspaceProps = {
   currentMissionId: string | null;
@@ -122,22 +123,23 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
   }
 
   return (
-    <div className="grid h-full gap-0 xl:grid-cols-[260px_1fr]">
-      <aside className="flex flex-col border-r border-line bg-paper/60">
-        <div className="flex items-center justify-between border-b border-line px-3 py-2">
-          <h3 className="text-sm font-semibold text-ink">对话列表</h3>
+    <div className="grid h-full gap-0 rounded-xl shadow-sm xl:grid-cols-[260px_1fr]">
+      <aside className="flex flex-col bg-surface-2">
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <h3 className="font-heading text-sm font-semibold text-ink">对话列表</h3>
           <button
-            className="rounded border border-moss/30 px-2 py-0.5 text-[10px] font-medium text-moss transition hover:bg-moss/10"
+            className="flex items-center gap-1.5 rounded-xl border border-moss/30 px-3 py-1.5 text-xs font-medium text-moss transition hover:bg-moss/10"
             onClick={handleCreateSession}
             type="button"
           >
-            新建对话
+            <MessageSquarePlus className="h-3.5 w-3.5" />
+            新建
           </button>
         </div>
 
         <div className="flex-1 overflow-auto">
           {sessions.length === 0 && (
-            <p className="px-3 py-4 text-xs text-ink/40">暂无对话，点击"新建对话"开始。</p>
+            <p className="px-5 py-5 text-xs text-ink/40">暂无对话，点击"新建"开始。</p>
           )}
           {sessions.map((session) => {
             const lastMsg = session.messages[session.messages.length - 1];
@@ -145,42 +147,42 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
             return (
               <div
                 key={session.id}
-                className={`group cursor-pointer border-b border-line px-3 py-2 transition ${
+                className={`group cursor-pointer border-b border-line px-5 py-3 transition ${
                   activeSessionId === session.id
                     ? "bg-moss/10 border-l-2 border-l-moss"
-                    : "hover:bg-paper"
+                    : "hover:bg-surface-1"
                 }`}
                 onClick={() => setActiveSessionId(session.id)}
                 role="button"
                 tabIndex={0}
               >
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   <span className="flex-1 truncate text-xs font-medium text-ink">
                     {session.title}
                   </span>
                   <button
-                    className="shrink-0 rounded border border-rust/30 px-1 py-0.5 text-[9px] font-medium text-rust opacity-0 transition hover:bg-rust/10 group-hover:opacity-100"
+                    className="shrink-0 rounded-lg p-1 text-rust/60 opacity-0 transition hover:bg-rust/10 hover:text-rust group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteSession(session.id);
                     }}
                     type="button"
                   >
-                    删除
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 {mission && (
-                  <span className="inline-block mt-0.5 rounded bg-moss/10 px-1.5 py-0.5 text-[9px] text-moss">
+                  <span className="mt-1.5 inline-block rounded-lg bg-moss/10 px-2 py-0.5 text-[10px] text-moss">
                     {mission.title}
                   </span>
                 )}
                 {lastMsg && (
-                  <p className="mt-0.5 truncate text-[10px] text-ink/40">
+                  <p className="mt-1.5 truncate text-[11px] text-ink/40">
                     {lastMsg.content.slice(0, 50)}
                     {lastMsg.content.length > 50 ? "..." : ""}
                   </p>
                 )}
-                <p className="mt-0.5 text-[9px] text-ink/30">
+                <p className="mt-1 text-[10px] text-ink/30">
                   {new Date(session.updatedAt).toLocaleString()}
                 </p>
               </div>
@@ -189,15 +191,15 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
         </div>
       </aside>
 
-      <main className="flex min-h-0 flex-col bg-white/80">
+      <main className="flex min-h-0 flex-col bg-surface-1 rounded-r-xl">
         {activeSession ? (
           <>
-            <header className="flex shrink-0 items-center gap-2 border-b border-line px-4 py-2">
-              <h3 className="text-sm font-semibold text-ink">{activeSession.title}</h3>
+            <header className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-3">
+              <h3 className="font-heading text-sm font-semibold text-ink">{activeSession.title}</h3>
               {activeSession.missionId && (() => {
                 const m = getMissionById(activeSession.missionId);
                 return m ? (
-                  <span className="inline-block rounded bg-moss/10 px-2 py-0.5 text-[10px] font-medium text-moss">
+                  <span className="inline-block rounded-lg bg-moss/10 px-2.5 py-1 text-[11px] font-medium text-moss">
                     Mission: {m.title}
                   </span>
                 ) : null;
@@ -205,13 +207,11 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
             </header>
 
             {hasReviewTriggered && (
-              <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2">
-                <svg className="h-4 w-4 shrink-0 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-5 py-3">
+                <Zap className="h-4 w-4 shrink-0 text-amber-600" />
                 <span className="text-xs font-medium text-amber-700">复盘已触发，点击此处生成 Mission Review</span>
                 <button
-                  className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white transition hover:bg-amber-700"
+                  className="rounded-xl bg-amber-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-amber-700"
                   onClick={() => {
                     if (onReviewTriggered) {
                       onReviewTriggered(activeSession.id, activeSession.missionId);
@@ -224,18 +224,21 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
               </div>
             )}
 
-            <div className="flex-1 overflow-auto px-4 py-3">
+            <div className="flex-1 overflow-auto px-5 py-5">
               {activeSession.messages.length === 0 && (
-                <div className="flex h-full items-center justify-center">
-                  <p className="text-sm text-ink/30">开始对话吧</p>
+                <div className="flex h-full flex-col items-center justify-center gap-3">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-moss/10">
+                    <Sparkles className="h-7 w-7 text-moss" />
+                  </div>
+                  <p className="text-sm text-ink/40">开始对话吧</p>
                 </div>
               )}
               {activeSession.messages.map((msg) => (
                 <MessageBubble key={msg.id} message={msg} />
               ))}
               {isLoading && (
-                <div className="mb-3 flex items-start gap-2">
-                  <div className="rounded-lg border border-line bg-paper/60 px-3 py-2">
+                <div className="mb-4 flex items-start gap-2">
+                  <div className="rounded-xl border border-line bg-surface-2 px-4 py-3">
                     <span className="text-xs text-ink/50">正在思考…</span>
                   </div>
                 </div>
@@ -243,10 +246,10 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="shrink-0 border-t border-line px-4 py-3">
-              <div className="flex items-end gap-2">
+            <div className="shrink-0 border-t border-line px-5 py-4">
+              <div className="flex items-end gap-3">
                 <textarea
-                  className="flex-1 resize-none rounded-lg border border-line px-3 py-2 text-sm text-ink outline-none focus:border-moss"
+                  className="flex-1 resize-none rounded-xl border border-line bg-surface-0 px-4 py-3 text-sm text-ink outline-none transition focus:border-moss"
                   disabled={isLoading}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -255,22 +258,25 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
                   value={inputText}
                 />
                 <button
-                  className="shrink-0 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white transition hover:bg-moss/90 disabled:opacity-50"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-moss text-white transition hover:bg-moss-dark disabled:opacity-50"
                   disabled={isLoading || !inputText.trim()}
                   onClick={handleSend}
                   type="button"
                 >
-                  发送
+                  <Send className="h-4 w-4" />
                 </button>
               </div>
             </div>
           </>
         ) : (
           <div className="flex h-full items-center justify-center">
-            <div className="text-center">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-moss/10">
+                <MessageSquarePlus className="h-8 w-8 text-moss" />
+              </div>
               <p className="text-sm text-ink/40">选择或创建一个对话</p>
               <button
-                className="mt-3 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white transition hover:bg-moss/90"
+                className="rounded-xl bg-moss px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-moss-dark"
                 onClick={handleCreateSession}
                 type="button"
               >
@@ -288,18 +294,18 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
 
   return (
-    <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`mb-4 flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[75%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
+        className={`max-w-[75%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
           isUser
-            ? "bg-moss text-white"
-            : "border border-line bg-paper/60 text-ink"
+            ? "border border-moss/20 bg-moss/10 text-ink"
+            : "border border-line bg-surface-2 text-ink"
         }`}
       >
         <p className="whitespace-pre-wrap">{message.content}</p>
         <p
-          className={`mt-1 text-[10px] ${
-            isUser ? "text-white/60" : "text-ink/30"
+          className={`mt-1.5 text-[10px] ${
+            isUser ? "text-moss/60" : "text-ink/30"
           }`}
         >
           {new Date(message.createdAt).toLocaleTimeString()}
