@@ -35,51 +35,34 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-paper text-ink">
-      <nav className="sticky top-0 z-30 border-b border-line bg-paper/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-2.5">
-            <FlaskConical className="h-5 w-5 text-rust" />
-            <span className="font-heading text-base font-semibold tracking-wide text-ink">
-              Cognitive Asset Lab
-            </span>
-          </div>
-          <div className="flex items-center gap-1 rounded-full border border-line bg-surface-1 p-1">
-            <button
-              className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                mode === "analysis"
-                  ? "bg-moss text-white shadow-sm"
-                  : "text-ink/50 hover:text-ink"
-              }`}
-              onClick={() => setMode("analysis")}
-              type="button"
-            >
-              <FlaskConical className="h-3.5 w-3.5" />
-              离线分析
-            </button>
-            <button
-              className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                mode === "chat"
-                  ? "bg-moss text-white shadow-sm"
-                  : "text-ink/50 hover:text-ink"
-              }`}
-              onClick={() => setMode("chat")}
-              type="button"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              聊天工作台
-            </button>
-          </div>
+    <div className="flex h-screen bg-paper text-ink">
+      <aside className="flex w-16 flex-shrink-0 flex-col items-center bg-ink py-4">
+        <nav className="flex flex-1 flex-col items-center gap-1">
+          <button
+            className={`flex h-14 w-full flex-col items-center justify-center transition ${
+              mode === "analysis" ? "text-moss" : "text-white/50 hover:text-white/80"
+            }`}
+            onClick={() => setMode("analysis")}
+            type="button"
+          >
+            <FlaskConical className="h-5 w-5" />
+          </button>
+          <button
+            className={`flex h-14 w-full flex-col items-center justify-center transition ${
+              mode === "chat" ? "text-moss" : "text-white/50 hover:text-white/80"
+            }`}
+            onClick={() => setMode("chat")}
+            type="button"
+          >
+            <MessageCircle className="h-5 w-5" />
+          </button>
+        </nav>
+        <div className="text-white/20">
+          <FlaskConical className="h-4 w-4" />
         </div>
-      </nav>
+      </aside>
 
-      <section className="mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-6xl flex-col px-6 py-8">
-        <header className="mb-6">
-          <h1 className="font-heading text-3xl font-semibold leading-tight md:text-4xl">
-            {mode === "analysis" ? "离线任务分析工作台" : "聊天工作台"}
-          </h1>
-        </header>
-
+      <main className="flex-1 overflow-hidden">
         {mode === "analysis" ? (
           <AnalysisWorkbench
             currentMissionId={currentMissionId}
@@ -92,7 +75,7 @@ export default function Home() {
             onReviewTriggered={handleReviewTriggered}
           />
         )}
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }

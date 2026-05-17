@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, Fragment } from "react";
 import { InputPanel } from "./InputPanel";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { JsonViewer } from "./JsonViewer";
@@ -20,6 +20,7 @@ import type { Correction } from "../lib/correction-store";
 import { saveToHistory, loadHistory } from "../lib/history-store";
 import { extractAssetFromResponse } from "../lib/extract-asset";
 import { hasAssetFromRun } from "../lib/asset-store";
+import { Separator } from "./ui/separator";
 import type { PreferenceRule } from "../lib/preference-rule-store";
 import { loadCorrections, saveCorrection } from "../lib/correction-store";
 import { assignReportToMission } from "../lib/mission-store";
@@ -83,8 +84,8 @@ function RunLogPanel({ runLog }: { runLog: RunLog }) {
   }
 
   return (
-    <div className="rounded-xl border border-line bg-surface-2 p-4">
-      <h3 className="mb-3 text-sm font-semibold text-ink">Run Log</h3>
+    <div className="rounded-lg bg-surface-2/50 p-3">
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-muted">Run Log</h3>
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
         {rows.map((row) => (
           <span key={row.label} className="contents">
@@ -136,8 +137,8 @@ function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData })
   ];
 
   return (
-    <div className="rounded-xl border border-line bg-surface-2 p-4">
-      <h3 className="mb-1 text-sm font-semibold text-ink">Trace Summary（轨迹摘要）</h3>
+    <div className="rounded-lg bg-surface-2/50 p-3">
+      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">Trace Summary（轨迹摘要）</h3>
       <p className="mb-3 text-xs text-ink-muted">系统判断依据</p>
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
         {rows.map((row) => (
@@ -203,8 +204,8 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
   }
 
   return (
-    <div className="rounded-xl border border-line bg-surface-2 p-4">
-      <h3 className="mb-3 text-sm font-semibold text-ink">偏好规则</h3>
+    <div className="rounded-lg bg-surface-2/50 p-3">
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-muted">偏好规则</h3>
       <p className="mb-3 text-xs text-ink-muted">已确认的规则会在后续分析时自动注入 prompt。</p>
 
       {drafts.length > 0 && (
@@ -414,9 +415,9 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
   };
 
   return (
-    <div className="rounded-xl border border-line bg-surface-2 p-4">
+    <div className="rounded-lg bg-surface-2/50 p-3">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-ink">纠正记录</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">纠正记录</h3>
         {!showForm && (
           <button
             className="rounded-md border border-line px-3 py-1 text-xs font-medium text-ink-muted transition hover:bg-surface-2"
@@ -457,7 +458,7 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
       )}
 
       {showForm && (
-        <div className="space-y-2 rounded-xl border border-line bg-surface-1 p-4">
+        <div className="space-y-2 rounded-lg bg-surface-1 p-3">
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
               <input checked={correctionType === "minor_correction"} name="corrType" onChange={() => setCorrectionType("minor_correction")} type="radio" />
@@ -652,6 +653,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   const [internalMissionId, setInternalMissionId] = useState<string | null>(null);
   const [missionRefreshKey, setMissionRefreshKey] = useState(0);
   const [agentProgress, setAgentProgress] = useState<AgentProgressStep[]>([]);
+  const [leftTab, setLeftTab] = useState<"history" | "mission">("history");
+  const [inputCollapsed, setInputCollapsed] = useState(false);
 
   const currentMissionId = externalMissionId ?? internalMissionId;
   const setCurrentMissionId = onSelectMission ?? setInternalMissionId;
@@ -750,48 +753,103 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
-      <section className="flex flex-col gap-5 rounded-xl border border-line bg-surface-1 p-5 shadow-sm">
-        <InputPanel
-          onAnalyzeStart={handleAnalyzeStart}
-          onAnalyzeFinish={handleAnalyzeFinish}
-          onAgentProgress={setAgentProgress}
-          currentMissionId={currentMissionId}
-          initialInputOverride={initialInputOverride}
-        />
-        <HistoryPanel onSelect={handleHistorySelect} refreshKey={historyRefreshKey} />
-        <MissionPanel
-          currentMissionId={currentMissionId}
-          onSelectMission={setCurrentMissionId}
-          refreshKey={missionRefreshKey}
-        />
-        <AssetLibrary
-          refreshKey={assetRefreshKey}
-          onNavigateToHistory={handleNavigateToHistory}
-          onAssetsChanged={handleAssetsChanged}
-        />
-        <ReviewPanel refreshKey={assetRefreshKey} />
-      </section>
+    <div className="flex h-full">
+      <div className="w-72 shrink-0 border-r border-line bg-surface-1 overflow-y-auto p-4 space-y-4">
+        <div className="rounded-lg bg-surface-2/50 p-3">
+          <button
+            className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wider text-ink-muted"
+            onClick={() => setInputCollapsed(!inputCollapsed)}
+            type="button"
+          >
+            输入
+            <svg
+              className={`h-3.5 w-3.5 transition-transform ${inputCollapsed ? "" : "rotate-180"}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {!inputCollapsed && (
+            <div className="mt-3">
+              <InputPanel
+                onAnalyzeStart={handleAnalyzeStart}
+                onAnalyzeFinish={handleAnalyzeFinish}
+                onAgentProgress={setAgentProgress}
+                currentMissionId={currentMissionId}
+                initialInputOverride={initialInputOverride}
+              />
+            </div>
+          )}
+        </div>
 
-      <section className="flex min-h-[420px] flex-col rounded-xl border border-line bg-surface-1 shadow-sm">
-        <header className="flex shrink-0 items-center gap-1 border-b border-line px-5">
+        <div className="rounded-lg bg-surface-2/50 p-3">
+          <div className="mb-3 flex items-center">
+            <button
+              className={`relative px-3 py-1.5 text-xs font-semibold transition ${
+                leftTab === "history" ? "text-moss" : "text-ink/50 hover:text-ink"
+              }`}
+              onClick={() => setLeftTab("history")}
+              type="button"
+            >
+              历史
+              {leftTab === "history" && (
+                <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-moss" />
+              )}
+            </button>
+            <Separator orientation="vertical" className="mx-2 h-4" />
+            <button
+              className={`relative px-3 py-1.5 text-xs font-semibold transition ${
+                leftTab === "mission" ? "text-moss" : "text-ink/50 hover:text-ink"
+              }`}
+              onClick={() => setLeftTab("mission")}
+              type="button"
+            >
+              任务
+              {leftTab === "mission" && (
+                <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-moss" />
+              )}
+            </button>
+          </div>
+          {leftTab === "history" && <HistoryPanel onSelect={handleHistorySelect} refreshKey={historyRefreshKey} />}
+          {leftTab === "mission" && (
+            <MissionPanel
+              currentMissionId={currentMissionId}
+              onSelectMission={setCurrentMissionId}
+              refreshKey={missionRefreshKey}
+            />
+          )}
+        </div>
+
+        <div className="rounded-lg bg-surface-2/50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">资产库</p>
+          <p className="mt-1 text-[10px] text-ink-muted">在右侧面板查看完整资产库</p>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col">
+        <header className="sticky top-0 z-10 flex shrink-0 items-center border-b border-line bg-surface-1 px-5">
           <div className="flex items-center">
-            {tabs.map((tab) => (
-              <button
-                className={`relative px-4 py-3 text-sm font-semibold transition ${
-                  activeTab === tab.key
-                    ? "text-moss"
-                    : "text-ink/50 hover:text-ink"
-                }`}
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                type="button"
-              >
-                {tab.label}
-                {activeTab === tab.key && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-moss" />
-                )}
-              </button>
+            {tabs.map((tab, i) => (
+              <Fragment key={tab.key}>
+                {i > 0 && <Separator orientation="vertical" className="mx-1 h-4" />}
+                <button
+                  className={`relative px-4 py-3 text-sm font-semibold transition ${
+                    activeTab === tab.key
+                      ? "text-moss"
+                      : "text-ink/50 hover:text-ink"
+                  }`}
+                  onClick={() => setActiveTab(tab.key)}
+                  type="button"
+                >
+                  {tab.label}
+                  {activeTab === tab.key && (
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-moss" />
+                  )}
+                </button>
+              </Fragment>
             ))}
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -863,33 +921,26 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           onDiscard={handleDiscardAsset}
           currentMissionId={currentMissionId}
         />
+      </div>
 
-        {result?.runLog && (
-          <div className="border-t border-line p-5">
-            <RunLogPanel runLog={result.runLog} />
-          </div>
-        )}
-
-        {traceSummary && (
-          <div className="border-t border-line p-5">
-            <TraceSummaryPanel traceSummary={traceSummary} />
-          </div>
-        )}
-
+      <div className="w-80 shrink-0 border-l border-line bg-surface-1 overflow-y-auto p-4 space-y-4">
+        {result?.runLog && <RunLogPanel runLog={result.runLog} />}
+        {traceSummary && <TraceSummaryPanel traceSummary={traceSummary} />}
         {currentRunId && (
-          <div className="border-t border-line p-5">
-            <CorrectionPanel
-              existingCorrections={corrections}
-              onCorrectionAdded={handleCorrectionAdded}
-              reportId={currentRunId}
-            />
-          </div>
+          <CorrectionPanel
+            existingCorrections={corrections}
+            onCorrectionAdded={handleCorrectionAdded}
+            reportId={currentRunId}
+          />
         )}
-
-        <div className="border-t border-line p-5">
-          <PreferenceRulePanel refreshKey={correctionRefreshKey} />
-        </div>
-      </section>
+        <PreferenceRulePanel refreshKey={correctionRefreshKey} />
+        <ReviewPanel refreshKey={assetRefreshKey} />
+        <AssetLibrary
+          refreshKey={assetRefreshKey}
+          onNavigateToHistory={handleNavigateToHistory}
+          onAssetsChanged={handleAssetsChanged}
+        />
+      </div>
     </div>
   );
 }
