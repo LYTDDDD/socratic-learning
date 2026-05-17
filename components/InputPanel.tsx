@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
 import type { AgentProgressStep } from "./AgentStepProgress";
 import type { AgentType } from "../lib/agent-types";
@@ -14,6 +14,8 @@ const initialInput: AnalyzeInput = {
   notes: "",
   expectedOutput: "",
 };
+
+const ANALYZE_CLIENT_TIMEOUT_MS = 240_000;
 
 type TextFieldKey = "background" | "originalGoal" | "conversation" | "notes" | "expectedOutput";
 
@@ -72,6 +74,26 @@ type SSEAgentStartEvent = { agent: AgentType; index: number; total: number };
 type SSEAgentCompleteEvent = { agent: AgentType; index: number; total: number; duration_ms: number };
 type SSEAgentErrorEvent = { agent: AgentType; index: number; total: number; error: string };
 type SSEAgentRetryEvent = { agent: AgentType; index: number; total: number; attempt: number };
+
+function isAbortError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
+function buildClientErrorResult(error: string): AnalyzeResponse {
+  return {
+    markdown: null,
+    json: null,
+    raw: null,
+    parseStatus: "not_attempted",
+    error,
+    runLog: null,
+  };
+}
 
 async function readSSEStream(
   response: Response,
@@ -193,6 +215,7 @@ export function InputPanel({
   const [submitted, setSubmitted] = useState(false);
   const [readyMessage, setReadyMessage] = useState("");
   const [analysisMode, setAnalysisMode] = useState<"single" | "multi-agent">("single");
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const originalGoalMissing = useMemo(
     () => input.originalGoal.trim().length === 0,
@@ -228,15 +251,31 @@ export function InputPanel({
     setReadyMessage("");
   }
 
+  function handleCancelAnalyze() {
+    if (!abortControllerRef.current) return;
+    setReadyMessage("正在取消分析请求。");
+    abortControllerRef.current.abort();
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
+
+    if (isSubmitting) return;
 
     if (!canSubmit) {
       setReadyMessage("");
       return;
     }
 
+    const abortController = new AbortController();
+    let didTimeout = false;
+    const timeoutId = window.setTimeout(() => {
+      didTimeout = true;
+      abortController.abort();
+    }, ANALYZE_CLIENT_TIMEOUT_MS);
+
+    abortControllerRef.current = abortController;
     setIsSubmitting(true);
     setReadyMessage("正在提交到 Analyze API。");
     onAnalyzeStart?.();
@@ -262,6 +301,7 @@ export function InputPanel({
             "Accept": "text/event-stream",
           },
           body: requestBody,
+          signal: abortController.signal,
         });
 
         if (!response.ok && response.headers.get("content-type")?.includes("application/json")) {
@@ -301,17 +341,19 @@ export function InputPanel({
             });
           },
         );
-      } catch {
-        setReadyMessage("提交失败，请稍后重试。");
-        onAnalyzeFinish?.({
-          markdown: null,
-          json: null,
-          raw: null,
-          parseStatus: "not_attempted",
-          error: "提交失败，请稍后重试。",
-          runLog: null,
-        });
+      } catch (error) {
+        const message = isAbortError(error)
+          ? didTimeout
+            ? "分析请求超过 240 秒，已自动取消。"
+            : "分析已取消。"
+          : "提交失败，请稍后重试。";
+        setReadyMessage(message);
+        onAnalyzeFinish?.(buildClientErrorResult(message));
       } finally {
+        window.clearTimeout(timeoutId);
+        if (abortControllerRef.current === abortController) {
+          abortControllerRef.current = null;
+        }
         setIsSubmitting(false);
       }
       return;
@@ -325,6 +367,7 @@ export function InputPanel({
           "Content-Type": "application/json",
         },
         body: requestBody,
+        signal: abortController.signal,
       });
       const result = (await response.json()) as AnalyzeResponse;
 
@@ -333,17 +376,19 @@ export function InputPanel({
           (result.raw ? "模型调用完成，已收到 raw output。" : "Analyze API 已接收输入。"),
       );
       onAnalyzeFinish?.(result);
-    } catch {
-      setReadyMessage("提交失败，请稍后重试。");
-      onAnalyzeFinish?.({
-        markdown: null,
-        json: null,
-        raw: null,
-        parseStatus: "not_attempted",
-        error: "提交失败，请稍后重试。",
-        runLog: null,
-      });
+    } catch (error) {
+      const message = isAbortError(error)
+        ? didTimeout
+          ? "分析请求超过 240 秒，已自动取消。"
+          : "分析已取消。"
+        : "提交失败，请稍后重试。";
+      setReadyMessage(message);
+      onAnalyzeFinish?.(buildClientErrorResult(message));
     } finally {
+      window.clearTimeout(timeoutId);
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
       setIsSubmitting(false);
     }
   }
@@ -425,6 +470,15 @@ export function InputPanel({
           >
             {isSubmitting ? "Submitting" : "Analyze"}
           </button>
+          {isSubmitting ? (
+            <button
+              className="inline-flex h-11 items-center justify-center rounded-lg border border-rust/30 px-4 text-sm font-semibold text-rust transition hover:bg-rust/10"
+              onClick={handleCancelAnalyze}
+              type="button"
+            >
+              取消
+            </button>
+          ) : null}
         </div>
       </div>
     </form>

@@ -150,5 +150,6 @@ describe("POST /api/chat", () => {
     expect(userPrompt).toContain("用户：你好");
     expect(userPrompt).toContain("助手：你好！有什么可以帮你的？");
     expect(userPrompt).toContain("用户：帮我分析");
+    expect(mockCallReviewModel.mock.calls[0][2]).toBe(req.signal);
   });
 });
