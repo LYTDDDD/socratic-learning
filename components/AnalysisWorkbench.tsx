@@ -24,6 +24,7 @@ import { Separator } from "./ui/separator";
 import type { PreferenceRule } from "../lib/preference-rule-store";
 import { loadCorrections, saveCorrection } from "../lib/correction-store";
 import { assignReportToMission } from "../lib/mission-store";
+import { buildMarkdownFromAnalysisJson } from "../lib/analysis-markdown";
 import {
   loadPreferenceRules,
   savePreferenceRule,
@@ -38,8 +39,8 @@ import {
 type TabKey = "markdown" | "json" | "raw" | "agents";
 
 const tabs: { key: TabKey; label: string }[] = [
-  { key: "markdown", label: "Markdown" },
   { key: "json", label: "JSON" },
+  { key: "markdown", label: "Markdown" },
   { key: "raw", label: "Raw" },
   { key: "agents", label: "Agents" },
 ];
@@ -707,7 +708,7 @@ type AnalysisWorkbenchProps = {
 export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelectMission, initialInputOverride, initialInputSource }: AnalysisWorkbenchProps) {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>("markdown");
+  const [activeTab, setActiveTab] = useState<TabKey>("json");
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [assetRefreshKey, setAssetRefreshKey] = useState(0);
   const [dismissedDraft, setDismissedDraft] = useState(false);
@@ -761,6 +762,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     const steps = parseAgentSteps(response.raw);
     if (steps.length > 0) {
       setActiveTab("agents");
+    } else {
+      setActiveTab("json");
     }
     if (response.runLog) {
       saveToHistory({
@@ -790,7 +793,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     if (entry) {
       setResult(entry.analyzeResponse);
       setIsLoading(false);
-      setActiveTab("markdown");
+      setActiveTab("json");
     }
   }, []);
 
@@ -818,7 +821,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
 
   function getCopyContent(): string | null {
     if (!result) return null;
-    if (activeTab === "markdown") return result.markdown;
+    if (activeTab === "markdown") return result.markdown ?? buildMarkdownFromAnalysisJson(result.json);
     if (activeTab === "json") return result.json != null ? JSON.stringify(result.json, null, 2) : null;
     if (activeTab === "raw") return result.raw;
     return null;
@@ -931,7 +934,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
               <p className="text-xs font-semibold uppercase tracking-wider text-blue">Offline Mission Analysis</p>
               <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">离线任务分析工作台</h1>
               <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-                输入对话，生成 Mission Review、DepthScore 与认知资产候选。Markdown 优先阅读，JSON / Raw / Run Log 作为追踪层。
+                输入对话，生成 Mission Review、DepthScore 与认知资产候选。JSON 是事实来源，Markdown 由 JSON 导出，Raw / Run Log 用于追踪。
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -976,7 +979,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
         <div className="min-h-0 flex-1 overflow-auto">
           {activeTab === "markdown" && (
             <div className="p-5">
-              <MarkdownPreview isLoading={isLoading} markdown={result?.markdown ?? null} unstyled />
+              <MarkdownPreview isLoading={isLoading} markdown={result?.markdown ?? buildMarkdownFromAnalysisJson(result?.json) ?? null} unstyled />
             </div>
           )}
           {activeTab === "json" && (

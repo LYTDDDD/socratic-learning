@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { HistoryEntry, HistoryStatus } from "../lib/history-store";
 import { loadHistory, deleteFromHistory, clearHistory, updateHistoryStatus } from "../lib/history-store";
 import type { AnalyzeResponse } from "../lib/analyze-types";
+import { buildMarkdownFromAnalysisJson } from "../lib/analysis-markdown";
 
 type HistoryPanelProps = {
   onSelect: (response: AnalyzeResponse) => void;
@@ -90,7 +91,7 @@ export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
   }
 
   async function handleCopyMd(entry: HistoryEntry) {
-    const text = entry.analyzeResponse.markdown ?? "";
+    const text = entry.analyzeResponse.markdown ?? buildMarkdownFromAnalysisJson(entry.analyzeResponse.json) ?? "";
     try {
       await navigator.clipboard.writeText(text);
       setCopiedMdId(entry.run_id);

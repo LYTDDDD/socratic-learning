@@ -176,6 +176,15 @@ function buildAssetFromDraft(
   const revisedJudgment = (draft.revised_judgment as string) ?? "";
   const myUnderstanding = (draft.my_understanding as string) ?? "";
   const transferableValue = (draft.transferable_value as string) ?? "";
+  const specialFields = {
+    ...((draft.special_fields as Record<string, unknown>) ?? {}),
+    ...(typeof draft.my_understanding_prompt === "string" && draft.my_understanding_prompt.trim()
+      ? { my_understanding_prompt: draft.my_understanding_prompt }
+      : {}),
+    ...(typeof draft.usage_evidence_prompt === "string" && draft.usage_evidence_prompt.trim()
+      ? { usage_evidence_prompt: draft.usage_evidence_prompt }
+      : {}),
+  };
 
   const initialVersion: AssetVersion = {
     id: initialVersionId,
@@ -210,7 +219,7 @@ function buildAssetFromDraft(
     review_questions: asStringArray(draft.review_questions),
     source_mission: (draft.source_mission as string) ?? "",
     confidence: typeof draft.confidence === "number" ? draft.confidence : 0,
-    special_fields: (draft.special_fields as Record<string, unknown>) ?? {},
+    special_fields: specialFields,
     full_package: fullPkg,
     connection_questions: asStringArray(draft.connection_questions),
     application_questions: asStringArray(draft.application_questions),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { AnalyzeInput, AnalyzeResponse } from "../../../lib/analyze-types";
 import { callAnalysisModel, getModelConfig, ModelCallError } from "../../../lib/llm";
 import { extractJsonFromOutput } from "../../../lib/extract-json";
+import { buildMarkdownFromAnalysisJson } from "../../../lib/analysis-markdown";
 import {
   OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION,
   readOfflineMissionAnalysisPrompt,
@@ -53,6 +54,25 @@ function getParseRetryLimit(): number {
   const parsed = Number.parseInt(process.env.ANALYZE_PARSE_RETRIES ?? "0", 10);
   if (!Number.isFinite(parsed)) return 0;
   return Math.max(0, Math.min(parsed, 2));
+}
+
+function buildJsonOnlyRetryPrompt(prompt: string): string {
+  return [
+    "【最高优先级指令】只输出合法 JSON 对象。",
+    "不要输出 Markdown、代码块、```json 包裹、解释文字或 JSON 之外的任何字符。",
+    "JSON 顶层必须包含 mission_review、depth_evaluation、asset_decision、trace_summary。",
+    "如需人类可读内容，也必须写入 JSON 字段，前端会从 JSON 渲染页面和导出 Markdown。",
+    "",
+    "---",
+    "",
+    prompt,
+  ].join("\n");
+}
+
+function deriveMarkdown(json: unknown, markdown?: string): string | null {
+  const trimmed = typeof markdown === "string" ? markdown.trim() : "";
+  if (trimmed) return trimmed;
+  return buildMarkdownFromAnalysisJson(json);
 }
 
 export async function POST(request: NextRequest) {
@@ -131,8 +151,7 @@ export async function POST(request: NextRequest) {
         rawLength: raw.length,
       });
 
-      const jsonEmphasis = "【最高优先级指令】你的输出必须包含两部分：先输出 Markdown 报告，然后在最后用 ```json 代码块输出完整的 JSON Result。如果你只输出 Markdown 而没有 JSON 代码块，系统将无法解析你的结果。请务必在 Markdown 报告之后输出 ```json 代码块。\n\n---\n\n";
-      const retryPrompt = jsonEmphasis + prompt;
+      const retryPrompt = buildJsonOnlyRetryPrompt(prompt);
 
       try {
         const retryRaw = await callAnalysisModel(retryPrompt, input, request.signal);
@@ -143,17 +162,15 @@ export async function POST(request: NextRequest) {
         } else if (getParseRetryLimit() > 1) {
           console.warn("Retry 1 also failed, attempting retry 2 with JSON-only request...");
 
-          const jsonOnlyPrompt = "请根据以下输入，只输出 JSON Result（用 ```json 代码块包裹），不要输出 Markdown 报告。JSON 结构必须包含以下顶层字段：mission_review、depth_evaluation、asset_decision、trace_summary。其中 asset_decision 必须包含 asset_candidate（布尔值）、recommended_asset_type 和 asset_candidate_package。\n\n---\n\n" + prompt;
           try {
-            const retry2Raw = await callAnalysisModel(jsonOnlyPrompt, input, request.signal);
+            const retry2Raw = await callAnalysisModel(buildJsonOnlyRetryPrompt(prompt), input, request.signal);
             const retry2Extracted = extractJsonFromOutput(retry2Raw);
             if (retry2Extracted.success) {
-              const markdownFromFirst = raw;
               raw = retry2Raw;
               extracted = {
                 success: true,
                 json: retry2Extracted.json,
-                markdown: retry2Extracted.markdown ?? extracted.markdown ?? markdownFromFirst,
+                markdown: retry2Extracted.markdown ?? extracted.markdown,
               };
             }
           } catch (retry2Error) {
@@ -177,8 +194,9 @@ export async function POST(request: NextRequest) {
         duration_ms: Date.now() - startedAt,
         error_message: null,
       };
+      const markdown = deriveMarkdown(extracted.json, extracted.markdown);
       return buildResponse({
-        markdown: extracted.markdown ?? null,
+        markdown,
         json: extracted.json ?? null,
         raw,
         parseStatus: "success",

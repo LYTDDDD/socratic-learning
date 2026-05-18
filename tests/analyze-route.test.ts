@@ -15,7 +15,7 @@ vi.mock("../lib/extract-json", () => ({
 }));
 
 vi.mock("../lib/prompt", () => ({
-  OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION: "offline-mission-analysis-v0.2",
+  OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION: "offline-mission-analysis-v0.3-json-only",
   readOfflineMissionAnalysisPrompt: vi.fn().mockResolvedValue("test prompt"),
 }));
 
@@ -184,8 +184,34 @@ describe("POST /api/analyze", () => {
     expect(data.parseStatus).toBe("success");
     expect(data.json).toEqual({ mission_review: "retry result" });
     expect(mockCallAnalysisModel).toHaveBeenCalledTimes(2);
+    expect(mockCallAnalysisModel.mock.calls[1][0]).toContain("只输出合法 JSON 对象");
+    expect(mockCallAnalysisModel.mock.calls[1][0]).not.toContain("先输出 Markdown");
 
     process.env.ANALYZE_PARSE_RETRIES = originalEnv;
+  });
+
+  it("derives markdown from JSON when the model returns JSON only", async () => {
+    mockExtractJsonFromOutput.mockReturnValueOnce({
+      success: true,
+      json: {
+        mission_review: {
+          original_goal: "校准学习判断",
+          final_judgment: "以后先找证据再沉淀资产",
+        },
+        depth_evaluation: { overall_depth_score: 7, overall_reason: "有判断变化" },
+        asset_decision: { asset_candidate: false, why_worth_saving: "证据不足" },
+        trace_summary: { mission_detected: true },
+      },
+      markdown: "",
+    });
+
+    const req = makeNextRequest(makeValidPayload());
+    const response = await POST(req);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.markdown).toContain("Offline Mission Analysis");
+    expect(data.markdown).toContain("校准学习判断");
   });
 
   it("includes runLog with correct fields in successful response", async () => {
@@ -196,7 +222,7 @@ describe("POST /api/analyze", () => {
     expect(data.runLog.run_id).toBeTruthy();
     expect(data.runLog.run_id.startsWith("run_")).toBe(true);
     expect(data.runLog.created_at).toBeTruthy();
-    expect(data.runLog.prompt_version).toBe("offline-mission-analysis-v0.2");
+    expect(data.runLog.prompt_version).toBe("offline-mission-analysis-v0.3-json-only");
     expect(data.runLog.duration_ms).toBeGreaterThanOrEqual(0);
     expect(data.runLog.error_message).toBeNull();
   });
