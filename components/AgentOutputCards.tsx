@@ -37,10 +37,10 @@ const SPECIAL_FIELD_LABELS: Record<string, string> = {
 };
 
 function statusBadge(status: AgentStep["status"]) {
-  if (status === "success") return "bg-moss/15 text-moss";
-  if (status === "failed") return "bg-rust/15 text-rust";
-  if (status === "running") return "bg-amber-50 text-amber-800";
-  return "bg-ink/10 text-ink/50";
+  if (status === "success") return "bg-green/15 text-green";
+  if (status === "failed") return "bg-amber/15 text-amber";
+  if (status === "running") return "bg-amber/10 text-amber";
+  return "bg-surface-2 text-ink-muted";
 }
 
 function statusLabel(status: AgentStep["status"]) {
@@ -62,10 +62,10 @@ function calcDuration(step: AgentStep): string {
 }
 
 function depthScoreColor(score: number): string {
-  if (score <= 3) return "bg-rust";
-  if (score <= 5) return "bg-amber-500";
-  if (score <= 7) return "bg-amber-400";
-  return "bg-moss";
+  if (score <= 3) return "bg-amber";
+  if (score <= 5) return "bg-amber";
+  if (score <= 7) return "bg-amber";
+  return "bg-green";
 }
 
 function SupervisorOutput({ output }: { output: Record<string, unknown> }) {
@@ -76,21 +76,21 @@ function SupervisorOutput({ output }: { output: Record<string, unknown> }) {
     <div className="space-y-3">
       {reasoning && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">编排决策</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">编排决策</p>
           <p className="text-sm text-ink">{reasoning}</p>
         </div>
       )}
       {steps && steps.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">执行步骤</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">执行步骤</p>
           <div className="flex flex-wrap items-center gap-1">
             {steps.map((s, i) => (
               <span key={i} className="flex items-center gap-1">
-                <span className="rounded bg-moss/10 px-2 py-0.5 text-xs font-medium text-moss">
+                <span className="rounded bg-blue/10 px-2 py-0.5 text-xs font-medium text-blue">
                   {AGENT_NAME_MAP[s as AgentType] ?? String(s)}
                 </span>
                 {i < steps.length - 1 && (
-                  <svg className="h-3 w-3 text-ink/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <svg className="h-3 w-3 text-ink-muted/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
@@ -126,13 +126,13 @@ function ReviewOutput({ output }: { output: Record<string, unknown> }) {
     <div className="space-y-3">
       {summary && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">总结</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">总结</p>
           <p className="text-sm text-ink">{summary}</p>
         </div>
       )}
       {keyDecisions && keyDecisions.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">关键决策</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">关键决策</p>
           <ul className="list-inside list-disc space-y-0.5">
             {keyDecisions.map((d, i) => (
               <li key={i} className="text-sm text-ink">{d}</li>
@@ -142,13 +142,13 @@ function ReviewOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {turningPoints && turningPoints.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">关键转折</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">关键转折</p>
           <div className="space-y-2">
             {turningPoints.map((tp, i) => (
-              <div key={i} className="rounded border border-line bg-paper/50 px-2.5 py-2 text-sm">
+              <div key={i} className="rounded border border-line bg-surface-1 px-2.5 py-2 text-sm">
                 <p className="font-medium text-ink/80">{tp.turning_point}</p>
-                {tp.evidence && <p className="mt-0.5 text-xs text-ink/50">证据：{tp.evidence}</p>}
-                {tp.why_it_matters && <p className="text-xs text-moss">意义：{tp.why_it_matters}</p>}
+                {tp.evidence && <p className="mt-0.5 text-xs text-ink-muted">证据：{tp.evidence}</p>}
+                {tp.why_it_matters && <p className="text-xs text-blue">意义：{tp.why_it_matters}</p>}
               </div>
             ))}
           </div>
@@ -156,7 +156,7 @@ function ReviewOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {keyTakeaways && keyTakeaways.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">核心收获</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">核心收获</p>
           <ul className="list-inside list-disc space-y-0.5">
             {keyTakeaways.map((k, i) => (
               <li key={i} className="text-sm text-ink">{k}</li>
@@ -166,20 +166,20 @@ function ReviewOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {misconceptions && misconceptions.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">误区与隐藏假设</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">误区与隐藏假设</p>
           <div className="space-y-1.5">
             {misconceptions.map((m, i) => (
-              <div key={i} className="rounded border border-line bg-paper/50 px-2.5 py-1.5 text-sm">
+              <div key={i} className="rounded border border-line bg-surface-1 px-2.5 py-1.5 text-sm">
                 <span className={`mr-1.5 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
-                  m.type === "misconception" ? "bg-rust/10 text-rust" :
-                  m.type === "hidden_assumption" ? "bg-amber-50 text-amber-800" :
-                  "bg-moss/10 text-moss"
+                  m.type === "misconception" ? "bg-amber/10 text-amber" :
+                  m.type === "hidden_assumption" ? "bg-amber/10 text-amber" :
+                  "bg-blue/10 text-blue"
                 }`}>
                   {m.type === "misconception" ? "误区" : m.type === "hidden_assumption" ? "隐藏假设" : "探索性思考"}
                 </span>
                 <span className="text-ink/80">{m.item}</span>
-                {m.evidence && <span className="ml-1 text-xs text-ink/50">证据：{m.evidence}</span>}
-                {m.correction && <span className="ml-1 text-xs text-moss">纠正：{m.correction}</span>}
+                {m.evidence && <span className="ml-1 text-xs text-ink-muted">证据：{m.evidence}</span>}
+                {m.correction && <span className="ml-1 text-xs text-blue">纠正：{m.correction}</span>}
               </div>
             ))}
           </div>
@@ -201,9 +201,9 @@ function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) 
     <div className="space-y-3">
       {depthScore != null && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">深度评分</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">深度评分</p>
           <div className="flex items-center gap-3">
-            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-ink/10">
+            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-2">
               <div
                 className={`h-full rounded-full transition-all ${depthScoreColor(Math.max(0, Math.min(10, depthScore)))}`}
                 style={{ width: `${(Math.max(0, Math.min(10, depthScore)) / 10) * 100}%` }}
@@ -215,7 +215,7 @@ function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) 
       )}
       {dimensions && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">维度评分</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">维度评分</p>
           <div className="space-y-1.5">
             {DIMENSION_LABELS.map(({ key, label }) => {
               const dim = dimensions[key];
@@ -223,18 +223,18 @@ function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) 
               const pct = Math.max(0, Math.min(100, dim.score * 10));
               return (
                 <div key={key} className="flex items-center gap-2 text-sm">
-                  <span className="w-20 shrink-0 text-ink/70">{label}</span>
+                  <span className="w-20 shrink-0 text-ink-muted">{label}</span>
                   <div className="flex-1">
-                    <div className="h-2 rounded-full bg-ink/5">
+                    <div className="h-2 rounded-full bg-surface-2">
                       <div
-                        className={`h-2 rounded-full ${dim.score >= 7 ? "bg-moss" : dim.score >= 4 ? "bg-amber-400" : "bg-rust"}`}
+                        className={`h-2 rounded-full ${dim.score >= 7 ? "bg-green" : dim.score >= 4 ? "bg-amber" : "bg-amber"}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
                   </div>
-                  <span className="w-8 text-right text-xs text-ink/60">{dim.score}/10</span>
+                  <span className="w-8 text-right text-xs text-ink-muted">{dim.score}/10</span>
                   {dim.uncertainty === "high" && (
-                    <span className="text-xs text-amber-600">⚠</span>
+                    <span className="text-xs text-amber">⚠</span>
                   )}
                 </div>
               );
@@ -244,7 +244,7 @@ function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) 
       )}
       {blindSpots && blindSpots.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">盲点</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">盲点</p>
           <ul className="list-inside list-disc space-y-0.5">
             {blindSpots.map((b, i) => (
               <li key={i} className="text-sm text-ink">{b}</li>
@@ -254,7 +254,7 @@ function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) 
       )}
       {improvementDirections && improvementDirections.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">改进方向</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">改进方向</p>
           <ul className="list-inside list-disc space-y-0.5">
             {improvementDirections.map((d, i) => (
               <li key={i} className="text-sm text-ink">{d}</li>
@@ -264,7 +264,7 @@ function DepthEvaluationOutput({ output }: { output: Record<string, unknown> }) 
       )}
       {reasoning && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">评估理由</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">评估理由</p>
           <p className="text-sm text-ink">{reasoning}</p>
         </div>
       )}
@@ -286,11 +286,11 @@ function AssetOutput({ output }: { output: Record<string, unknown> }) {
       {hasAsset != null && (
         <div className="flex items-center gap-2">
           {hasAsset ? (
-            <svg className="h-5 w-5 text-moss" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="h-5 w-5 text-green" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           ) : (
-            <svg className="h-5 w-5 text-rust" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="h-5 w-5 text-amber" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}
@@ -301,37 +301,37 @@ function AssetOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {assetType && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">资产类型</p>
-          <span className="inline-block rounded bg-moss/10 px-2 py-0.5 text-xs font-medium text-moss">
+          <p className="mb-1 text-xs font-semibold text-ink-muted">资产类型</p>
+          <span className="inline-block rounded bg-blue/10 px-2 py-0.5 text-xs font-medium text-blue">
             {ASSET_TYPE_MAP[assetType] ?? assetType}
           </span>
         </div>
       )}
       {title && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">标题</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">标题</p>
           <p className="text-sm text-ink">{title}</p>
         </div>
       )}
       {coreInsight && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">核心洞察</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">核心洞察</p>
           <p className="text-sm text-ink">{coreInsight}</p>
         </div>
       )}
       {transferableValue && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">可迁移价值</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">可迁移价值</p>
           <p className="text-sm text-ink">{transferableValue}</p>
         </div>
       )}
       {specialFields && Object.keys(specialFields).length > 0 && (
         <div className="mt-2 border-t border-line pt-2">
-          <p className="mb-1 text-xs font-semibold text-ink/60">专属字段</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">专属字段</p>
           <div className="space-y-1">
             {Object.entries(specialFields).map(([key, value]) => (
               <div key={key} className="text-sm">
-                <span className="text-ink/60">{SPECIAL_FIELD_LABELS[key] ?? key}：</span>
+                <span className="text-ink-muted">{SPECIAL_FIELD_LABELS[key] ?? key}：</span>
                 {Array.isArray(value) ? (
                   <span>{value.join("、")}</span>
                 ) : (
@@ -344,20 +344,20 @@ function AssetOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {updateProposals.length > 0 && (
         <div className="mt-2 border-t border-line pt-2">
-          <p className="mb-1 text-xs font-semibold text-ink/60">资产更新建议</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">资产更新建议</p>
           <div className="space-y-1.5">
             {updateProposals.map((p, i) => (
-              <div key={i} className="rounded border border-line bg-paper/50 px-2.5 py-1.5 text-sm">
+              <div key={i} className="rounded border border-line bg-surface-1 px-2.5 py-1.5 text-sm">
                 <span className={`mr-1.5 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
-                  p.suggested_action === "minor_edit" ? "bg-amber-50 text-amber-800" :
-                  p.suggested_action === "create_new_version" ? "bg-moss/10 text-moss" :
-                  "bg-ink/5 text-ink/50"
+                  p.suggested_action === "minor_edit" ? "bg-amber/10 text-amber" :
+                  p.suggested_action === "create_new_version" ? "bg-blue/10 text-blue" :
+                  "bg-surface-2 text-ink-muted"
                 }`}>
                   {p.suggested_action === "minor_edit" ? "小修改" : p.suggested_action === "create_new_version" ? "新版本" : "忽略"}
                 </span>
                 <span className="text-ink/80">{p.related_asset_title}</span>
-                {p.reason && <p className="mt-0.5 text-xs text-ink/50">原因：{p.reason}</p>}
-                {p.evidence && <p className="text-xs text-ink/50">证据：{p.evidence}</p>}
+                {p.reason && <p className="mt-0.5 text-xs text-ink-muted">原因：{p.reason}</p>}
+                {p.evidence && <p className="text-xs text-ink-muted">证据：{p.evidence}</p>}
               </div>
             ))}
           </div>
@@ -376,16 +376,16 @@ function CuratorOutput({ output }: { output: Record<string, unknown> }) {
     <div className="space-y-3">
       {connections && connections.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">关联建议</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">关联建议</p>
           <div className="space-y-1">
             {connections.map((c, i) => (
               <div key={i} className="flex items-center gap-1.5 text-sm text-ink">
                 <span>{String(c.source_concept ?? "")}</span>
-                <svg className="h-3 w-3 text-ink/30" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <svg className="h-3 w-3 text-ink-muted/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <span>{String(c.target_concept ?? "")}</span>
-                <span className="rounded bg-ink/5 px-1.5 py-0.5 text-[10px] text-ink/50">
+                <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-muted">
                   {String(c.connection_type ?? "")}
                 </span>
               </div>
@@ -395,7 +395,7 @@ function CuratorOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {organizationTips && organizationTips.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">整理建议</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">整理建议</p>
           <ul className="list-inside list-disc space-y-0.5">
             {organizationTips.map((t, i) => (
               <li key={i} className="text-sm text-ink">{t}</li>
@@ -405,10 +405,10 @@ function CuratorOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {suggestedTags && suggestedTags.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">建议标签</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">建议标签</p>
           <div className="flex flex-wrap gap-1.5">
             {suggestedTags.map((tag, i) => (
-              <span key={i} className="rounded bg-moss/10 px-2 py-0.5 text-xs text-moss">
+              <span key={i} className="rounded bg-blue/10 px-2 py-0.5 text-xs text-blue">
                 {tag}
               </span>
             ))}
@@ -428,7 +428,7 @@ function ReflectionOutput({ output }: { output: Record<string, unknown> }) {
     <div className="space-y-3">
       {reflectionQuestions && reflectionQuestions.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">反思问题</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">反思问题</p>
           <ul className="list-inside list-disc space-y-0.5">
             {reflectionQuestions.map((q, i) => (
               <li key={i} className="text-sm text-ink">{q}</li>
@@ -438,7 +438,7 @@ function ReflectionOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {actionItems && actionItems.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">行动建议</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">行动建议</p>
           <ul className="list-inside list-disc space-y-0.5">
             {actionItems.map((a, i) => (
               <li key={i} className="text-sm text-ink">{a}</li>
@@ -448,7 +448,7 @@ function ReflectionOutput({ output }: { output: Record<string, unknown> }) {
       )}
       {mindsetShifts && mindsetShifts.length > 0 && (
         <div>
-          <p className="mb-1 text-xs font-semibold text-ink/60">思维转变</p>
+          <p className="mb-1 text-xs font-semibold text-ink-muted">思维转变</p>
           <ul className="list-inside list-disc space-y-0.5">
             {mindsetShifts.map((m, i) => (
               <li key={i} className="text-sm text-ink">{m}</li>
@@ -482,15 +482,15 @@ function AgentCard({ step, defaultExpanded }: { step: AgentStep; defaultExpanded
   const output = step.output ?? {};
 
   return (
-    <div className="rounded-lg border border-line bg-paper/60">
+    <div className="rounded-lg border border-line bg-surface-1">
       <button
-        className="flex w-full items-center gap-2 px-4 py-3 text-left transition hover:bg-paper/80"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left transition hover:bg-surface-2"
         onClick={() => setExpanded((e) => !e)}
         type="button"
         aria-expanded={expanded}
       >
         <svg
-          className={`h-4 w-4 shrink-0 text-ink/40 transition-transform ${expanded ? "rotate-90" : ""}`}
+          className={`h-4 w-4 shrink-0 text-ink-muted/70 transition-transform ${expanded ? "rotate-90" : ""}`}
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
@@ -502,16 +502,16 @@ function AgentCard({ step, defaultExpanded }: { step: AgentStep; defaultExpanded
         <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-medium ${statusBadge(step.status)}`}>
           {statusLabel(step.status)}
         </span>
-        <span className="ml-auto text-xs text-ink/40">{calcDuration(step)}</span>
+        <span className="ml-auto text-xs text-ink-muted/70">{calcDuration(step)}</span>
       </button>
       {expanded && (
         <div className="border-t border-line px-4 py-3">
           {step.status === "success" && step.output ? (
             <AgentOutputContent agent={step.agent} output={output} />
           ) : step.status === "failed" && step.error ? (
-            <p className="text-sm text-rust">{step.error}</p>
+            <p className="text-sm text-amber">{step.error}</p>
           ) : (
-            <p className="text-sm text-ink/40">无输出</p>
+            <p className="text-sm text-ink-muted/70">无输出</p>
           )}
         </div>
       )}
@@ -528,7 +528,7 @@ export function AgentOutputCards({ steps }: AgentOutputCardsProps) {
 
   if (successSteps.length === 0) {
     return (
-      <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-line bg-paper text-sm text-ink/50">
+      <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-line bg-surface-1 text-sm text-ink-muted">
         暂无 Agent 输出
       </div>
     );

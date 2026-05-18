@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { FlaskConical, MessageCircle, Brain } from "lucide-react";
 import { getSessionById } from "../lib/chat-store";
 import type { AnalyzeInput } from "../lib/analyze-types";
 
@@ -34,45 +35,45 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-paper text-ink">
-      <section className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-5 py-6">
-        <header className="border-b border-line pb-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-rust">
-                Cognitive Asset Lab
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold leading-tight md:text-4xl">
-                {mode === "analysis" ? "离线任务分析工作台" : "聊天工作台"}
-              </h1>
-            </div>
-            <div className="flex items-center gap-1 rounded-lg border border-line bg-white p-1">
-              <button
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                  mode === "analysis"
-                    ? "bg-moss text-white"
-                    : "text-ink/50 hover:text-ink"
-                }`}
-                onClick={() => setMode("analysis")}
-                type="button"
-              >
-                离线分析
-              </button>
-              <button
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                  mode === "chat"
-                    ? "bg-moss text-white"
-                    : "text-ink/50 hover:text-ink"
-                }`}
-                onClick={() => setMode("chat")}
-                type="button"
-              >
-                聊天工作台
-              </button>
-            </div>
-          </div>
-        </header>
+    <div className="flex h-screen bg-paper text-ink">
+      <aside className="flex w-14 flex-shrink-0 flex-col items-center border-r border-line bg-surface-1 py-4">
+        <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-lg bg-blue/10">
+          <Brain className="h-4 w-4 text-blue" />
+        </div>
+        <nav className="flex flex-1 flex-col items-center gap-1">
+          <button
+            aria-label="打开离线分析工作台"
+            className={`flex h-11 w-full flex-col items-center justify-center rounded-lg transition ${
+              mode === "analysis"
+                ? "text-blue bg-blue/10"
+                : "text-ink-muted hover:text-ink hover:bg-surface-2"
+            }`}
+            onClick={() => setMode("analysis")}
+            title="离线分析"
+            type="button"
+          >
+            <FlaskConical className="h-4 w-4" />
+          </button>
+          <button
+            aria-label="打开聊天工作台"
+            className={`flex h-11 w-full flex-col items-center justify-center rounded-lg transition ${
+              mode === "chat"
+                ? "text-blue bg-blue/10"
+                : "text-ink-muted hover:text-ink hover:bg-surface-2"
+            }`}
+            onClick={() => setMode("chat")}
+            title="聊天工作台"
+            type="button"
+          >
+            <MessageCircle className="h-4 w-4" />
+          </button>
+        </nav>
+        <div className="text-ink-muted/30">
+          <FlaskConical className="h-3.5 w-3.5" />
+        </div>
+      </aside>
 
+      <main className="flex-1 overflow-hidden">
         {mode === "analysis" ? (
           <AnalysisWorkbench
             currentMissionId={currentMissionId}
@@ -85,7 +86,7 @@ export default function Home() {
             onReviewTriggered={handleReviewTriggered}
           />
         )}
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }

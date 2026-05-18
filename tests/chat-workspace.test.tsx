@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatWorkspace } from "../components/ChatWorkspace";
+import { addMessageToSession, createChatSession } from "../lib/chat-store";
 
 class LocalStorageMock {
   private store: Record<string, string> = {};
@@ -39,6 +40,37 @@ afterEach(() => {
 });
 
 describe("ChatWorkspace", () => {
+  it("shows conversation workspace stats and review handoff", async () => {
+    const session = createChatSession("复盘候选对话", "mission_chat_1");
+    expect(session).not.toBeNull();
+    addMessageToSession(session!.id, { role: "user", content: "我想判断学生是否理解顶点式" });
+    addMessageToSession(session!.id, { role: "assistant", content: "可以先看他是否能解释参数含义" });
+
+    render(<ChatWorkspace currentMissionId={null} />);
+
+    fireEvent.click(await screen.findByText("复盘候选对话"));
+
+    expect(screen.getByText("Conversation Workspace")).toBeInTheDocument();
+    expect(screen.getByText("Review Handoff")).toBeInTheDocument();
+    expect(screen.getByText("sessions").parentElement).toHaveTextContent("1");
+    expect(screen.getByText("missions").parentElement).toHaveTextContent("1");
+    expect(screen.getByText("turns").parentElement).toHaveTextContent("2");
+  });
+
+  it("hands the active conversation to offline analysis", async () => {
+    const session = createChatSession("待复盘对话", "mission_handoff");
+    expect(session).not.toBeNull();
+    addMessageToSession(session!.id, { role: "user", content: "这段对话需要复盘" });
+    const onReviewTriggered = vi.fn();
+
+    render(<ChatWorkspace currentMissionId={null} onReviewTriggered={onReviewTriggered} />);
+
+    fireEvent.click(await screen.findByText("待复盘对话"));
+    fireEvent.click(screen.getByRole("button", { name: /发送到离线分析/ }));
+
+    expect(onReviewTriggered).toHaveBeenCalledWith(session!.id, "mission_handoff");
+  });
+
   it("shows API error details when chat request fails", async () => {
     vi.stubGlobal(
       "fetch",

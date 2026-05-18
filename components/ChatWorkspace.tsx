@@ -9,6 +9,7 @@ import {
   addMessageToSession,
 } from "../lib/chat-store";
 import { getMissionById } from "../lib/mission-store";
+import { Send, MessageSquarePlus, Trash2, Sparkles, Zap, ArrowRight, ClipboardList } from "lucide-react";
 
 type ChatWorkspaceProps = {
   currentMissionId: string | null;
@@ -35,6 +36,10 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
   const hasReviewTriggered = activeSession?.messages.some(
     (m) => m.reviewTriggered === true
   );
+  const activeMessageCount = activeSession?.messages.length ?? 0;
+  const userMessageCount = activeSession?.messages.filter((m) => m.role === "user").length ?? 0;
+  const assistantMessageCount = activeSession?.messages.filter((m) => m.role === "assistant").length ?? 0;
+  const canHandoffToReview = Boolean(activeSession && activeMessageCount > 0);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -106,8 +111,8 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
       reloadSessions();
 
       if (reviewTriggered && onReviewTriggered) {
-        const activeSession = sessions.find((s) => s.id === activeSessionId);
-        onReviewTriggered(activeSessionId, activeSession?.missionId ?? null);
+        const currentSession = loadChatSessions().find((s) => s.id === activeSessionId);
+        onReviewTriggered(activeSessionId, currentSession?.missionId ?? null);
       }
     } catch (err) {
       addMessageToSession(activeSessionId, {
@@ -128,22 +133,46 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
   }
 
   return (
-    <div className="grid h-full gap-0 xl:grid-cols-[260px_1fr]">
-      <aside className="flex flex-col border-r border-line bg-paper/60">
-        <div className="flex items-center justify-between border-b border-line px-3 py-2">
-          <h3 className="text-sm font-semibold text-ink">对话列表</h3>
+    <div className="flex h-full min-w-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+      <aside className="flex w-full shrink-0 flex-col border-b border-line bg-surface-1 lg:w-72 lg:border-b-0 lg:border-r">
+        <div className="border-b border-line px-5 py-4">
+          <div className="mb-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Conversation Workspace</p>
+            <h2 className="mt-1 text-sm font-semibold text-ink">对话工作台</h2>
+            <p className="mt-1 text-xs leading-5 text-ink-muted">先对话澄清问题，再把完整上下文交给离线任务分析。</p>
+          </div>
+          <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-md border border-line bg-surface-2/50 px-2 py-1.5">
+              <p className="text-sm font-semibold text-ink">{sessions.length}</p>
+              <p className="text-[10px] text-ink-muted">sessions</p>
+            </div>
+            <div className="rounded-md border border-line bg-surface-2/50 px-2 py-1.5">
+              <p className="text-sm font-semibold text-ink">{sessions.filter((s) => s.missionId).length}</p>
+              <p className="text-[10px] text-ink-muted">missions</p>
+            </div>
+            <div className="rounded-md border border-line bg-surface-2/50 px-2 py-1.5">
+              <p className="text-sm font-semibold text-ink">{sessions.filter((s) => s.messages.some((m) => m.reviewTriggered)).length}</p>
+              <p className="text-[10px] text-ink-muted">handoffs</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-muted/60">对话列表</h3>
           <button
-            className="rounded border border-moss/30 px-2 py-0.5 text-[10px] font-medium text-moss transition hover:bg-moss/10"
+            aria-label="新建对话"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-blue transition hover:bg-blue/10"
             onClick={handleCreateSession}
+            title="新建对话"
             type="button"
           >
-            新建对话
+            <MessageSquarePlus className="h-3.5 w-3.5" />
+            新建
           </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-auto">
+        <div className="max-h-72 flex-1 overflow-auto lg:max-h-none">
           {sessions.length === 0 && (
-            <p className="px-3 py-4 text-xs text-ink/40">暂无对话，点击"新建对话"开始。</p>
+            <p className="px-5 py-5 text-xs text-ink-muted/50">暂无对话，点击"新建"开始。</p>
           )}
           {sessions.map((session) => {
             const lastMsg = session.messages[session.messages.length - 1];
@@ -151,42 +180,44 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
             return (
               <div
                 key={session.id}
-                className={`group cursor-pointer border-b border-line px-3 py-2 transition ${
+                className={`group cursor-pointer px-5 py-3 transition ${
                   activeSessionId === session.id
-                    ? "bg-moss/10 border-l-2 border-l-moss"
-                    : "hover:bg-paper"
+                    ? "border-l-2 border-l-blue bg-surface-2"
+                    : "hover:bg-surface-2/50"
                 }`}
                 onClick={() => setActiveSessionId(session.id)}
                 role="button"
                 tabIndex={0}
               >
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   <span className="flex-1 truncate text-xs font-medium text-ink">
                     {session.title}
                   </span>
                   <button
-                    className="shrink-0 rounded border border-rust/30 px-1 py-0.5 text-[9px] font-medium text-rust opacity-0 transition hover:bg-rust/10 group-hover:opacity-100"
+                    aria-label={`删除对话：${session.title}`}
+                    className="shrink-0 rounded-lg p-1 text-ink-muted/50 opacity-0 transition hover:text-amber group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteSession(session.id);
                     }}
+                    title="删除对话"
                     type="button"
                   >
-                    删除
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 {mission && (
-                  <span className="inline-block mt-0.5 rounded bg-moss/10 px-1.5 py-0.5 text-[9px] text-moss">
+                  <span className="mt-1.5 inline-block rounded-lg bg-blue/20 px-2 py-0.5 text-[10px] text-blue/70">
                     {mission.title}
                   </span>
                 )}
                 {lastMsg && (
-                  <p className="mt-0.5 truncate text-[10px] text-ink/40">
+                  <p className="mt-1.5 truncate text-[11px] text-ink-muted/50">
                     {lastMsg.content.slice(0, 50)}
                     {lastMsg.content.length > 50 ? "..." : ""}
                   </p>
                 )}
-                <p className="mt-0.5 text-[9px] text-ink/30">
+                <p className="mt-1 text-[10px] text-ink-muted/30">
                   {new Date(session.updatedAt).toLocaleString()}
                 </p>
               </div>
@@ -195,29 +226,66 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
         </div>
       </aside>
 
-      <main className="flex min-h-0 flex-col bg-white/80">
+      <main className="flex min-h-[560px] min-w-0 flex-1 flex-col bg-surface-1">
         {activeSession ? (
           <>
-            <header className="flex shrink-0 items-center gap-2 border-b border-line px-4 py-2">
-              <h3 className="text-sm font-semibold text-ink">{activeSession.title}</h3>
-              {activeSession.missionId && (() => {
-                const m = getMissionById(activeSession.missionId);
-                return m ? (
-                  <span className="inline-block rounded bg-moss/10 px-2 py-0.5 text-[10px] font-medium text-moss">
-                    Mission: {m.title}
-                  </span>
-                ) : null;
-              })()}
+            <header className="shrink-0 border-b border-line px-5 py-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Active Conversation</p>
+                  <h3 className="mt-1 truncate font-heading text-sm font-semibold text-ink">{activeSession.title}</h3>
+                  {activeSession.missionId && (() => {
+                    const m = getMissionById(activeSession.missionId);
+                    return m ? (
+                      <span className="mt-2 inline-block rounded-full bg-blue/10 px-2.5 py-1 text-[11px] font-medium text-blue">
+                        Mission: {m.title}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+                <div className="grid min-w-48 grid-cols-3 gap-2 text-center">
+                  <div className="rounded-md border border-line bg-surface-2/50 px-2 py-1.5">
+                    <p className="text-sm font-semibold text-ink">{activeMessageCount}</p>
+                    <p className="text-[10px] text-ink-muted">turns</p>
+                  </div>
+                  <div className="rounded-md border border-line bg-surface-2/50 px-2 py-1.5">
+                    <p className="text-sm font-semibold text-ink">{userMessageCount}</p>
+                    <p className="text-[10px] text-ink-muted">user</p>
+                  </div>
+                  <div className="rounded-md border border-line bg-surface-2/50 px-2 py-1.5">
+                    <p className="text-sm font-semibold text-ink">{assistantMessageCount}</p>
+                    <p className="text-[10px] text-ink-muted">assistant</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface-2/50 px-3 py-2">
+                <ClipboardList className="h-4 w-4 text-blue" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Review Handoff</p>
+                  <p className="text-xs text-ink-muted">把当前对话填入离线任务分析，生成 Mission Review、DepthScore 与资产候选。</p>
+                </div>
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue/80 disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-muted/50"
+                  disabled={!canHandoffToReview}
+                  onClick={() => {
+                    if (onReviewTriggered) {
+                      onReviewTriggered(activeSession.id, activeSession.missionId);
+                    }
+                  }}
+                  type="button"
+                >
+                  发送到离线分析
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </header>
 
             {hasReviewTriggered && (
-              <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2">
-                <svg className="h-4 w-4 shrink-0 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="text-xs font-medium text-amber-700">复盘已触发，点击此处生成 Mission Review</span>
+              <div className="flex items-center gap-2 border border-amber/20 bg-amber/10 px-5 py-3">
+                <Zap className="h-4 w-4 shrink-0 text-amber" />
+                <span className="text-xs font-medium text-amber">复盘已触发，点击此处生成 Mission Review</span>
                 <button
-                  className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white transition hover:bg-amber-700"
+                  className="rounded-lg bg-amber px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-amber/80"
                   onClick={() => {
                     if (onReviewTriggered) {
                       onReviewTriggered(activeSession.id, activeSession.missionId);
@@ -230,29 +298,32 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
               </div>
             )}
 
-            <div className="flex-1 overflow-auto px-4 py-3">
+            <div className="flex-1 overflow-auto px-5 py-5">
               {activeSession.messages.length === 0 && (
-                <div className="flex h-full items-center justify-center">
-                  <p className="text-sm text-ink/30">开始对话吧</p>
+                <div className="flex h-full flex-col items-center justify-center gap-3">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue/10">
+                    <Sparkles className="h-8 w-8 text-blue" />
+                  </div>
+                  <p className="text-sm text-ink-muted/70">开始对话吧</p>
                 </div>
               )}
               {activeSession.messages.map((msg) => (
                 <MessageBubble key={msg.id} message={msg} />
               ))}
               {isLoading && (
-                <div className="mb-3 flex items-start gap-2">
-                  <div className="rounded-lg border border-line bg-paper/60 px-3 py-2">
-                    <span className="text-xs text-ink/50">正在思考…</span>
+                <div className="mb-4 flex items-start gap-2">
+                  <div className="rounded-2xl bg-surface-2 px-4 py-3">
+                    <span className="text-xs text-ink-muted">正在思考…</span>
                   </div>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="shrink-0 border-t border-line px-4 py-3">
-              <div className="flex items-end gap-2">
+            <div className="shrink-0 border-t border-line px-5 py-4">
+              <div className="flex items-end gap-3">
                 <textarea
-                  className="flex-1 resize-none rounded-lg border border-line px-3 py-2 text-sm text-ink outline-none focus:border-moss"
+                  className="flex-1 resize-none rounded-2xl border-0 bg-surface-2/80 px-4 py-3 text-sm text-ink outline-none transition focus:ring-2 focus:ring-blue/30"
                   disabled={isLoading}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -261,22 +332,27 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
                   value={inputText}
                 />
                 <button
-                  className="shrink-0 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white transition hover:bg-moss/90 disabled:opacity-50"
+                  aria-label="发送"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue text-white transition hover:bg-blue/80 disabled:opacity-50"
                   disabled={isLoading || !inputText.trim()}
                   onClick={handleSend}
+                  title="发送"
                   type="button"
                 >
-                  发送
+                  <Send className="h-4 w-4" />
                 </button>
               </div>
             </div>
           </>
         ) : (
           <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <p className="text-sm text-ink/40">选择或创建一个对话</p>
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-blue/10">
+                <MessageSquarePlus className="h-10 w-10 text-blue" />
+              </div>
+              <p className="text-sm text-ink-muted/70">选择或创建一个对话</p>
               <button
-                className="mt-3 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white transition hover:bg-moss/90"
+                className="rounded-xl bg-blue px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue/80"
                 onClick={handleCreateSession}
                 type="button"
               >
@@ -294,18 +370,18 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
 
   return (
-    <div className={`mb-3 flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`mb-4 flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[75%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
+        className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
           isUser
-            ? "bg-moss text-white"
-            : "border border-line bg-paper/60 text-ink"
+            ? "bg-blue text-white"
+            : "bg-surface-2 text-ink"
         }`}
       >
         <p className="whitespace-pre-wrap">{message.content}</p>
         <p
-          className={`mt-1 text-[10px] ${
-            isUser ? "text-white/60" : "text-ink/30"
+          className={`mt-1.5 text-[10px] ${
+            isUser ? "text-ink-muted" : "text-ink-muted/50"
           }`}
         >
           {new Date(message.createdAt).toLocaleTimeString()}

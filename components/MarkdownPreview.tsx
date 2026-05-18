@@ -16,7 +16,7 @@ export function MarkdownPreview({ markdown, isLoading, unstyled }: MarkdownPrevi
   const content = (
     <div className={unstyled ? "min-h-0 flex-1 overflow-auto" : "min-h-0 flex-1 overflow-auto px-5 py-4"}>
       {isLoading ? (
-        <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-line bg-paper text-sm text-ink/60">
+        <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-line bg-surface-1 text-sm text-ink-muted">
           正在等待模型返回 Markdown。
         </div>
       ) : markdown ? (
@@ -29,7 +29,7 @@ export function MarkdownPreview({ markdown, isLoading, unstyled }: MarkdownPrevi
                 return <code className="font-mono text-sm">{children}</code>;
               }
               return (
-                <code className="rounded bg-ink/10 px-1.5 py-0.5 font-mono text-sm text-ink">
+                <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-sm text-ink">
                   {children}
                 </code>
               );
@@ -71,7 +71,7 @@ export function MarkdownPreview({ markdown, isLoading, unstyled }: MarkdownPrevi
             pre({ children }) {
               return (
                 <InsidePreContext.Provider value={true}>
-                  <pre className="my-4 overflow-auto rounded-lg bg-ink p-4 text-sm leading-6 text-white">
+                  <pre className="my-4 overflow-auto rounded-lg bg-surface-2 p-4 text-sm leading-6 text-white">
                     {children}
                   </pre>
                 </InsidePreContext.Provider>
@@ -92,7 +92,7 @@ export function MarkdownPreview({ markdown, isLoading, unstyled }: MarkdownPrevi
               );
             },
             thead({ children }) {
-              return <thead className="bg-ink/5">{children}</thead>;
+              return <thead className="bg-surface-2">{children}</thead>;
             },
             tbody({ children }) {
               return <tbody>{children}</tbody>;
@@ -121,7 +121,7 @@ export function MarkdownPreview({ markdown, isLoading, unstyled }: MarkdownPrevi
           {markdown}
         </ReactMarkdown>
       ) : (
-        <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-line bg-paper text-sm text-ink/60">
+        <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-line bg-surface-1 text-sm text-ink-muted">
           暂无报告。提交输入后，模型返回的 Markdown 会显示在这里。
         </div>
       )}
@@ -133,7 +133,7 @@ export function MarkdownPreview({ markdown, isLoading, unstyled }: MarkdownPrevi
   }
 
   return (
-    <section className="flex min-h-[420px] flex-col rounded-lg border border-line bg-white/80 shadow-sm">
+    <section className="flex min-h-[420px] flex-col rounded-lg border border-line bg-surface-1 shadow-sm">
       <header className="border-b border-line px-5 py-4">
         <h2 className="text-base font-semibold">Markdown Preview</h2>
       </header>

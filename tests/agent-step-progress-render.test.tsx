@@ -28,7 +28,7 @@ describe("AgentStepProgress", () => {
 
     expect(screen.getByText("复盘")).toBeInTheDocument();
 
-    const checkmarkContainer = document.querySelector(".bg-moss\\/15");
+    const checkmarkContainer = document.querySelector(".bg-green\\/15");
     expect(checkmarkContainer).toBeInTheDocument();
   });
 
@@ -41,7 +41,7 @@ describe("AgentStepProgress", () => {
     expect(screen.getByText("资产决策")).toBeInTheDocument();
     expect(screen.getByText("API 超时")).toBeInTheDocument();
 
-    const xContainer = document.querySelector(".bg-rust\\/15");
+    const xContainer = document.querySelector(".bg-amber\\/15");
     expect(xContainer).toBeInTheDocument();
   });
 
@@ -54,7 +54,7 @@ describe("AgentStepProgress", () => {
     expect(screen.getByText("整理建议")).toBeInTheDocument();
     expect(screen.getByText("(跳过)")).toBeInTheDocument();
 
-    const skipContainer = document.querySelector(".bg-ink\\/10");
+    const skipContainer = document.querySelector(".bg-surface-2");
     expect(skipContainer).toBeInTheDocument();
   });
 
@@ -129,7 +129,7 @@ describe("AgentStepProgress", () => {
 
     expect(screen.getByText("资产决策")).toBeInTheDocument();
 
-    const errorDiv = document.querySelector(".bg-rust\\/5");
+    const errorDiv = document.querySelector(".bg-amber\\/5");
     expect(errorDiv).not.toBeInTheDocument();
   });
 });

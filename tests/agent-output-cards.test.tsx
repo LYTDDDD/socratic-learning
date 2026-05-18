@@ -212,7 +212,7 @@ describe("AgentOutputCards", () => {
       ];
       render(<AgentOutputCards steps={steps} />);
 
-      const bar = document.querySelector(".bg-rust");
+      const bar = document.querySelector(".bg-amber");
       expect(bar).toBeInTheDocument();
       expect(bar).toHaveStyle({ width: "20%" });
     });
@@ -227,7 +227,7 @@ describe("AgentOutputCards", () => {
       ];
       render(<AgentOutputCards steps={steps} />);
 
-      const bar = document.querySelector(".bg-amber-500");
+      const bar = document.querySelector(".bg-amber");
       expect(bar).toBeInTheDocument();
       expect(bar).toHaveStyle({ width: "50%" });
     });
@@ -242,7 +242,7 @@ describe("AgentOutputCards", () => {
       ];
       render(<AgentOutputCards steps={steps} />);
 
-      const bar = document.querySelector(".bg-amber-400");
+      const bar = document.querySelector(".bg-amber");
       expect(bar).toBeInTheDocument();
       expect(bar).toHaveStyle({ width: "70%" });
     });
@@ -257,7 +257,7 @@ describe("AgentOutputCards", () => {
       ];
       render(<AgentOutputCards steps={steps} />);
 
-      const bar = document.querySelector(".bg-moss");
+      const bar = document.querySelector(".bg-green");
       expect(bar).toBeInTheDocument();
       expect(bar).toHaveStyle({ width: "90%" });
     });

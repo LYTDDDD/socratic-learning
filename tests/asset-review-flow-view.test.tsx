@@ -95,6 +95,7 @@ describe("AssetReviewFlowView", () => {
   it("renders loading question state and exits", () => {
     const handlers = renderView({ phase: "loading_questions", asset: makeAsset() });
 
+    expect(screen.getByText("Review Mode")).toBeInTheDocument();
     expect(screen.getByText("复习评估")).toBeInTheDocument();
     expect(screen.getByText("Test Asset")).toBeInTheDocument();
     expect(screen.getByText("AI 正在生成评估问题...")).toBeInTheDocument();

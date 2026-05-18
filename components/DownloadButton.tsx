@@ -93,7 +93,7 @@ export function DownloadButton({ result }: DownloadButtonProps) {
   return (
     <div className="relative" ref={ref}>
       <button
-        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line px-3 text-xs font-medium transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line px-3 text-xs font-medium transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
         disabled={!hasAnyAvailable}
         onClick={() => setOpen((prev) => !prev)}
         type="button"
@@ -113,20 +113,20 @@ export function DownloadButton({ result }: DownloadButtonProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-md border border-line bg-white py-1 shadow-lg">
+        <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-md border border-line bg-surface-1 py-1 shadow-lg">
           {options.map((opt) => (
             <button
               className={`flex w-full items-center px-3 py-2 text-xs font-medium transition ${
                 opt.available
-                  ? "text-ink hover:bg-paper"
-                  : "cursor-not-allowed text-ink/30"
+                  ? "text-ink hover:bg-surface-2"
+                  : "cursor-not-allowed text-ink-muted/50"
               }`}
               disabled={!opt.available}
               key={opt.ext}
               onClick={() => handleSelect(opt)}
               type="button"
             >
-              <span className="mr-2 inline-block w-10 text-left font-semibold uppercase text-moss">
+              <span className="mr-2 inline-block w-10 text-left font-semibold uppercase text-blue">
                 .{opt.ext}
               </span>
               {opt.label}

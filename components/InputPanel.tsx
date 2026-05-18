@@ -394,8 +394,8 @@ export function InputPanel({
   }
 
   return (
-    <form className="flex h-full flex-col gap-5" onSubmit={handleSubmit}>
-      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+    <form className="flex h-full min-w-0 flex-col gap-3" onSubmit={handleSubmit}>
+      <div className="grid min-w-0 gap-3">
         {fields.map((field) => {
           const showRequiredHint =
             field.required && isMissingRequiredField(field.key);
@@ -405,46 +405,46 @@ export function InputPanel({
             <label
               className={
                 field.key === "conversation"
-                  ? "flex flex-col gap-2 lg:row-span-2"
-                  : "flex flex-col gap-2"
+                  ? "flex min-w-0 flex-col gap-1.5"
+                  : "flex min-w-0 flex-col gap-1.5"
               }
               key={field.key}
             >
-              <span className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
+              <span className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
                 {field.label}
                 {field.required ? (
-                  <span className="text-xs font-medium text-rust">必填</span>
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
                 ) : null}
               </span>
               <textarea
-                className="min-h-0 resize-y rounded-lg border border-line bg-white px-4 py-3 text-sm leading-6 text-ink outline-none transition focus:border-moss focus:ring-2 focus:ring-moss/20"
+                className="min-h-0 resize-y rounded-lg border-0 bg-surface-2/80 px-3 py-2 text-sm leading-6 text-ink outline-none transition focus:ring-2 focus:ring-blue/30"
                 onChange={(event) => updateField(field.key, event.target.value)}
                 placeholder={field.placeholder}
                 rows={field.rows}
                 value={input[field.key]}
               />
               {showError ? (
-                <span className="text-sm text-rust">此项不能为空。</span>
+                <span className="mt-1 text-xs text-amber">此项不能为空。</span>
               ) : showRequiredHint ? (
-                <span className="text-sm text-ink/50">填写后可提交。</span>
+                <span className="mt-1 text-xs text-ink-muted/70">填写后可提交。</span>
               ) : null}
             </label>
           );
         })}
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="min-h-6 text-sm text-ink/70">
+      <div className="flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="min-h-5 text-xs text-ink-muted">
           {readyMessage ||
             (!canSubmit ? `请补全必填输入：${requiredStatus}。` : "")}
         </p>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 rounded-lg border border-line bg-white p-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-full bg-surface-2 p-0.5">
             <button
-              className={`rounded-md px-2 py-1 text-[10px] font-semibold transition ${
+              className={`rounded-full px-3 py-1 text-[10px] font-semibold transition ${
                 analysisMode === "single"
-                  ? "bg-ink text-white"
-                  : "text-ink/50 hover:text-ink"
+                  ? "bg-surface-2 text-white"
+                  : "text-ink-muted hover:text-ink"
               }`}
               onClick={() => setAnalysisMode("single")}
               type="button"
@@ -452,10 +452,10 @@ export function InputPanel({
               单 Prompt
             </button>
             <button
-              className={`rounded-md px-2 py-1 text-[10px] font-semibold transition ${
+              className={`rounded-full px-3 py-1 text-[10px] font-semibold transition ${
                 analysisMode === "multi-agent"
-                  ? "bg-moss text-white"
-                  : "text-ink/50 hover:text-ink"
+                  ? "bg-blue text-white"
+                  : "text-ink-muted hover:text-ink"
               }`}
               onClick={() => setAnalysisMode("multi-agent")}
               type="button"
@@ -464,7 +464,7 @@ export function InputPanel({
             </button>
           </div>
           <button
-            className="inline-flex h-11 items-center justify-center rounded-lg bg-ink px-5 text-sm font-semibold text-white transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:bg-line disabled:text-ink/45"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-blue px-5 text-sm font-semibold text-white transition hover:bg-blue/80 disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-muted/50"
             disabled={!canSubmit || isSubmitting}
             type="submit"
           >
@@ -472,7 +472,7 @@ export function InputPanel({
           </button>
           {isSubmitting ? (
             <button
-              className="inline-flex h-11 items-center justify-center rounded-lg border border-rust/30 px-4 text-sm font-semibold text-rust transition hover:bg-rust/10"
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-amber/30 px-4 text-sm font-semibold text-amber transition hover:bg-amber/10"
               onClick={handleCancelAnalyze}
               type="button"
             >
