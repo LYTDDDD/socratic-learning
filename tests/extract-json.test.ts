@@ -108,6 +108,23 @@ describe("extractJsonFromOutput", () => {
     expect(result.markdown).not.toContain('"mission_review"');
   });
 
+  it("extracts JSON from a JSON-only response without markdown", () => {
+    const raw = JSON.stringify({
+      schema_version: "offline_mission_analysis_result.v0.3",
+      output_mode: "json_only",
+      mission_review: { original_goal: "test" },
+      depth_evaluation: {},
+      asset_decision: {},
+      trace_summary: {},
+    });
+
+    const result = extractJsonFromOutput(raw);
+
+    expect(result.success).toBe(true);
+    expect((result.json as Record<string, unknown>).schema_version).toBe("offline_mission_analysis_result.v0.3");
+    expect(result.markdown).toBe("");
+  });
+
   it("returns failure for invalid JSON in code block", () => {
     const raw = [
       "```json",

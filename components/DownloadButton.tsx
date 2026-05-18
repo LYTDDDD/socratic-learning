@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { AnalyzeResponse } from "../lib/analyze-types";
+import { buildMarkdownFromAnalysisJson } from "../lib/analysis-markdown";
 
 type DownloadButtonProps = {
   result: AnalyzeResponse | null;
@@ -52,13 +53,14 @@ export function DownloadButton({ result }: DownloadButtonProps) {
   }, [open]);
 
   const stamp = getTimestamp();
+  const markdownContent = result?.markdown ?? buildMarkdownFromAnalysisJson(result?.json);
 
   const options: DownloadOption[] = [
     {
       label: "Markdown",
       ext: "md",
-      content: result?.markdown ?? null,
-      available: result?.markdown != null,
+      content: markdownContent,
+      available: markdownContent != null,
     },
     {
       label: "JSON",

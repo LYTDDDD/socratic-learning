@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 export const OFFLINE_MISSION_ANALYSIS_PROMPT_VERSION =
-  "offline-mission-analysis-v0.2";
+  "offline-mission-analysis-v0.3-json-only";
 
-const PROMPT_FILE_NAME = "offline_mission_analysis_prompt_v_0_2.md";
+const PROMPT_FILE_NAME = "offline-mission-analysis-v0.3-json-only.md";
 
 export class PromptReadError extends Error {
   public readonly cause?: unknown;
@@ -17,7 +17,7 @@ export class PromptReadError extends Error {
 }
 
 export function getOfflineMissionAnalysisPromptPath() {
-  return path.join(process.cwd(), "docs", PROMPT_FILE_NAME);
+  return path.join(process.cwd(), "prompts", PROMPT_FILE_NAME);
 }
 
 export async function readPromptFile(promptPath: string) {

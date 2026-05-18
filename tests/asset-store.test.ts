@@ -283,6 +283,33 @@ describe("extractAssetFromResponse", () => {
     expect(result!.usage_evidence[0].scenario).toBe("新项目初始化");
   });
 
+  it("keeps v0.3 prompts as AI guidance instead of user understanding", () => {
+    const result = extractAssetFromResponse(
+      makeResponse({
+        asset_decision: {
+          asset_candidate: true,
+          recommended_asset_type: "ReflectionCard",
+          asset_candidate_package: {
+            draft_asset: {
+              type: "ReflectionCard",
+              maturity: "Reference",
+              title: "Evidence-first review",
+              core_insight: "Do not save an asset before checking evidence.",
+              my_understanding_prompt: "Rewrite this insight in your own words.",
+              usage_evidence_prompt: "Record the next real use case.",
+            },
+          },
+        },
+      }),
+      "run_test_123_abc",
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.my_understanding).toBe("");
+    expect(result!.special_fields.my_understanding_prompt).toBe("Rewrite this insight in your own words.");
+    expect(result!.special_fields.usage_evidence_prompt).toBe("Record the next real use case.");
+  });
+
   it("keeps user-built connections separate from AI suggestions", () => {
     const result = extractAssetFromResponse(
       makeResponse({
