@@ -273,7 +273,11 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
                 <ClipboardList className="h-4 w-4 text-blue" />
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Review Handoff</p>
-                  <p className="text-xs text-ink-muted">把当前对话填入离线任务分析，生成 Mission Review、DepthScore 与资产候选。</p>
+                  <p className="text-xs text-ink-muted">
+                    {hasReviewTriggered
+                      ? "已发送到离线分析，可重新带入最新内容。"
+                      : "把当前对话填入离线任务分析，生成 Mission Review、DepthScore 与资产候选。"}
+                  </p>
                 </div>
                 <button
                   className="inline-flex items-center gap-1.5 rounded-lg bg-blue px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue/80 disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-muted/50"
@@ -283,7 +287,7 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
                   }}
                   type="button"
                 >
-                  发送到离线分析
+                  {hasReviewTriggered ? "重新发送到离线分析" : "发送到离线分析"}
                   <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -292,7 +296,7 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
             {hasReviewTriggered && (
               <div className="flex items-center gap-2 border border-amber/20 bg-amber/10 px-5 py-3">
                 <Zap className="h-4 w-4 shrink-0 text-amber" />
-                <span className="text-xs font-medium text-amber">复盘已触发，点击此处生成 Mission Review</span>
+                <span className="text-xs font-medium text-amber">复盘已触发，可重新生成 Mission Review</span>
                 <button
                   className="rounded-lg bg-amber px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-amber/80"
                   onClick={() => {
@@ -300,7 +304,7 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
                   }}
                   type="button"
                 >
-                  生成 Review
+                  重新生成 Review
                 </button>
               </div>
             )}

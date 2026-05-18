@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
 import type { AgentProgressStep } from "./AgentStepProgress";
 import type { AgentType } from "../lib/agent-types";
@@ -68,6 +68,13 @@ type InputPanelProps = {
   onAgentProgress?: (steps: AgentProgressStep[]) => void;
   currentMissionId?: string | null;
   initialInputOverride?: Partial<AnalyzeInput>;
+  initialInputSource?: InitialInputSource;
+};
+
+export type InitialInputSource = {
+  title: string;
+  messageCount: number;
+  handedOffAt: string;
 };
 
 type SSEAgentStartEvent = { agent: AgentType; index: number; total: number };
@@ -206,6 +213,7 @@ export function InputPanel({
   onAgentProgress,
   currentMissionId,
   initialInputOverride,
+  initialInputSource,
 }: InputPanelProps) {
   const [input, setInput] = useState<AnalyzeInput>({
     ...initialInput,
@@ -216,6 +224,15 @@ export function InputPanel({
   const [readyMessage, setReadyMessage] = useState("");
   const [analysisMode, setAnalysisMode] = useState<"single" | "multi-agent">("single");
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!initialInputOverride) return;
+    setInput((current) => ({
+      ...current,
+      ...initialInputOverride,
+    }));
+    setReadyMessage("");
+  }, [initialInputOverride]);
 
   const originalGoalMissing = useMemo(
     () => input.originalGoal.trim().length === 0,
@@ -395,6 +412,14 @@ export function InputPanel({
 
   return (
     <form className="flex h-full min-w-0 flex-col gap-3" onSubmit={handleSubmit}>
+      {initialInputSource ? (
+        <div className="rounded-lg border border-blue/20 bg-blue/5 px-3 py-2" role="status">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Review Handoff</p>
+          <p className="mt-1 text-xs leading-5 text-ink-muted">
+            已从对话带入：{initialInputSource.title || "未命名对话"} · {initialInputSource.messageCount} turns · {new Date(initialInputSource.handedOffAt).toLocaleString()}
+          </p>
+        </div>
+      ) : null}
       <div className="grid min-w-0 gap-3">
         {fields.map((field) => {
           const showRequiredHint =

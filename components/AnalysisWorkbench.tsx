@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, Fragment } from "react";
-import { InputPanel } from "./InputPanel";
+import { InputPanel, type InitialInputSource } from "./InputPanel";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { JsonViewer } from "./JsonViewer";
 import { CopyButton } from "./CopyButton";
@@ -701,9 +701,10 @@ type AnalysisWorkbenchProps = {
   currentMissionId?: string | null;
   onSelectMission?: (missionId: string | null) => void;
   initialInputOverride?: Partial<AnalyzeInput>;
+  initialInputSource?: InitialInputSource;
 };
 
-export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelectMission, initialInputOverride }: AnalysisWorkbenchProps) {
+export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelectMission, initialInputOverride, initialInputSource }: AnalysisWorkbenchProps) {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("markdown");
@@ -870,6 +871,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
                 onAgentProgress={setAgentProgress}
                 currentMissionId={currentMissionId}
                 initialInputOverride={initialInputOverride}
+                initialInputSource={initialInputSource}
               />
             </div>
           )}

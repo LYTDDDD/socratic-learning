@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { FlaskConical, MessageCircle, Brain } from "lucide-react";
 import { getSessionById } from "../lib/chat-store";
 import type { AnalyzeInput } from "../lib/analyze-types";
+import type { InitialInputSource } from "../components/InputPanel";
 
 const AnalysisWorkbench = dynamic(() => import("../components/AnalysisWorkbench").then((m) => ({ default: m.AnalysisWorkbench })), { ssr: false });
 const ChatWorkspace = dynamic(() => import("../components/ChatWorkspace").then((m) => ({ default: m.ChatWorkspace })), { ssr: false });
@@ -15,6 +16,7 @@ export default function Home() {
   const [mode, setMode] = useState<WorkspaceMode>("analysis");
   const [currentMissionId, setCurrentMissionId] = useState<string | null>(null);
   const [initialInputOverride, setInitialInputOverride] = useState<Partial<AnalyzeInput> | undefined>(undefined);
+  const [initialInputSource, setInitialInputSource] = useState<InitialInputSource | undefined>(undefined);
 
   function handleReviewTriggered(sessionId: string, missionId: string | null) {
     setCurrentMissionId(missionId);
@@ -28,8 +30,14 @@ export default function Home() {
         conversation,
         originalGoal: lastUserMsg?.content ?? "",
       });
+      setInitialInputSource({
+        title: session.title,
+        messageCount: session.messages.length,
+        handedOffAt: new Date().toISOString(),
+      });
     } else {
       setInitialInputOverride(undefined);
+      setInitialInputSource(undefined);
     }
     setMode("analysis");
   }
@@ -79,6 +87,7 @@ export default function Home() {
             currentMissionId={currentMissionId}
             onSelectMission={setCurrentMissionId}
             initialInputOverride={initialInputOverride}
+            initialInputSource={initialInputSource}
           />
         ) : (
           <ChatWorkspace
