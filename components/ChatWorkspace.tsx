@@ -7,6 +7,7 @@ import {
   createChatSession,
   deleteChatSession,
   addMessageToSession,
+  markReviewTriggered,
 } from "../lib/chat-store";
 import { getMissionById } from "../lib/mission-store";
 import { Send, MessageSquarePlus, Trash2, Sparkles, Zap, ArrowRight, ClipboardList } from "lucide-react";
@@ -61,6 +62,12 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
     reloadSessions();
   }
 
+  function handleReviewHandoff(session: ChatSession) {
+    markReviewTriggered(session.id);
+    reloadSessions();
+    onReviewTriggered?.(session.id, session.missionId);
+  }
+
   const handleSend = useCallback(async () => {
     if (!inputText.trim() || !activeSessionId || isLoading) return;
 
@@ -112,7 +119,11 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
 
       if (reviewTriggered && onReviewTriggered) {
         const currentSession = loadChatSessions().find((s) => s.id === activeSessionId);
-        onReviewTriggered(activeSessionId, currentSession?.missionId ?? null);
+        if (currentSession) {
+          handleReviewHandoff(currentSession);
+        } else {
+          onReviewTriggered(activeSessionId, null);
+        }
       }
     } catch (err) {
       addMessageToSession(activeSessionId, {
@@ -268,9 +279,7 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
                   className="inline-flex items-center gap-1.5 rounded-lg bg-blue px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue/80 disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-muted/50"
                   disabled={!canHandoffToReview}
                   onClick={() => {
-                    if (onReviewTriggered) {
-                      onReviewTriggered(activeSession.id, activeSession.missionId);
-                    }
+                    handleReviewHandoff(activeSession);
                   }}
                   type="button"
                 >
@@ -287,9 +296,7 @@ export function ChatWorkspace({ currentMissionId, onReviewTriggered }: ChatWorks
                 <button
                   className="rounded-lg bg-amber px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-amber/80"
                   onClick={() => {
-                    if (onReviewTriggered) {
-                      onReviewTriggered(activeSession.id, activeSession.missionId);
-                    }
+                    handleReviewHandoff(activeSession);
                   }}
                   type="button"
                 >

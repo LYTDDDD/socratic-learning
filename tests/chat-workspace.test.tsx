@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatWorkspace } from "../components/ChatWorkspace";
-import { addMessageToSession, createChatSession } from "../lib/chat-store";
+import { addMessageToSession, createChatSession, getSessionById } from "../lib/chat-store";
 
 class LocalStorageMock {
   private store: Record<string, string> = {};
@@ -69,6 +69,7 @@ describe("ChatWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: /发送到离线分析/ }));
 
     expect(onReviewTriggered).toHaveBeenCalledWith(session!.id, "mission_handoff");
+    expect(getSessionById(session!.id)!.messages[0].reviewTriggered).toBe(true);
   });
 
   it("shows API error details when chat request fails", async () => {
