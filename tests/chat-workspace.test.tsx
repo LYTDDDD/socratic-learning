@@ -70,6 +70,8 @@ describe("ChatWorkspace", () => {
 
     expect(onReviewTriggered).toHaveBeenCalledWith(session!.id, "mission_handoff");
     expect(getSessionById(session!.id)!.messages[0].reviewTriggered).toBe(true);
+    expect(screen.getByText("已发送到离线分析，可重新带入最新内容。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /重新发送到离线分析/ })).toBeInTheDocument();
   });
 
   it("shows API error details when chat request fails", async () => {

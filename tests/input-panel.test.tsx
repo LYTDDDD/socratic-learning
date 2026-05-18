@@ -38,6 +38,27 @@ afterEach(() => {
 });
 
 describe("InputPanel", () => {
+  it("shows the source conversation when input is handed off from chat", () => {
+    render(
+      <InputPanel
+        initialInputOverride={{
+          originalGoal: "请帮我复盘这段学习对话",
+          conversation: "用户：学生能说出公式，但解释不出为什么。",
+        }}
+        initialInputSource={{
+          title: "复盘候选对话",
+          messageCount: 2,
+          handedOffAt: "2026-05-18T07:00:00.000Z",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Review Handoff")).toBeInTheDocument();
+    expect(screen.getByText(/已从对话带入：复盘候选对话/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("请帮我复盘这段学习对话")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("用户：学生能说出公式，但解释不出为什么。")).toBeInTheDocument();
+  });
+
   it("aborts an in-flight analyze request when the user cancels", async () => {
     let requestSignal: AbortSignal | undefined;
     vi.stubGlobal(
