@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect, Fragment } from "react";
 import { InputPanel, type InitialInputSource } from "./InputPanel";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { JsonViewer } from "./JsonViewer";
+import { StructuredReportView } from "./StructuredReportView";
 import { CopyButton } from "./CopyButton";
 import { DownloadButton } from "./DownloadButton";
 import { HistoryPanel } from "./HistoryPanel";
@@ -36,9 +37,10 @@ import {
   updatePreferenceRule,
 } from "../lib/preference-rule-store";
 
-type TabKey = "markdown" | "json" | "raw" | "agents";
+type TabKey = "report" | "markdown" | "json" | "raw" | "agents";
 
 const tabs: { key: TabKey; label: string }[] = [
+  { key: "report", label: "Report" },
   { key: "json", label: "JSON" },
   { key: "markdown", label: "Markdown" },
   { key: "raw", label: "Raw" },
@@ -708,7 +710,7 @@ type AnalysisWorkbenchProps = {
 export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelectMission, initialInputOverride, initialInputSource }: AnalysisWorkbenchProps) {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>("json");
+  const [activeTab, setActiveTab] = useState<TabKey>("report");
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [assetRefreshKey, setAssetRefreshKey] = useState(0);
   const [dismissedDraft, setDismissedDraft] = useState(false);
@@ -763,7 +765,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     if (steps.length > 0) {
       setActiveTab("agents");
     } else {
-      setActiveTab("json");
+      setActiveTab("report");
     }
     if (response.runLog) {
       saveToHistory({
@@ -793,7 +795,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     if (entry) {
       setResult(entry.analyzeResponse);
       setIsLoading(false);
-      setActiveTab("json");
+      setActiveTab("report");
     }
   }, []);
 
@@ -821,6 +823,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
 
   function getCopyContent(): string | null {
     if (!result) return null;
+    if (activeTab === "report") return buildMarkdownFromAnalysisJson(result.json);
     if (activeTab === "markdown") return result.markdown ?? buildMarkdownFromAnalysisJson(result.json);
     if (activeTab === "json") return result.json != null ? JSON.stringify(result.json, null, 2) : null;
     if (activeTab === "raw") return result.raw;
@@ -977,6 +980,15 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
         </header>
 
         <div className="min-h-0 flex-1 overflow-auto">
+          {activeTab === "report" && (
+            <div className="p-5">
+              <StructuredReportView
+                isLoading={isLoading}
+                json={result?.json ?? null}
+                parseStatus={result?.parseStatus ?? "not_attempted"}
+              />
+            </div>
+          )}
           {activeTab === "markdown" && (
             <div className="p-5">
               <MarkdownPreview isLoading={isLoading} markdown={result?.markdown ?? buildMarkdownFromAnalysisJson(result?.json) ?? null} unstyled />
