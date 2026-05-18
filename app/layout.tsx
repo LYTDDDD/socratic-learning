@@ -1,19 +1,26 @@
 import type { Metadata } from "next";
-import { Noto_Serif_SC, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
+import { Space_Grotesk, Noto_Sans_SC, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-const notoSerifSC = Noto_Serif_SC({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-heading",
+  display: "swap",
+});
+
+const notoSansSC = Noto_Sans_SC({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans",
   display: "swap",
 });
 
 const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
-  variable: "--font-sans",
+  variable: "--font-body",
   display: "swap",
 });
 
@@ -25,9 +32,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cognitive Asset Lab — AI 工程实践 × 认知资产构建",
+  title: "Cognitive Asset Lab — AI 认知工作台",
   description:
-    "6 年 Java 后端转向 AI 工程实践。构建认知资产系统，探索 Agent、多智能体、Prompt 工程和 AI 产品开发。",
+    "面向离线任务分析、任务复盘、深度评分与认知资产候选的 AI 认知工作台。",
   keywords: [
     "AI Engineering",
     "Cognitive Asset",
@@ -38,7 +45,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: "Cognitive Asset Lab",
-    description: "AI 工程实践 × 认知资产构建",
+    description: "离线任务分析与认知资产工作台",
     type: "website",
   },
 };
@@ -51,7 +58,7 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
-      className={`${notoSerifSC.variable} ${ibmPlexSans.variable} ${jetbrainsMono.variable}`}
+      className={`${spaceGrotesk.variable} ${notoSansSC.variable} ${ibmPlexSans.variable} ${jetbrainsMono.variable}`}
     >
       <body>
         <TooltipProvider>{children}</TooltipProvider>

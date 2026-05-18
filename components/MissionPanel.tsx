@@ -21,10 +21,10 @@ const statusLabels: Record<MissionStatus, string> = {
 };
 
 const statusColors: Record<MissionStatus, string> = {
-  active: "bg-moss/10 text-moss border-moss/30",
-  reviewed: "bg-blue-100 text-blue-700 border-blue-200",
-  asset_generated: "bg-purple-100 text-purple-700 border-purple-200",
-  archived: "bg-ink/5 text-ink/40 border-line",
+  active: "bg-blue/10 text-blue border-blue/30",
+  reviewed: "bg-blue/10 text-blue border-blue/20",
+  asset_generated: "bg-surface-2 text-ink-muted border-line",
+  archived: "bg-surface-2 text-ink-muted/70 border-line",
 };
 
 type MissionPanelProps = {
@@ -50,6 +50,8 @@ export function MissionPanel({ refreshKey, currentMissionId, onSelectMission }: 
 
   const activeMissions = missions.filter((m) => m.status !== "archived");
   const archivedMissions = missions.filter((m) => m.status === "archived");
+  const linkedReportCount = missions.reduce((total, mission) => total + getReportsForMission(mission.id).length, 0);
+  const linkedAssetCount = loadAssets().filter((asset) => asset.source_mission).length;
 
   function handleCreate() {
     if (!newTitle.trim()) return;
@@ -86,12 +88,16 @@ export function MissionPanel({ refreshKey, currentMissionId, onSelectMission }: 
   }
 
   return (
-    <div className="rounded-lg border border-line bg-paper/60 p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-ink">Mission 管理</h3>
+    <div className="rounded-lg border border-line bg-surface-1 p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Mission Workspace</p>
+          <h3 className="mt-1 text-sm font-semibold text-ink">Mission 管理</h3>
+          <p className="mt-1 text-xs leading-5 text-ink-muted">用 Mission 组织报告、复盘状态和后续资产沉淀。</p>
+        </div>
         {!showCreateForm && (
           <button
-            className="rounded border border-moss/30 px-3 py-1 text-xs font-medium text-moss transition hover:bg-moss/10"
+            className="shrink-0 rounded border border-blue/30 px-3 py-1 text-xs font-medium text-blue transition hover:bg-blue/10"
             onClick={() => setShowCreateForm(true)}
             type="button"
           >
@@ -100,21 +106,36 @@ export function MissionPanel({ refreshKey, currentMissionId, onSelectMission }: 
         )}
       </div>
 
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        <div className="rounded-md border border-line bg-surface-2/50 px-2 py-1.5 text-center">
+          <p className="text-sm font-semibold text-ink">{activeMissions.length}</p>
+          <p className="text-[10px] text-ink-muted">active</p>
+        </div>
+        <div className="rounded-md border border-line bg-surface-2/50 px-2 py-1.5 text-center">
+          <p className="text-sm font-semibold text-ink">{linkedReportCount}</p>
+          <p className="text-[10px] text-ink-muted">reports</p>
+        </div>
+        <div className="rounded-md border border-line bg-surface-2/50 px-2 py-1.5 text-center">
+          <p className="text-sm font-semibold text-ink">{linkedAssetCount}</p>
+          <p className="text-[10px] text-ink-muted">assets</p>
+        </div>
+      </div>
+
       {showCreateForm && (
-        <div className="mb-3 space-y-2 rounded-lg border border-moss/20 bg-white p-3">
+        <div className="mb-3 space-y-2 rounded-lg border border-blue/20 bg-surface-1 p-3">
           <div>
-            <label className="text-xs font-medium text-ink/60">任务名称</label>
+            <label className="text-xs font-medium text-ink-muted">任务名称</label>
             <input
-              className="mt-1 w-full rounded border border-line px-2 py-1 text-xs text-ink outline-none focus:border-moss"
+              className="mt-1 w-full rounded border border-line px-2 py-1 text-xs text-ink outline-none focus:border-blue"
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="例如：技术选型决策"
               value={newTitle}
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-ink/60">任务描述</label>
+            <label className="text-xs font-medium text-ink-muted">任务描述</label>
             <textarea
-              className="mt-1 w-full rounded border border-line px-2 py-1 text-xs text-ink outline-none focus:border-moss"
+              className="mt-1 w-full rounded border border-line px-2 py-1 text-xs text-ink outline-none focus:border-blue"
               onChange={(e) => setNewDescription(e.target.value)}
               placeholder="可选：描述这个任务的目标和范围"
               rows={2}
@@ -123,7 +144,7 @@ export function MissionPanel({ refreshKey, currentMissionId, onSelectMission }: 
           </div>
           <div className="flex items-center gap-2">
             <button
-              className="rounded bg-moss px-3 py-1 text-xs font-semibold text-white transition hover:bg-moss/90 disabled:opacity-50"
+              className="rounded bg-blue px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue/90 disabled:opacity-50"
               disabled={!newTitle.trim()}
               onClick={handleCreate}
               type="button"
@@ -131,7 +152,7 @@ export function MissionPanel({ refreshKey, currentMissionId, onSelectMission }: 
               创建
             </button>
             <button
-              className="rounded border border-line px-3 py-1 text-xs font-medium text-ink/60 transition hover:bg-paper"
+              className="rounded border border-line px-3 py-1 text-xs font-medium text-ink-muted transition hover:bg-surface-2"
               onClick={() => { setShowCreateForm(false); setNewTitle(""); setNewDescription(""); }}
               type="button"
             >
@@ -161,7 +182,7 @@ export function MissionPanel({ refreshKey, currentMissionId, onSelectMission }: 
 
       {archivedMissions.length > 0 && (
         <div className="mt-4">
-          <h4 className="mb-2 text-xs font-semibold text-ink/40">已归档</h4>
+          <h4 className="mb-2 text-xs font-semibold text-ink-muted/70">已归档</h4>
           <div className="space-y-2">
             {archivedMissions.map((mission) => (
               <MissionCard
@@ -181,15 +202,15 @@ export function MissionPanel({ refreshKey, currentMissionId, onSelectMission }: 
       )}
 
       {missions.length === 0 && !showCreateForm && (
-        <p className="text-xs text-ink/40">暂无 Mission。创建一个任务来组织你的分析报告和认知资产。</p>
+        <p className="text-xs text-ink-muted/70">暂无 Mission。创建一个任务来组织分析报告、复盘状态和认知资产。</p>
       )}
 
       {currentMissionId && (
-        <div className="mt-3 rounded border border-moss/20 bg-moss/5 px-3 py-2">
-          <p className="text-xs text-moss">
+        <div className="mt-3 rounded border border-blue/20 bg-blue/5 px-3 py-2">
+          <p className="text-xs text-blue">
             当前 Mission：{missions.find((m) => m.id === currentMissionId)?.title ?? "—"}
           </p>
-          <p className="mt-0.5 text-[10px] text-ink/40">新分析报告将归属到此 Mission。</p>
+          <p className="mt-0.5 text-[10px] text-ink-muted/70">新分析报告将归属到此 Mission。</p>
         </div>
       )}
     </div>
@@ -230,10 +251,10 @@ function MissionCard({
   return (
     <div className={`rounded border px-3 py-2 transition ${
       isCurrent
-        ? "border-moss bg-moss/5"
+        ? "border-blue bg-blue/5"
         : mission.status === "archived"
-          ? "border-line bg-paper/40 opacity-60"
-          : "border-line bg-white"
+          ? "border-line bg-surface-1/60 opacity-60"
+          : "border-line bg-surface-1"
     }`}>
       <div className="flex items-center gap-2">
         <button
@@ -250,8 +271,8 @@ function MissionCard({
           <button
             className={`rounded border px-2 py-0.5 text-[10px] font-medium transition ${
               isCurrent
-                ? "border-moss bg-moss text-white"
-                : "border-line text-ink/60 hover:bg-paper"
+                ? "border-blue bg-blue text-white"
+                : "border-line text-ink-muted hover:bg-surface-2"
             }`}
             onClick={onSelect}
             type="button"
@@ -262,10 +283,10 @@ function MissionCard({
       </div>
 
       {mission.description && (
-        <p className="mt-1 text-[10px] text-ink/50">{mission.description}</p>
+        <p className="mt-1 text-[10px] text-ink-muted">{mission.description}</p>
       )}
 
-      <div className="mt-1 flex items-center gap-3 text-[10px] text-ink/40">
+      <div className="mt-1 flex items-center gap-3 text-[10px] text-ink-muted/70">
         <span>{reports.length} 份报告</span>
         <span>{assets.length} 项资产</span>
         <span>{new Date(mission.updatedAt).toLocaleDateString()}</span>
@@ -275,10 +296,10 @@ function MissionCard({
         <div className="mt-2 space-y-2 border-t border-line pt-2">
           {historyEntries.length > 0 && (
             <div>
-              <h5 className="mb-1 text-[10px] font-semibold text-ink/60">关联报告</h5>
+              <h5 className="mb-1 text-[10px] font-semibold text-ink-muted">关联报告</h5>
               <div className="space-y-1">
                 {historyEntries.map((h) => (
-                  <div key={h.run_id} className="rounded bg-paper/60 px-2 py-1 text-[10px] text-ink/60">
+                  <div key={h.run_id} className="rounded bg-surface-1 px-2 py-1 text-[10px] text-ink-muted">
                     {h.input_snapshot.originalGoal
                       ? `${h.input_snapshot.originalGoal.slice(0, 60)}${h.input_snapshot.originalGoal.length > 60 ? "..." : ""}`
                       : h.run_id.slice(0, 16)}
@@ -290,10 +311,10 @@ function MissionCard({
 
           {assets.length > 0 && (
             <div>
-              <h5 className="mb-1 text-[10px] font-semibold text-ink/60">关联资产</h5>
+              <h5 className="mb-1 text-[10px] font-semibold text-ink-muted">关联资产</h5>
               <div className="space-y-1">
                 {assets.map((a) => (
-                  <div key={a.asset_id} className="rounded bg-paper/60 px-2 py-1 text-[10px] text-ink/60">
+                  <div key={a.asset_id} className="rounded bg-surface-1 px-2 py-1 text-[10px] text-ink-muted">
                     {a.title || a.asset_type}
                   </div>
                 ))}
@@ -302,13 +323,13 @@ function MissionCard({
           )}
 
           {historyEntries.length === 0 && assets.length === 0 && (
-            <p className="text-[10px] text-ink/30">暂无关联的报告和资产。</p>
+            <p className="text-[10px] text-ink-muted/50">暂无关联的报告和资产。</p>
           )}
 
           <div className="flex items-center gap-2">
             {nextStatus && (
               <button
-                className="rounded border border-moss/30 px-2 py-0.5 text-[10px] font-medium text-moss transition hover:bg-moss/10"
+                className="rounded border border-blue/30 px-2 py-0.5 text-[10px] font-medium text-blue transition hover:bg-blue/10"
                 onClick={() => onStatusChange(mission.id, nextStatus)}
                 type="button"
               >
@@ -317,7 +338,7 @@ function MissionCard({
             )}
             {mission.status !== "archived" && (
               <button
-                className="rounded border border-amber-300 px-2 py-0.5 text-[10px] font-medium text-amber-700 transition hover:bg-amber-50"
+                className="rounded border border-amber/30 px-2 py-0.5 text-[10px] font-medium text-amber transition hover:bg-amber/10"
                 onClick={onArchive}
                 type="button"
               >
@@ -325,7 +346,7 @@ function MissionCard({
               </button>
             )}
             <button
-              className="rounded border border-rust/30 px-2 py-0.5 text-[10px] font-medium text-rust transition hover:bg-rust/10"
+              className="rounded border border-amber/30 px-2 py-0.5 text-[10px] font-medium text-amber transition hover:bg-amber/10"
               onClick={onDelete}
               type="button"
             >

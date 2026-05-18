@@ -4,52 +4,57 @@
 
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: dark;
 
-    --background: #f7f4ec;
-    --foreground: #18202f;
+    --background: #0f1117;
+    --foreground: #e4e6ef;
 
-    --card: #ffffff;
-    --card-foreground: #18202f;
+    --card: #171b23;
+    --card-foreground: #e4e6ef;
 
-    --popover: #ffffff;
-    --popover-foreground: #18202f;
+    --popover: #171b23;
+    --popover-foreground: #e4e6ef;
 
-    --primary: #49654c;
+    --primary: #3b82f6;
     --primary-foreground: #ffffff;
 
-    --secondary: #f0ebe0;
-    --secondary-foreground: #18202f;
+    --secondary: #202633;
+    --secondary-foreground: #e4e6ef;
 
-    --muted: #f0ebe0;
-    --muted-foreground: #5a6478;
+    --muted: #202633;
+    --muted-foreground: #8b93a7;
 
-    --accent: #9b4f2f;
+    --accent: #f59e0b;
     --accent-foreground: #ffffff;
 
-    --destructive: #9b4f2f;
+    --destructive: #ef4444;
 
-    --border: #d8d2c5;
-    --input: #d8d2c5;
-    --ring: #49654c;
+    --border: rgba(255, 255, 255, 0.08);
+    --input: rgba(255, 255, 255, 0.08);
+    --ring: #3b82f6;
 
     --radius: 0.75rem;
 
-    --ink: #18202f;
-    --paper: #f7f4ec;
-    --moss: #49654c;
-    --moss-light: #6b8a6e;
-    --moss-dark: #2f3f31;
-    --rust: #9b4f2f;
-    --rust-light: #c47a56;
-    --line: #d8d2c5;
-    --paper-warm: #f0ebe0;
-    --paper-cool: #eef0ea;
-    --ink-muted: #5a6478;
-    --surface-0: #f7f4ec;
-    --surface-1: #ffffff;
-    --surface-2: #f0ebe0;
-    --surface-3: #e8e3d8;
+    --ink: #e4e6ef;
+    --paper: #0f1117;
+    --moss: #10b981;
+    --moss-light: #34d399;
+    --moss-dark: #059669;
+    --rust: #f59e0b;
+    --rust-light: #fbbf24;
+    --line: rgba(255, 255, 255, 0.08);
+    --paper-warm: #171b23;
+    --paper-cool: #202633;
+    --ink-muted: #8b93a7;
+    --surface-0: #0f1117;
+    --surface-1: #171b23;
+    --surface-2: #202633;
+    --surface-3: #2a3042;
+    --blue: #3b82f6;
+    --green: #10b981;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --glow: rgba(59, 130, 246, 0.15);
   }
 
   * {
@@ -72,5 +77,28 @@
 
   html {
     font-family: var(--font-sans), system-ui, sans-serif;
+  }
+
+  ::selection {
+    background-color: rgba(59, 130, 246, 0.3);
+    color: #e4e6ef;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
   }
 }

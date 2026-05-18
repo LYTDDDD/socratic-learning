@@ -24,7 +24,7 @@ export function CopyButton({ content, label = "复制" }: CopyButtonProps) {
 
   return (
     <button
-      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line px-3 text-xs font-medium transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line px-3 text-xs font-medium transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
       disabled={content == null}
       onClick={handleCopy}
       type="button"
@@ -32,7 +32,7 @@ export function CopyButton({ content, label = "复制" }: CopyButtonProps) {
       {copied ? (
         <>
           <svg
-            className="h-3.5 w-3.5 text-moss"
+            className="h-3.5 w-3.5 text-green"
             fill="none"
             stroke="currentColor"
             strokeWidth={2}

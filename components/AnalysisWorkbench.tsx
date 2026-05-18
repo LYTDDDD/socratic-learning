@@ -45,13 +45,16 @@ const tabs: { key: TabKey; label: string }[] = [
 ];
 
 function statusBadge(status: string) {
-  if (status === "success") return "bg-moss/15 text-moss";
-  if (status === "failed") return "bg-rust/15 text-rust";
-  if (status === "partial") return "bg-amber-50 text-amber-800";
-  return "bg-ink/5 text-ink/50";
+  if (status === "success") return "bg-blue/15 text-blue";
+  if (status === "failed") return "bg-amber/15 text-amber";
+  if (status === "partial") return "bg-amber/10 text-amber";
+  return "bg-surface-2 text-ink-muted";
 }
 
 function RunLogPanel({ runLog }: { runLog: RunLog }) {
+  const hasError = Boolean(runLog.error_message);
+  const [expanded, setExpanded] = useState(hasError);
+  const inputChars = runLog.input_snapshot.originalGoal.length + runLog.input_snapshot.conversation.length;
   const rows: { label: string; value: React.ReactNode }[] = [
     { label: "Run ID", value: <code className="font-mono text-xs">{runLog.run_id}</code> },
     { label: "Created At", value: runLog.created_at },
@@ -80,20 +83,53 @@ function RunLogPanel({ runLog }: { runLog: RunLog }) {
 
   if (runLog.error_message) {
     const truncated = runLog.error_message.length > 200 ? `${runLog.error_message.slice(0, 200)}...` : runLog.error_message;
-    rows.push({ label: "Error", value: <span className="text-rust">{truncated}</span> });
+    rows.push({ label: "Error", value: <span className="text-amber">{truncated}</span> });
   }
 
   return (
-    <div className="rounded-lg bg-surface-2/50 p-3">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-muted">Run Log</h3>
-      <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
-        {rows.map((row) => (
-          <span key={row.label} className="contents">
-            <dt className="whitespace-nowrap font-medium text-ink-muted">{row.label}</dt>
-            <dd className="break-all text-ink">{row.value}</dd>
+    <div className={`rounded-lg p-3 ${hasError ? "border border-amber/30 bg-amber/5" : "bg-surface-2/50"}`}>
+      <button
+        className="flex w-full items-center justify-between gap-3 text-left"
+        onClick={() => setExpanded((current) => !current)}
+        type="button"
+      >
+        <span>
+          <span className="block text-[10px] font-semibold uppercase tracking-wider text-blue">Evidence Trail</span>
+          <span className="mt-0.5 block text-xs font-semibold uppercase tracking-wider text-ink-muted">Run Log</span>
+          <span className="mt-1 block text-xs text-ink-muted">
+            {runLog.request_status} · {runLog.parse_status} · {runLog.duration_ms} ms
           </span>
-        ))}
-      </dl>
+        </span>
+        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadge(runLog.request_status)}`}>
+          {expanded ? "收起" : "展开"}
+        </span>
+      </button>
+      {expanded && (
+        <>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5">
+              <p className="text-sm font-semibold text-ink">{runLog.duration_ms}</p>
+              <p className="text-[10px] text-ink-muted">ms</p>
+            </div>
+            <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5">
+              <p className="text-sm font-semibold text-ink">{inputChars}</p>
+              <p className="text-[10px] text-ink-muted">input chars</p>
+            </div>
+            <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5">
+              <p className="text-sm font-semibold text-ink">{hasError ? 1 : 0}</p>
+              <p className="text-[10px] text-ink-muted">errors</p>
+            </div>
+          </div>
+          <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+            {rows.map((row) => (
+              <span key={row.label} className="contents">
+                <dt className="whitespace-nowrap font-medium text-ink-muted">{row.label}</dt>
+                <dd className="break-all text-ink">{row.value}</dd>
+              </span>
+            ))}
+          </dl>
+        </>
+      )}
     </div>
   );
 }
@@ -128,6 +164,16 @@ function formatListValue(value: string | string[] | undefined): string {
 }
 
 function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData }) {
+  const evidenceCount = Array.isArray(traceSummary.key_evidence_used)
+    ? traceSummary.key_evidence_used.length
+    : traceSummary.key_evidence_used
+      ? 1
+      : 0;
+  const uncertaintyCount = Array.isArray(traceSummary.uncertainties)
+    ? traceSummary.uncertainties.length
+    : traceSummary.uncertainties
+      ? 1
+      : 0;
   const rows: { label: string; value: string }[] = [
     { label: "是否识别到任务", value: String(traceSummary.mission_detected ?? "—") },
     { label: "分析路径", value: traceSummary.analysis_path ?? "—" },
@@ -138,8 +184,23 @@ function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData })
 
   return (
     <div className="rounded-lg bg-surface-2/50 p-3">
-      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">Trace Summary（轨迹摘要）</h3>
-      <p className="mb-3 text-xs text-ink-muted">系统判断依据</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Evidence Trail</p>
+      <h3 className="mt-0.5 text-xs font-semibold uppercase tracking-wider text-ink-muted">Trace Summary（轨迹摘要）</h3>
+      <p className="mb-3 mt-1 text-xs text-ink-muted">系统判断依据，用于复盘分析路径、证据和不确定性。</p>
+      <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5">
+          <p className="text-sm font-semibold text-ink">{traceSummary.mission_detected ? "是" : "否"}</p>
+          <p className="text-[10px] text-ink-muted">mission</p>
+        </div>
+        <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5">
+          <p className="text-sm font-semibold text-ink">{evidenceCount}</p>
+          <p className="text-[10px] text-ink-muted">evidence</p>
+        </div>
+        <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5">
+          <p className="text-sm font-semibold text-ink">{uncertaintyCount}</p>
+          <p className="text-[10px] text-ink-muted">uncertain</p>
+        </div>
+      </div>
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
         {rows.map((row) => (
           <span key={row.label} className="contents">
@@ -210,14 +271,14 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
 
       {drafts.length > 0 && (
         <div className="mb-3">
-          <h4 className="mb-1 text-xs font-semibold text-rust">待确认草稿</h4>
+          <h4 className="mb-1 text-xs font-semibold text-amber">待确认草稿</h4>
           <div className="space-y-2">
             {drafts.map((rule) => (
-              <div key={rule.id} className="rounded-lg border border-rust/20 bg-rust/5 px-3 py-2">
+              <div key={rule.id} className="rounded-lg border border-amber/20 bg-amber/5 px-3 py-2">
                 <p className="text-xs text-ink">{rule.content}</p>
                 <div className="mt-1.5 flex items-center gap-2">
                   <button
-                    className="rounded-md bg-moss px-2.5 py-0.5 text-[10px] font-semibold text-white transition hover:bg-moss-dark"
+                    className="rounded-md bg-blue px-2.5 py-0.5 text-[10px] font-semibold text-white transition hover:bg-blue/80"
                     onClick={() => handleConfirm(rule.id)}
                     type="button"
                   >
@@ -231,7 +292,7 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
                     编辑
                   </button>
                   <button
-                    className="rounded-md border border-rust/30 px-2.5 py-0.5 text-[10px] font-medium text-rust transition hover:bg-rust/10"
+                    className="rounded-md border border-amber/30 px-2.5 py-0.5 text-[10px] font-medium text-amber transition hover:bg-amber/10"
                     onClick={() => handleDelete(rule.id)}
                     type="button"
                   >
@@ -241,14 +302,14 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
                 {editingId === rule.id && (
                   <div className="mt-2 space-y-1.5">
                     <textarea
-                      className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-moss"
+                      className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-blue"
                       onChange={(e) => setEditContent(e.target.value)}
                       rows={2}
                       value={editContent}
                     />
                     <div className="flex items-center gap-2">
                       <button
-                        className="rounded-md bg-moss px-2.5 py-0.5 text-[10px] font-semibold text-white"
+                        className="rounded-md bg-blue px-2.5 py-0.5 text-[10px] font-semibold text-white"
                         onClick={() => saveEdit(rule.id)}
                         type="button"
                       >
@@ -272,10 +333,10 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
 
       {confirmed.length > 0 && (
         <div className="mb-3">
-          <h4 className="mb-1 text-xs font-semibold text-moss">已生效规则</h4>
+          <h4 className="mb-1 text-xs font-semibold text-blue">已生效规则</h4>
           <div className="space-y-2">
             {confirmed.map((rule) => (
-              <div key={rule.id} className="rounded-lg border border-moss/20 bg-moss/5 px-3 py-2">
+              <div key={rule.id} className="rounded-lg border border-blue/20 bg-blue/5 px-3 py-2">
                 <p className="text-xs text-ink">{rule.content}</p>
                 <div className="mt-1.5 flex items-center gap-2">
                   <button
@@ -286,7 +347,7 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
                     编辑
                   </button>
                   <button
-                    className="rounded-md border border-rust/30 px-2.5 py-0.5 text-[10px] font-medium text-rust transition hover:bg-rust/10"
+                    className="rounded-md border border-amber/30 px-2.5 py-0.5 text-[10px] font-medium text-amber transition hover:bg-amber/10"
                     onClick={() => handleDisable(rule.id)}
                     type="button"
                   >
@@ -296,14 +357,14 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
                 {editingId === rule.id && (
                   <div className="mt-2 space-y-1.5">
                     <textarea
-                      className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-moss"
+                      className="w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-blue"
                       onChange={(e) => setEditContent(e.target.value)}
                       rows={2}
                       value={editContent}
                     />
                     <div className="flex items-center gap-2">
                       <button
-                        className="rounded-md bg-moss px-2.5 py-0.5 text-[10px] font-semibold text-white"
+                        className="rounded-md bg-blue px-2.5 py-0.5 text-[10px] font-semibold text-white"
                         onClick={() => saveEdit(rule.id)}
                         type="button"
                       >
@@ -334,14 +395,14 @@ function PreferenceRulePanel({ refreshKey }: { refreshKey: number }) {
                 <p className="text-xs text-ink-muted">{rule.content}</p>
                 <div className="mt-1.5 flex items-center gap-2">
                   <button
-                    className="rounded-md border border-moss/30 px-2.5 py-0.5 text-[10px] font-medium text-moss transition hover:bg-moss/10"
+                    className="rounded-md border border-blue/30 px-2.5 py-0.5 text-[10px] font-medium text-blue transition hover:bg-blue/10"
                     onClick={() => handleEnable(rule.id)}
                     type="button"
                   >
                     重新启用
                   </button>
                   <button
-                    className="rounded-md border border-rust/30 px-2.5 py-0.5 text-[10px] font-medium text-rust transition hover:bg-rust/10"
+                    className="rounded-md border border-amber/30 px-2.5 py-0.5 text-[10px] font-medium text-amber transition hover:bg-amber/10"
                     onClick={() => handleDelete(rule.id)}
                     type="button"
                   >
@@ -433,16 +494,16 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
         <div className="mb-3 space-y-2">
           {existingCorrections.map((c) => (
             <div key={c.id} className={`rounded-lg border px-3 py-2 text-xs ${
-              c.correctionType === "strong_correction" ? "border-rust/20 bg-rust/5" : "border-line bg-surface-1"
+              c.correctionType === "strong_correction" ? "border-amber/20 bg-amber/5" : "border-line bg-surface-1"
             }`}>
               <div className="flex items-center gap-2">
                 <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  c.correctionType === "strong_correction" ? "bg-rust/15 text-rust" : "bg-ink/10 text-ink-muted"
+                  c.correctionType === "strong_correction" ? "bg-amber/15 text-amber" : "bg-surface-2 text-ink-muted"
                 }`}>
                   {c.correctionType === "strong_correction" ? "强纠正" : "小纠正"}
                 </span>
                 <span className="font-medium text-ink-muted">{targetLabels[c.target]}</span>
-                <span className="ml-auto text-ink/30">{new Date(c.createdAt).toLocaleString()}</span>
+                <span className="ml-auto text-ink-muted/50">{new Date(c.createdAt).toLocaleString()}</span>
               </div>
               <div className="mt-1 text-ink-muted">
                 {c.originalValue != null ? String(c.originalValue) : "—"} → {c.correctedValue != null ? String(c.correctedValue) : "—"}
@@ -472,7 +533,7 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
           <div>
             <label className="text-xs font-medium text-ink-muted">纠正目标</label>
             <select
-              className="ml-2 rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-moss"
+              className="ml-2 rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-blue"
               onChange={(e) => setTarget(e.target.value as Correction["target"])}
               value={target}
             >
@@ -484,7 +545,7 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
           <div>
             <label className="text-xs font-medium text-ink-muted">原始值</label>
             <input
-              className="ml-2 rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-moss"
+              className="ml-2 rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-blue"
               onChange={(e) => setOriginalValue(e.target.value)}
               placeholder="系统原来的判断"
               value={originalValue}
@@ -493,7 +554,7 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
           <div>
             <label className="text-xs font-medium text-ink-muted">纠正值</label>
             <input
-              className="ml-2 rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-moss"
+              className="ml-2 rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-blue"
               onChange={(e) => setCorrectedValue(e.target.value)}
               placeholder="你认为正确的值"
               value={correctedValue}
@@ -502,7 +563,7 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
           <div>
             <label className="text-xs font-medium text-ink-muted">纠正原因</label>
             <textarea
-              className="mt-1 w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-moss"
+              className="mt-1 w-full rounded-md border border-line bg-surface-1 px-2 py-1 text-xs text-ink outline-none focus:border-blue"
               onChange={(e) => setReason(e.target.value)}
               placeholder="为什么需要纠正？"
               rows={2}
@@ -511,7 +572,7 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
           </div>
           <div className="flex items-center gap-2">
             <button
-              className="rounded-md bg-moss px-3 py-1 text-xs font-semibold text-white transition hover:bg-moss-dark disabled:opacity-50"
+              className="rounded-md bg-blue px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue/80 disabled:opacity-50"
               disabled={!reason.trim()}
               onClick={handleSubmit}
               type="button"
@@ -527,7 +588,7 @@ function CorrectionPanel({ reportId, existingCorrections, onCorrectionAdded }: {
             </button>
           </div>
           {correctionType === "strong_correction" && (
-            <p className="text-[10px] text-rust">强纠正可能生成用户偏好规则草稿，需确认后保存。</p>
+            <p className="text-[10px] text-amber">强纠正可能生成用户偏好规则草稿，需确认后保存。</p>
           )}
         </div>
       )}
@@ -569,10 +630,10 @@ function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, o
       return (
         <div className="border-t border-line p-5">
           <div className="flex items-center gap-2.5">
-            <svg className="h-5 w-5 text-moss" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="h-5 w-5 text-blue" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span className="text-sm font-medium text-moss">该对话的资产已入库</span>
+            <span className="text-sm font-medium text-blue">该对话的资产已入库</span>
             <span className="text-xs text-ink-muted">— 不会重复添加</span>
           </div>
         </div>
@@ -583,17 +644,17 @@ function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, o
     return (
       <div className="border-t border-line p-5">
         <div className="mb-3 flex items-center gap-2.5">
-          <svg className="h-5 w-5 text-moss" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <svg className="h-5 w-5 text-blue" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path d="M12 6v6m0 0v6m0-6h6m-6 0H6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <h3 className="text-sm font-semibold text-ink">资产候选</h3>
           {recommendedType && recommendedType !== "none" && (
-            <span className="inline-block rounded-full bg-moss/10 px-2.5 py-0.5 text-xs font-medium text-moss">
+            <span className="inline-block rounded-full bg-blue/10 px-2.5 py-0.5 text-xs font-medium text-blue">
               {recommendedType}
             </span>
           )}
           {!decision && (
-            <span className="inline-block rounded-full bg-ink/5 px-2.5 py-0.5 text-xs font-medium text-ink-muted">
+            <span className="inline-block rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-ink-muted">
               扁平结构
             </span>
           )}
@@ -624,7 +685,7 @@ function AssetDecisionBanner({ result, draftAsset, assetRefreshKey, onConfirm, o
   return (
     <div className="border-t border-line p-5">
       <div className="flex items-start gap-2.5">
-        <svg className="mt-0.5 h-4 w-4 shrink-0 text-rust" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <div>
@@ -680,6 +741,16 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     if (!result?.runLog || dismissedDraft) return null;
     return extractAssetFromResponse(result, result.runLog.run_id);
   }, [result, dismissedDraft]);
+
+  const runStatus = useMemo(() => {
+    if (isLoading) return { label: "分析运行中", tone: "bg-blue/15 text-blue" };
+    if (!result) return { label: "等待输入", tone: "bg-surface-2 text-ink-muted" };
+    if (result.error) return { label: "需要检查", tone: "bg-amber/15 text-amber" };
+    if (result.parseStatus === "success" || result.parseStatus === "partial") {
+      return { label: "报告已生成", tone: "bg-moss/15 text-moss" };
+    }
+    return { label: "等待解析", tone: "bg-surface-2 text-ink-muted" };
+  }, [isLoading, result]);
 
   const handleAnalyzeFinish = useCallback((response: AnalyzeResponse) => {
     setResult(response);
@@ -753,8 +824,27 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   }
 
   return (
-    <div className="flex h-full">
-      <div className="w-72 shrink-0 border-r border-line bg-surface-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex h-full min-w-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+      <div className="w-full shrink-0 space-y-4 border-b border-line bg-surface-1 p-4 lg:w-72 lg:border-b-0 lg:border-r lg:overflow-y-auto">
+        <div className="rounded-lg border border-line bg-surface-2/50 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Workflow</p>
+          <h2 className="mt-1 text-sm font-semibold text-ink">分析任务流</h2>
+          <div className="mt-3 grid grid-cols-3 gap-1 text-center text-[10px] text-ink-muted">
+            <div className="rounded-md bg-surface-1 px-2 py-1.5">
+              <span className="block font-semibold text-ink">1</span>
+              输入
+            </div>
+            <div className="rounded-md bg-surface-1 px-2 py-1.5">
+              <span className="block font-semibold text-ink">2</span>
+              报告
+            </div>
+            <div className="rounded-md bg-surface-1 px-2 py-1.5">
+              <span className="block font-semibold text-ink">3</span>
+              Mission
+            </div>
+          </div>
+        </div>
+
         <div className="rounded-lg bg-surface-2/50 p-3">
           <button
             className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wider text-ink-muted"
@@ -786,32 +876,35 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
         </div>
 
         <div className="rounded-lg bg-surface-2/50 p-3">
-          <div className="mb-3 flex items-center">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Navigation</span>
+            <div className="flex items-center">
             <button
               className={`relative px-3 py-1.5 text-xs font-semibold transition ${
-                leftTab === "history" ? "text-moss" : "text-ink/50 hover:text-ink"
+                leftTab === "history" ? "text-blue" : "text-ink-muted hover:text-ink"
               }`}
               onClick={() => setLeftTab("history")}
               type="button"
             >
               历史
               {leftTab === "history" && (
-                <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-moss" />
+                <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-blue" />
               )}
             </button>
             <Separator orientation="vertical" className="mx-2 h-4" />
             <button
               className={`relative px-3 py-1.5 text-xs font-semibold transition ${
-                leftTab === "mission" ? "text-moss" : "text-ink/50 hover:text-ink"
+                leftTab === "mission" ? "text-blue" : "text-ink-muted hover:text-ink"
               }`}
               onClick={() => setLeftTab("mission")}
               type="button"
             >
               任务
               {leftTab === "mission" && (
-                <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-moss" />
+                <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-blue" />
               )}
             </button>
+            </div>
           </div>
           {leftTab === "history" && <HistoryPanel onSelect={handleHistorySelect} refreshKey={historyRefreshKey} />}
           {leftTab === "mission" && (
@@ -829,7 +922,27 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-[520px] min-w-0 flex-1 flex-col">
+        <div className="border-b border-line bg-surface-1 px-5 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue">Offline Mission Analysis</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">离线任务分析工作台</h1>
+              <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+                输入对话，生成 Mission Review、DepthScore 与认知资产候选。Markdown 优先阅读，JSON / Raw / Run Log 作为追踪层。
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${runStatus.tone}`}>{runStatus.label}</span>
+              <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-ink-muted">
+                {currentMissionId ? "Mission 已关联" : "未关联 Mission"}
+              </span>
+              <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-ink-muted">
+                {isMultiAgent ? "多 Agent 结果" : "单 Prompt / 待运行"}
+              </span>
+            </div>
+          </div>
+        </div>
         <header className="sticky top-0 z-10 flex shrink-0 items-center border-b border-line bg-surface-1 px-5">
           <div className="flex items-center">
             {tabs.map((tab, i) => (
@@ -838,15 +951,15 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
                 <button
                   className={`relative px-4 py-3 text-sm font-semibold transition ${
                     activeTab === tab.key
-                      ? "text-moss"
-                      : "text-ink/50 hover:text-ink"
+                      ? "text-blue"
+                      : "text-ink-muted hover:text-ink"
                   }`}
                   onClick={() => setActiveTab(tab.key)}
                   type="button"
                 >
                   {tab.label}
                   {activeTab === tab.key && (
-                    <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-moss" />
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-blue" />
                   )}
                 </button>
               </Fragment>
@@ -878,7 +991,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
             <div className="p-5">
               <h2 className="mb-3 text-base font-semibold">Raw Output</h2>
               {result?.raw ? (
-                <pre className="overflow-auto whitespace-pre-wrap break-words rounded-xl bg-ink p-4 text-sm leading-6 text-white">
+                <pre className="overflow-auto whitespace-pre-wrap break-words rounded-xl bg-surface-2 p-4 text-sm leading-6 text-white">
                   {result.raw}
                 </pre>
               ) : (
@@ -901,7 +1014,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
                 </div>
               ) : (
                 <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-surface-2 text-sm text-ink-muted">
-                  <svg className="h-8 w-8 text-ink/20" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <svg className="h-8 w-8 text-ink-muted/30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                     <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" strokeLinecap="round" strokeLinejoin="round" />
                     <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -923,7 +1036,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
         />
       </div>
 
-      <div className="w-80 shrink-0 border-l border-line bg-surface-1 overflow-y-auto p-4 space-y-4">
+      <div className="w-full shrink-0 space-y-4 border-t border-line bg-surface-1 p-4 lg:w-80 lg:border-l lg:border-t-0 lg:overflow-y-auto">
         {result?.runLog && <RunLogPanel runLog={result.runLog} />}
         {traceSummary && <TraceSummaryPanel traceSummary={traceSummary} />}
         {currentRunId && (

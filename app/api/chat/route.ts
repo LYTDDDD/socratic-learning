@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
   const context = buildConversationContext(history, message);
 
   try {
-    const reply = await callReviewModel(CHAT_SYSTEM_PROMPT, context);
+    const reply = await callReviewModel(CHAT_SYSTEM_PROMPT, context, request.signal);
     const reviewTriggered = containsReviewKeyword(message);
 
     return NextResponse.json({

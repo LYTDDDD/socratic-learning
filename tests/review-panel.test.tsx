@@ -142,6 +142,8 @@ describe("ReviewPanel", () => {
     render(<ReviewPanel refreshKey={0} />);
 
     await waitFor(() => {
+      expect(screen.getByText("Review Mode")).toBeInTheDocument();
+      expect(screen.getByText("Review Evidence")).toBeInTheDocument();
       expect(screen.getAllByText("Mission A Asset").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Mission B Asset").length).toBeGreaterThan(0);
     });

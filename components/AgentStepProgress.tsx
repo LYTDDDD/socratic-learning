@@ -15,7 +15,7 @@ function StatusIcon({ status }: { status: AgentStep["status"] }) {
   switch (status) {
     case "success":
       return (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-moss/15 text-moss">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green/15 text-green">
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -23,7 +23,7 @@ function StatusIcon({ status }: { status: AgentStep["status"] }) {
       );
     case "failed":
       return (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rust/15 text-rust">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber/15 text-amber">
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -32,7 +32,7 @@ function StatusIcon({ status }: { status: AgentStep["status"] }) {
     case "running":
       return (
         <span className="flex h-5 w-5 items-center justify-center">
-          <svg className="h-4 w-4 animate-spin text-ink/60" fill="none" viewBox="0 0 24 24">
+          <svg className="h-4 w-4 animate-spin text-ink-muted" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
@@ -40,7 +40,7 @@ function StatusIcon({ status }: { status: AgentStep["status"] }) {
       );
     case "skipped":
       return (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ink/10 text-ink/30">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-surface-2 text-ink-muted/50">
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path d="M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -73,7 +73,7 @@ export function AgentStepProgress({ steps, progressSteps }: { steps: AgentStep[]
   if (displaySteps.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-line bg-paper/60 p-4">
+    <div className="rounded-lg border border-line bg-surface-1 p-4">
       <h3 className="mb-3 text-sm font-semibold text-ink">流水线进度</h3>
       <div className="space-y-0">
         {displaySteps.map((step, i) => {
@@ -87,23 +87,23 @@ export function AgentStepProgress({ steps, progressSteps }: { steps: AgentStep[]
               <div className="flex items-center gap-2.5">
                 <StatusIcon status={step.status} />
                 <span className={`text-sm font-medium ${
-                  step.status === "skipped" ? "text-ink/30" :
-                  step.status === "running" ? "text-ink/70" :
+                  step.status === "skipped" ? "text-ink-muted/50" :
+                  step.status === "running" ? "text-ink-muted" :
                   "text-ink"
                 }`}>
                   {AGENT_NAME_MAP[step.agent]}
                 </span>
                 {step.status === "skipped" ? (
-                  <span className="text-xs text-ink/30">(跳过)</span>
+                  <span className="text-xs text-ink-muted/50">(跳过)</span>
                 ) : duration ? (
-                  <span className="text-xs text-ink/40">{duration}</span>
+                  <span className="text-xs text-ink-muted/70">{duration}</span>
                 ) : step.status === "running" ? (
-                  <span className="text-xs text-ink/50">执行中…</span>
+                  <span className="text-xs text-ink-muted">执行中…</span>
                 ) : null}
               </div>
 
               {step.status === "failed" && step.error && (
-                <div className="ml-7 mt-1 rounded border border-rust/20 bg-rust/5 px-2.5 py-1.5 text-xs text-rust">
+                <div className="ml-7 mt-1 rounded border border-amber/20 bg-amber/5 px-2.5 py-1.5 text-xs text-amber">
                   {step.error}
                 </div>
               )}

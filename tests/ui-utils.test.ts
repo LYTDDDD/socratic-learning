@@ -27,65 +27,65 @@ describe("ui-utils", () => {
 
   describe("typeBadgeColor", () => {
     it("returns correct color for MethodCard", () => {
-      expect(typeBadgeColor("MethodCard")).toBe("bg-blue-100 text-blue-800");
+      expect(typeBadgeColor("MethodCard")).toBe("bg-blue/10 text-blue");
     });
 
     it("returns correct color for MisconceptionCard", () => {
-      expect(typeBadgeColor("MisconceptionCard")).toBe("bg-red-100 text-red-800");
+      expect(typeBadgeColor("MisconceptionCard")).toBe("bg-red/10 text-red");
     });
 
     it("returns correct color for ReflectionCard", () => {
-      expect(typeBadgeColor("ReflectionCard")).toBe("bg-purple-100 text-purple-800");
+      expect(typeBadgeColor("ReflectionCard")).toBe("bg-surface-2 text-ink-muted");
     });
 
     it("returns correct color for ConceptCard", () => {
-      expect(typeBadgeColor("ConceptCard")).toBe("bg-green-100 text-green-800");
+      expect(typeBadgeColor("ConceptCard")).toBe("bg-green/10 text-green");
     });
 
     it("returns correct color for CaseCard", () => {
-      expect(typeBadgeColor("CaseCard")).toBe("bg-yellow-100 text-yellow-800");
+      expect(typeBadgeColor("CaseCard")).toBe("bg-amber/10 text-amber");
     });
 
     it("returns default color for unknown type", () => {
-      expect(typeBadgeColor("Unknown")).toBe("bg-gray-100 text-gray-800");
+      expect(typeBadgeColor("Unknown")).toBe("bg-surface-2 text-ink-muted");
     });
   });
 
   describe("maturityBadge", () => {
     it("returns correct badge for Ability", () => {
-      expect(maturityBadge("Ability")).toBe("bg-emerald-100 text-emerald-800");
+      expect(maturityBadge("Ability")).toBe("bg-green/10 text-green");
     });
 
     it("returns correct badge for Understanding", () => {
-      expect(maturityBadge("Understanding")).toBe("bg-sky-100 text-sky-800");
+      expect(maturityBadge("Understanding")).toBe("bg-blue/10 text-blue");
     });
 
     it("returns default badge for Reference", () => {
-      expect(maturityBadge("Reference")).toBe("bg-stone-100 text-stone-800");
+      expect(maturityBadge("Reference")).toBe("bg-surface-2 text-ink-muted");
     });
   });
 
   describe("statusBadge", () => {
     it("returns confirmed badge", () => {
-      expect(statusBadge("confirmed")).toBe("bg-green-100 text-green-800");
+      expect(statusBadge("confirmed")).toBe("bg-green/10 text-green");
     });
 
     it("returns draft badge for other status", () => {
-      expect(statusBadge("draft")).toBe("bg-yellow-100 text-yellow-800");
+      expect(statusBadge("draft")).toBe("bg-amber/10 text-amber");
     });
   });
 
   describe("resultBadgeColor", () => {
     it("returns moss color for good", () => {
-      expect(resultBadgeColor("good")).toBe("bg-moss/15 text-moss");
+      expect(resultBadgeColor("good")).toBe("bg-green/15 text-green");
     });
 
     it("returns yellow color for partial", () => {
-      expect(resultBadgeColor("partial")).toBe("bg-yellow-100 text-yellow-700");
+      expect(resultBadgeColor("partial")).toBe("bg-amber/10 text-amber");
     });
 
     it("returns rust color for needs_work", () => {
-      expect(resultBadgeColor("needs_work")).toBe("bg-rust/10 text-rust");
+      expect(resultBadgeColor("needs_work")).toBe("bg-amber/10 text-amber");
     });
   });
 
@@ -105,17 +105,17 @@ describe("ui-utils", () => {
 
   describe("feedbackSurfaceColor", () => {
     it("returns result surface colors", () => {
-      expect(feedbackSurfaceColor("good")).toBe("border-moss/30 bg-moss/5");
-      expect(feedbackSurfaceColor("partial")).toBe("border-yellow-300/30 bg-yellow-50");
-      expect(feedbackSurfaceColor("needs_work")).toBe("border-rust/20 bg-rust/5");
+      expect(feedbackSurfaceColor("good")).toBe("border-green/30 bg-green/5");
+      expect(feedbackSurfaceColor("partial")).toBe("border-amber/30 bg-amber/5");
+      expect(feedbackSurfaceColor("needs_work")).toBe("border-amber/20 bg-amber/5");
     });
   });
 
   describe("feedbackMarkerBadge", () => {
     it("returns compact marker colors", () => {
-      expect(feedbackMarkerBadge("good")).toBe("bg-moss/10 text-moss");
-      expect(feedbackMarkerBadge("partial")).toBe("bg-yellow-50 text-yellow-600");
-      expect(feedbackMarkerBadge("needs_work")).toBe("bg-rust/5 text-rust");
+      expect(feedbackMarkerBadge("good")).toBe("bg-green/10 text-green");
+      expect(feedbackMarkerBadge("partial")).toBe("bg-amber/10 text-amber");
+      expect(feedbackMarkerBadge("needs_work")).toBe("bg-amber/5 text-amber");
     });
   });
 

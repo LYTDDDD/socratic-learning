@@ -28,6 +28,10 @@ function historyStatusLabel(status: HistoryStatus) {
   return "已废弃";
 }
 
+function countByStatus(entries: HistoryEntry[], status: HistoryStatus): number {
+  return entries.filter((entry) => entry.status === status).length;
+}
+
 function formatTime(iso: string): string {
   try {
     const d = new Date(iso);
@@ -108,20 +112,27 @@ export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
     : entries.filter((e) => e.status !== "discarded");
 
   const discardedCount = entries.filter((e) => e.status === "discarded").length;
+  const draftCount = countByStatus(entries, "draft");
+  const reviewedCount = countByStatus(entries, "reviewed");
 
   if (entries.length === 0) {
     return (
       <div className="rounded-lg border border-line bg-paper/60 p-4">
-        <h3 className="mb-2 text-sm font-semibold text-ink">历史记录</h3>
-        <p className="text-sm text-ink/50">暂无历史记录</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Report History</p>
+        <h3 className="mt-1 text-sm font-semibold text-ink">历史记录</h3>
+        <p className="mt-2 text-sm text-ink/50">暂无历史记录</p>
       </div>
     );
   }
 
   return (
     <div className="rounded-lg border border-line bg-paper/60 p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-ink">历史记录</h3>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Report History</p>
+          <h3 className="mt-1 text-sm font-semibold text-ink">历史记录</h3>
+          <p className="mt-1 text-xs leading-5 text-ink-muted">回看分析报告，审阅后会进入 Mission 和资产链路。</p>
+        </div>
         <div className="flex items-center gap-2">
           {discardedCount > 0 && (
             <button
@@ -133,12 +144,26 @@ export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
             </button>
           )}
           <button
-            className="rounded px-2 py-1 text-xs font-medium text-rust transition hover:bg-red-50"
+            className="rounded px-2 py-1 text-xs font-medium text-amber transition hover:bg-red-50"
             onClick={handleClear}
             type="button"
           >
             清空历史
           </button>
+        </div>
+      </div>
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5 text-center">
+          <p className="text-sm font-semibold text-ink">{entries.length}</p>
+          <p className="text-[10px] text-ink-muted">reports</p>
+        </div>
+        <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5 text-center">
+          <p className="text-sm font-semibold text-ink">{draftCount}</p>
+          <p className="text-[10px] text-ink-muted">to review</p>
+        </div>
+        <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5 text-center">
+          <p className="text-sm font-semibold text-ink">{reviewedCount}</p>
+          <p className="text-[10px] text-ink-muted">reviewed</p>
         </div>
       </div>
       <ul className="max-h-80 space-y-2 overflow-y-auto">
@@ -147,7 +172,7 @@ export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
           const isDiscarded = entry.status === "discarded";
           return (
             <li
-              className={`group flex items-start gap-2 rounded-md border border-line bg-white px-3 py-2 transition hover:border-moss/40 hover:shadow-sm ${isDiscarded ? "opacity-50" : ""}`}
+              className={`group flex items-start gap-2 rounded-md border border-line bg-surface-1 px-3 py-2 transition hover:border-blue/40 hover:shadow-sm ${isDiscarded ? "opacity-50" : ""}`}
               key={entry.run_id}
             >
               <button
@@ -170,7 +195,7 @@ export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
                     {historyStatusLabel(entry.status)}
                   </span>
                 </div>
-                <div className="mt-1 text-xs text-ink/50">
+                <div className="mt-1 text-xs text-ink-muted">
                   {formatTime(entry.created_at)}
                   {entry.input_snapshot.originalGoal
                     ? ` · ${entry.input_snapshot.originalGoal.slice(0, 30)}${entry.input_snapshot.originalGoal.length > 30 ? "..." : ""}`
@@ -179,7 +204,7 @@ export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
               </button>
               <div className="flex shrink-0 items-start gap-0.5">
                 <button
-                  className={`rounded p-1 text-[10px] font-bold transition ${copiedMdId === entry.run_id ? "text-green-500" : "text-ink/30 hover:bg-blue-50 hover:text-blue-500"}`}
+                  className={`rounded p-1 text-[10px] font-bold transition ${copiedMdId === entry.run_id ? "text-green-500" : "text-ink-muted/50 hover:bg-blue-50 hover:text-blue-500"}`}
                   onClick={() => handleCopyMd(entry)}
                   title="复制 Markdown"
                   type="button"
@@ -220,7 +245,7 @@ export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
                   </button>
                 ) : (
                   <button
-                    className="rounded p-1 text-ink/30 transition hover:bg-gray-100 hover:text-gray-500"
+                    className="rounded p-1 text-ink-muted/50 transition hover:bg-gray-100 hover:text-gray-500"
                     onClick={() => handleDiscard(entry.run_id)}
                     title="标记为已废弃"
                     type="button"
@@ -231,7 +256,7 @@ export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
                   </button>
                 )}
                 <button
-                  className="rounded p-1 text-ink/30 transition hover:bg-red-50 hover:text-rust"
+                  className="rounded p-1 text-ink-muted/50 transition hover:bg-red/10 hover:text-amber"
                   onClick={() => handleDelete(entry.run_id)}
                   title="删除"
                   type="button"

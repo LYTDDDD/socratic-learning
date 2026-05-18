@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { FlaskConical, MessageCircle } from "lucide-react";
+import { FlaskConical, MessageCircle, Brain } from "lucide-react";
 import { getSessionById } from "../lib/chat-store";
 import type { AnalyzeInput } from "../lib/analyze-types";
 
@@ -36,29 +36,40 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-paper text-ink">
-      <aside className="flex w-16 flex-shrink-0 flex-col items-center bg-ink py-4">
+      <aside className="flex w-14 flex-shrink-0 flex-col items-center border-r border-line bg-surface-1 py-4">
+        <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-lg bg-blue/10">
+          <Brain className="h-4 w-4 text-blue" />
+        </div>
         <nav className="flex flex-1 flex-col items-center gap-1">
           <button
-            className={`flex h-14 w-full flex-col items-center justify-center transition ${
-              mode === "analysis" ? "text-moss" : "text-white/50 hover:text-white/80"
+            aria-label="打开离线分析工作台"
+            className={`flex h-11 w-full flex-col items-center justify-center rounded-lg transition ${
+              mode === "analysis"
+                ? "text-blue bg-blue/10"
+                : "text-ink-muted hover:text-ink hover:bg-surface-2"
             }`}
             onClick={() => setMode("analysis")}
+            title="离线分析"
             type="button"
           >
-            <FlaskConical className="h-5 w-5" />
+            <FlaskConical className="h-4 w-4" />
           </button>
           <button
-            className={`flex h-14 w-full flex-col items-center justify-center transition ${
-              mode === "chat" ? "text-moss" : "text-white/50 hover:text-white/80"
+            aria-label="打开聊天工作台"
+            className={`flex h-11 w-full flex-col items-center justify-center rounded-lg transition ${
+              mode === "chat"
+                ? "text-blue bg-blue/10"
+                : "text-ink-muted hover:text-ink hover:bg-surface-2"
             }`}
             onClick={() => setMode("chat")}
+            title="聊天工作台"
             type="button"
           >
-            <MessageCircle className="h-5 w-5" />
+            <MessageCircle className="h-4 w-4" />
           </button>
         </nav>
-        <div className="text-white/20">
-          <FlaskConical className="h-4 w-4" />
+        <div className="text-ink-muted/30">
+          <FlaskConical className="h-3.5 w-3.5" />
         </div>
       </aside>
 

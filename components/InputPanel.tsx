@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
 import type { AgentProgressStep } from "./AgentStepProgress";
 import type { AgentType } from "../lib/agent-types";
@@ -14,6 +14,8 @@ const initialInput: AnalyzeInput = {
   notes: "",
   expectedOutput: "",
 };
+
+const ANALYZE_CLIENT_TIMEOUT_MS = 240_000;
 
 type TextFieldKey = "background" | "originalGoal" | "conversation" | "notes" | "expectedOutput";
 
@@ -72,6 +74,26 @@ type SSEAgentStartEvent = { agent: AgentType; index: number; total: number };
 type SSEAgentCompleteEvent = { agent: AgentType; index: number; total: number; duration_ms: number };
 type SSEAgentErrorEvent = { agent: AgentType; index: number; total: number; error: string };
 type SSEAgentRetryEvent = { agent: AgentType; index: number; total: number; attempt: number };
+
+function isAbortError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
+function buildClientErrorResult(error: string): AnalyzeResponse {
+  return {
+    markdown: null,
+    json: null,
+    raw: null,
+    parseStatus: "not_attempted",
+    error,
+    runLog: null,
+  };
+}
 
 async function readSSEStream(
   response: Response,
@@ -193,6 +215,7 @@ export function InputPanel({
   const [submitted, setSubmitted] = useState(false);
   const [readyMessage, setReadyMessage] = useState("");
   const [analysisMode, setAnalysisMode] = useState<"single" | "multi-agent">("single");
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const originalGoalMissing = useMemo(
     () => input.originalGoal.trim().length === 0,
@@ -228,15 +251,31 @@ export function InputPanel({
     setReadyMessage("");
   }
 
+  function handleCancelAnalyze() {
+    if (!abortControllerRef.current) return;
+    setReadyMessage("正在取消分析请求。");
+    abortControllerRef.current.abort();
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
+
+    if (isSubmitting) return;
 
     if (!canSubmit) {
       setReadyMessage("");
       return;
     }
 
+    const abortController = new AbortController();
+    let didTimeout = false;
+    const timeoutId = window.setTimeout(() => {
+      didTimeout = true;
+      abortController.abort();
+    }, ANALYZE_CLIENT_TIMEOUT_MS);
+
+    abortControllerRef.current = abortController;
     setIsSubmitting(true);
     setReadyMessage("正在提交到 Analyze API。");
     onAnalyzeStart?.();
@@ -262,6 +301,7 @@ export function InputPanel({
             "Accept": "text/event-stream",
           },
           body: requestBody,
+          signal: abortController.signal,
         });
 
         if (!response.ok && response.headers.get("content-type")?.includes("application/json")) {
@@ -301,17 +341,19 @@ export function InputPanel({
             });
           },
         );
-      } catch {
-        setReadyMessage("提交失败，请稍后重试。");
-        onAnalyzeFinish?.({
-          markdown: null,
-          json: null,
-          raw: null,
-          parseStatus: "not_attempted",
-          error: "提交失败，请稍后重试。",
-          runLog: null,
-        });
+      } catch (error) {
+        const message = isAbortError(error)
+          ? didTimeout
+            ? "分析请求超过 240 秒，已自动取消。"
+            : "分析已取消。"
+          : "提交失败，请稍后重试。";
+        setReadyMessage(message);
+        onAnalyzeFinish?.(buildClientErrorResult(message));
       } finally {
+        window.clearTimeout(timeoutId);
+        if (abortControllerRef.current === abortController) {
+          abortControllerRef.current = null;
+        }
         setIsSubmitting(false);
       }
       return;
@@ -325,6 +367,7 @@ export function InputPanel({
           "Content-Type": "application/json",
         },
         body: requestBody,
+        signal: abortController.signal,
       });
       const result = (await response.json()) as AnalyzeResponse;
 
@@ -333,24 +376,26 @@ export function InputPanel({
           (result.raw ? "模型调用完成，已收到 raw output。" : "Analyze API 已接收输入。"),
       );
       onAnalyzeFinish?.(result);
-    } catch {
-      setReadyMessage("提交失败，请稍后重试。");
-      onAnalyzeFinish?.({
-        markdown: null,
-        json: null,
-        raw: null,
-        parseStatus: "not_attempted",
-        error: "提交失败，请稍后重试。",
-        runLog: null,
-      });
+    } catch (error) {
+      const message = isAbortError(error)
+        ? didTimeout
+          ? "分析请求超过 240 秒，已自动取消。"
+          : "分析已取消。"
+        : "提交失败，请稍后重试。";
+      setReadyMessage(message);
+      onAnalyzeFinish?.(buildClientErrorResult(message));
     } finally {
+      window.clearTimeout(timeoutId);
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
       setIsSubmitting(false);
     }
   }
 
   return (
-    <form className="flex h-full flex-col gap-3" onSubmit={handleSubmit}>
-      <div className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
+    <form className="flex h-full min-w-0 flex-col gap-3" onSubmit={handleSubmit}>
+      <div className="grid min-w-0 gap-3">
         {fields.map((field) => {
           const showRequiredHint =
             field.required && isMissingRequiredField(field.key);
@@ -360,28 +405,28 @@ export function InputPanel({
             <label
               className={
                 field.key === "conversation"
-                  ? "flex flex-col gap-1.5 lg:row-span-2"
-                  : "flex flex-col gap-1.5"
+                  ? "flex min-w-0 flex-col gap-1.5"
+                  : "flex min-w-0 flex-col gap-1.5"
               }
               key={field.key}
             >
-              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+              <span className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
                 {field.label}
                 {field.required ? (
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-rust" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
                 ) : null}
               </span>
               <textarea
-                className="min-h-0 resize-y rounded-lg border-0 bg-surface-2/80 px-3 py-2 text-sm leading-6 text-ink outline-none transition focus:ring-2 focus:ring-moss/30"
+                className="min-h-0 resize-y rounded-lg border-0 bg-surface-2/80 px-3 py-2 text-sm leading-6 text-ink outline-none transition focus:ring-2 focus:ring-blue/30"
                 onChange={(event) => updateField(field.key, event.target.value)}
                 placeholder={field.placeholder}
                 rows={field.rows}
                 value={input[field.key]}
               />
               {showError ? (
-                <span className="mt-1 text-xs text-rust">此项不能为空。</span>
+                <span className="mt-1 text-xs text-amber">此项不能为空。</span>
               ) : showRequiredHint ? (
-                <span className="mt-1 text-xs text-ink/40">填写后可提交。</span>
+                <span className="mt-1 text-xs text-ink-muted/70">填写后可提交。</span>
               ) : null}
             </label>
           );
@@ -389,17 +434,17 @@ export function InputPanel({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="min-h-5 text-xs text-ink/70">
+        <p className="min-h-5 text-xs text-ink-muted">
           {readyMessage ||
             (!canSubmit ? `请补全必填输入：${requiredStatus}。` : "")}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 rounded-full bg-surface-2 p-0.5">
             <button
               className={`rounded-full px-3 py-1 text-[10px] font-semibold transition ${
                 analysisMode === "single"
-                  ? "bg-ink text-white"
-                  : "text-ink/50 hover:text-ink"
+                  ? "bg-surface-2 text-white"
+                  : "text-ink-muted hover:text-ink"
               }`}
               onClick={() => setAnalysisMode("single")}
               type="button"
@@ -409,8 +454,8 @@ export function InputPanel({
             <button
               className={`rounded-full px-3 py-1 text-[10px] font-semibold transition ${
                 analysisMode === "multi-agent"
-                  ? "bg-moss text-white"
-                  : "text-ink/50 hover:text-ink"
+                  ? "bg-blue text-white"
+                  : "text-ink-muted hover:text-ink"
               }`}
               onClick={() => setAnalysisMode("multi-agent")}
               type="button"
@@ -419,12 +464,21 @@ export function InputPanel({
             </button>
           </div>
           <button
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-moss px-5 text-sm font-semibold text-white transition hover:bg-moss-dark disabled:cursor-not-allowed disabled:bg-line disabled:text-ink/45"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-blue px-5 text-sm font-semibold text-white transition hover:bg-blue/80 disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-muted/50"
             disabled={!canSubmit || isSubmitting}
             type="submit"
           >
             {isSubmitting ? "Submitting" : "Analyze"}
           </button>
+          {isSubmitting ? (
+            <button
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-amber/30 px-4 text-sm font-semibold text-amber transition hover:bg-amber/10"
+              onClick={handleCancelAnalyze}
+              type="button"
+            >
+              取消
+            </button>
+          ) : null}
         </div>
       </div>
     </form>

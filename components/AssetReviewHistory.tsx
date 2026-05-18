@@ -16,9 +16,9 @@ export function AssetReviewHistory({ records }: AssetReviewHistoryProps) {
   return (
     <div className="border-t border-line pt-4">
       <div className="mb-2 flex items-center gap-2">
-        <dt className="text-xs font-semibold text-ink/70">复习记录</dt>
+        <dt className="text-xs font-semibold text-ink-muted">复习记录</dt>
         <button
-          className="flex items-center gap-1 text-xs font-medium text-ink/50 transition hover:text-ink"
+          className="flex items-center gap-1 text-xs font-medium text-ink-muted transition hover:text-ink"
           onClick={() => setExpanded((value) => !value)}
           type="button"
         >
@@ -37,21 +37,21 @@ export function AssetReviewHistory({ records }: AssetReviewHistoryProps) {
       {expanded && (
         <dd className="space-y-2">
           {records.map((record) => (
-            <div key={record.id} className="rounded border border-line bg-paper/60 px-3 py-2">
+            <div key={record.id} className="rounded border border-line bg-surface-1 px-3 py-2">
               <div className="mb-1 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${resultBadgeColor(record.result)}`}>
                     {resultLabel(record.result)}
                   </span>
                   {record.maturityUpgradeSuggested && (
-                    <span className="inline-block rounded bg-moss/10 px-1.5 py-0.5 text-[10px] font-medium text-moss">
+                    <span className="inline-block rounded bg-blue/10 px-1.5 py-0.5 text-[10px] font-medium text-blue">
                       建议升级
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] text-ink/40">{formatTime(record.reviewedAt)}</span>
+                <span className="text-[10px] text-ink-muted/70">{formatTime(record.reviewedAt)}</span>
               </div>
-              <p className="text-xs text-ink/60 line-clamp-2">{record.overallAssessment || "—"}</p>
+              <p className="text-xs text-ink-muted line-clamp-2">{record.overallAssessment || "—"}</p>
               {record.feedback.length > 0 && (
                 <div className="mt-1.5 space-y-1">
                   {record.feedback.map((feedback, index) => (
@@ -59,7 +59,7 @@ export function AssetReviewHistory({ records }: AssetReviewHistoryProps) {
                       <span className={`mt-0.5 shrink-0 rounded px-1 py-0.5 text-[9px] font-medium ${feedbackMarkerBadge(feedback.evaluation)}`}>
                         {feedbackMarkerLabel(feedback.evaluation)}
                       </span>
-                      <p className="text-[11px] leading-4 text-ink/50 line-clamp-1">{feedback.question}</p>
+                      <p className="text-[11px] leading-4 text-ink-muted line-clamp-1">{feedback.question}</p>
                     </div>
                   ))}
                 </div>
