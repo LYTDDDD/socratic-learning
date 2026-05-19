@@ -65,13 +65,47 @@ function Section({ eyebrow, title, children }: { eyebrow: string; title: string;
   );
 }
 
+const COLLAPSE_THRESHOLD = 180;
+
+function CollapsibleText({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  if (text.length <= COLLAPSE_THRESHOLD) {
+    return <>{text}</>;
+  }
+  return (
+    <span>
+      {expanded ? text : text.slice(0, COLLAPSE_THRESHOLD) + "..."}
+      <button
+        className="ml-1 text-blue hover:underline"
+        onClick={() => setExpanded((v) => !v)}
+        type="button"
+      >
+        {expanded ? "收起" : "展开"}
+      </button>
+    </span>
+  );
+}
+
+function ScoreBar({ score, max = 10 }: { score: number; max?: number }) {
+  const pct = Math.max(0, Math.min(100, (score / max) * 100));
+  const tone = score >= 8 ? "bg-moss" : score >= 6 ? "bg-blue" : score >= 4 ? "bg-amber" : "bg-surface-2";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-1.5 flex-1 rounded-full bg-surface-2">
+        <div className={`h-full rounded-full transition-all ${tone}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-xs font-semibold text-ink-muted tabular-nums">{score}/{max}</span>
+    </div>
+  );
+}
+
 function Field({ label, value }: { label: string; value: unknown }) {
   const text = asText(value);
   if (!text) return null;
   return (
     <div>
       <dt className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{label}</dt>
-      <dd className="mt-1 text-sm leading-6 text-ink">{text}</dd>
+      <dd className="mt-1 text-sm leading-6 text-ink"><CollapsibleText text={text} /></dd>
     </div>
   );
 }
@@ -195,7 +229,7 @@ function DepthEvaluation({ data }: { data: Record<string, unknown> }) {
                 return (
                   <tr className="border-t border-line align-top" key={key}>
                     <td className="px-3 py-2 font-medium text-ink">{dimensionLabels[key] ?? key}</td>
-                    <td className="px-3 py-2"><ScorePill score={row.score} /></td>
+                    <td className="min-w-[120px] px-3 py-2"><ScoreBar score={typeof row.score === "number" ? row.score : Number(asText(row.score)) || 0} /></td>
                     <td className="px-3 py-2 leading-6 text-ink">{asText(row.evidence) || "-"}</td>
                     <td className="px-3 py-2 leading-6 text-ink-muted">{asText(row.uncertainty) || "-"}</td>
                   </tr>
