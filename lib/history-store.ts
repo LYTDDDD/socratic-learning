@@ -1,7 +1,9 @@
 import type { AnalyzeResponse } from "./analyze-types";
+import type { RunLogUserAction, RunLogUserActionType } from "./run-log";
 
 const STORAGE_KEY = "socratic-analysis-history";
 const MAX_ENTRIES = 50;
+const MAX_USER_ACTIONS = 50;
 
 export type HistoryStatus = "draft" | "reviewed" | "discarded";
 
@@ -61,4 +63,32 @@ export function updateHistoryStatus(runId: string, status: HistoryStatus): void 
     );
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   } catch {}
+}
+
+export function appendRunLogUserAction(runId: string, type: RunLogUserActionType): RunLogUserAction | null {
+  try {
+    const action: RunLogUserAction = { type, at: new Date().toISOString() };
+    const history = loadHistory();
+    let found = false;
+    const updated = history.map((h) => {
+      if (h.run_id !== runId || !h.analyzeResponse.runLog) return h;
+      found = true;
+      const userActions = [...(h.analyzeResponse.runLog.user_actions ?? []), action].slice(-MAX_USER_ACTIONS);
+      return {
+        ...h,
+        analyzeResponse: {
+          ...h.analyzeResponse,
+          runLog: {
+            ...h.analyzeResponse.runLog,
+            user_actions: userActions,
+          },
+        },
+      };
+    });
+    if (!found) return null;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    return action;
+  } catch {
+    return null;
+  }
 }

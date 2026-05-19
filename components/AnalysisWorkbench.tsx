@@ -16,9 +16,9 @@ import { AgentStepProgress, parseAgentSteps } from "./AgentStepProgress";
 import type { AgentProgressStep } from "./AgentStepProgress";
 import { AgentOutputCards } from "./AgentOutputCards";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
-import type { RunLog } from "../lib/run-log";
+import type { RunLog, RunLogUserAction, RunLogUserActionType } from "../lib/run-log";
 import type { Correction } from "../lib/correction-store";
-import { saveToHistory, loadHistory, updateHistoryStatus } from "../lib/history-store";
+import { appendRunLogUserAction, saveToHistory, loadHistory, updateHistoryStatus } from "../lib/history-store";
 import type { HistoryStatus } from "../lib/history-store";
 import { extractAssetFromResponse } from "../lib/extract-asset";
 import type { CognitiveAsset } from "../lib/extract-asset";
@@ -57,10 +57,42 @@ function statusBadge(status: string) {
   return "bg-surface-2 text-ink-muted";
 }
 
+function userActionLabel(action: RunLogUserAction): string {
+  const labels: Record<RunLogUserActionType, string> = {
+    copy_report: "复制报告",
+    copy_markdown: "复制 Markdown",
+    copy_json: "复制 JSON",
+    copy_raw: "复制 Raw",
+    download_markdown: "下载 Markdown",
+    download_json: "下载 JSON",
+    download_raw: "下载 Raw",
+    mark_reviewed: "标记已审阅",
+    mark_discarded: "标记废弃",
+    restore_report: "恢复报告",
+    confirm_asset: "确认资产",
+    discard_asset: "丢弃资产候选",
+  };
+  return labels[action.type];
+}
+
+function formatActionTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    return `${hh}:${mi}:${ss}`;
+  } catch {
+    return iso;
+  }
+}
+
 function RunLogPanel({ runLog }: { runLog: RunLog }) {
   const hasError = Boolean(runLog.error_message);
   const [expanded, setExpanded] = useState(hasError);
   const inputChars = runLog.input_snapshot.originalGoal.length + runLog.input_snapshot.conversation.length;
+  const userActions = runLog.user_actions ?? [];
+  const latestActions = userActions.slice(-5).reverse();
   const rows: { label: string; value: React.ReactNode }[] = [
     { label: "Run ID", value: <code className="font-mono text-xs">{runLog.run_id}</code> },
     { label: "Created At", value: runLog.created_at },
@@ -112,7 +144,7 @@ function RunLogPanel({ runLog }: { runLog: RunLog }) {
       </button>
       {expanded && (
         <>
-          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
             <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5">
               <p className="text-sm font-semibold text-ink">{runLog.duration_ms}</p>
               <p className="text-[10px] text-ink-muted">ms</p>
@@ -125,6 +157,10 @@ function RunLogPanel({ runLog }: { runLog: RunLog }) {
               <p className="text-sm font-semibold text-ink">{hasError ? 1 : 0}</p>
               <p className="text-[10px] text-ink-muted">errors</p>
             </div>
+            <div className="rounded-md border border-line bg-surface-1 px-2 py-1.5">
+              <p className="text-sm font-semibold text-ink">{userActions.length}</p>
+              <p className="text-[10px] text-ink-muted">actions</p>
+            </div>
           </div>
           <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
             {rows.map((row) => (
@@ -134,6 +170,19 @@ function RunLogPanel({ runLog }: { runLog: RunLog }) {
               </span>
             ))}
           </dl>
+          {latestActions.length > 0 && (
+            <div className="mt-3 border-t border-line pt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">User Actions</p>
+              <ul className="mt-2 space-y-1">
+                {latestActions.map((action) => (
+                  <li className="flex items-center justify-between gap-3 text-xs" key={`${action.type}-${action.at}`}>
+                    <span className="text-ink">{userActionLabel(action)}</span>
+                    <time className="shrink-0 font-mono text-[10px] text-ink-muted">{formatActionTime(action.at)}</time>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -821,22 +870,41 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     setCurrentReportStatus("draft");
   }, []);
 
+  const recordUserAction = useCallback((type: RunLogUserActionType) => {
+    if (!currentRunId) return;
+    const action = appendRunLogUserAction(currentRunId, type);
+    if (!action) return;
+    setResult((current) => {
+      if (!current?.runLog || current.runLog.run_id !== currentRunId) return current;
+      return {
+        ...current,
+        runLog: {
+          ...current.runLog,
+          user_actions: [...(current.runLog.user_actions ?? []), action],
+        },
+      };
+    });
+  }, [currentRunId]);
+
   const handleConfirmAsset = useCallback(() => {
+    recordUserAction("confirm_asset");
     setAssetRefreshKey((k) => k + 1);
-  }, []);
+  }, [recordUserAction]);
 
   const handleConfirmDraftAsset = useCallback((asset: CognitiveAsset) => {
     confirmAssetDraft(asset, currentMissionId);
+    recordUserAction("confirm_asset");
     setAssetRefreshKey((k) => k + 1);
-  }, [currentMissionId]);
+  }, [currentMissionId, recordUserAction]);
 
   const handleAssetsChanged = useCallback(() => {
     setAssetRefreshKey((k) => k + 1);
   }, []);
 
   const handleDiscardAsset = useCallback(() => {
+    recordUserAction("discard_asset");
     setDismissedDraft(true);
-  }, []);
+  }, [recordUserAction]);
 
   const handleCorrectionAdded = useCallback(() => {
     setCorrectionRefreshKey((k) => k + 1);
@@ -845,23 +913,26 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   const handleMarkReviewed = useCallback(() => {
     if (!currentRunId) return;
     updateHistoryStatus(currentRunId, "reviewed");
+    recordUserAction("mark_reviewed");
     setCurrentReportStatus("reviewed");
     setHistoryRefreshKey((k) => k + 1);
-  }, [currentRunId]);
+  }, [currentRunId, recordUserAction]);
 
   const handleMarkDiscarded = useCallback(() => {
     if (!currentRunId) return;
     updateHistoryStatus(currentRunId, "discarded");
+    recordUserAction("mark_discarded");
     setCurrentReportStatus("discarded");
     setHistoryRefreshKey((k) => k + 1);
-  }, [currentRunId]);
+  }, [currentRunId, recordUserAction]);
 
   const handleRestoreReport = useCallback(() => {
     if (!currentRunId) return;
     updateHistoryStatus(currentRunId, "draft");
+    recordUserAction("restore_report");
     setCurrentReportStatus("draft");
     setHistoryRefreshKey((k) => k + 1);
-  }, [currentRunId]);
+  }, [currentRunId, recordUserAction]);
 
   const handleHistoryStatusChange = useCallback((runId: string, newStatus: HistoryStatus) => {
     if (runId === currentRunId) {
@@ -876,6 +947,20 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     if (activeTab === "json") return result.json != null ? JSON.stringify(result.json, null, 2) : null;
     if (activeTab === "raw") return result.raw;
     return null;
+  }
+
+  function getCopyAction(): RunLogUserActionType | null {
+    if (activeTab === "report") return "copy_report";
+    if (activeTab === "markdown") return "copy_markdown";
+    if (activeTab === "json") return "copy_json";
+    if (activeTab === "raw") return "copy_raw";
+    return null;
+  }
+
+  function getDownloadAction(format: "markdown" | "json" | "raw"): RunLogUserActionType {
+    if (format === "markdown") return "download_markdown";
+    if (format === "json") return "download_json";
+    return "download_raw";
   }
 
   return (
@@ -1022,8 +1107,14 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
             ))}
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <DownloadButton result={result} />
-            <CopyButton content={getCopyContent()} />
+            <DownloadButton result={result} onDownload={(format) => recordUserAction(getDownloadAction(format))} />
+            <CopyButton
+              content={getCopyContent()}
+              onCopied={() => {
+                const action = getCopyAction();
+                if (action) recordUserAction(action);
+              }}
+            />
           </div>
         </header>
 

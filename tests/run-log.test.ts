@@ -34,11 +34,13 @@ describe("RunLog type structure", () => {
       parse_status: "success",
       duration_ms: 1234,
       error_message: null,
+      user_actions: [{ type: "copy_report", at: new Date().toISOString() }],
     };
     expect(log.run_id.startsWith("run_")).toBe(true);
     expect(log.request_status).toBe("success");
     expect(log.parse_status).toBe("success");
     expect(log.error_message).toBeNull();
+    expect(log.user_actions?.[0].type).toBe("copy_report");
   });
 
   it("accepts a failed RunLog with error_message", () => {

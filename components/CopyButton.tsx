@@ -5,9 +5,10 @@ import { useState } from "react";
 type CopyButtonProps = {
   content: string | null;
   label?: string;
+  onCopied?: () => void;
 };
 
-export function CopyButton({ content, label = "复制" }: CopyButtonProps) {
+export function CopyButton({ content, label = "复制", onCopied }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -16,6 +17,7 @@ export function CopyButton({ content, label = "复制" }: CopyButtonProps) {
     try {
       await navigator.clipboard.writeText(content);
       setCopied(true);
+      onCopied?.();
       setTimeout(() => setCopied(false), 1500);
     } catch {
       setCopied(false);
