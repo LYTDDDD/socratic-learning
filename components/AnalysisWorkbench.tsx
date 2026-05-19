@@ -26,7 +26,7 @@ import { hasAssetFromRun } from "../lib/asset-store";
 import { Separator } from "./ui/separator";
 import type { PreferenceRule } from "../lib/preference-rule-store";
 import { loadCorrections, saveCorrection } from "../lib/correction-store";
-import { assignReportToMission } from "../lib/mission-store";
+import { assignReportToMission, getMissionForReport } from "../lib/mission-store";
 import { buildMarkdownFromAnalysisJson } from "../lib/analysis-markdown";
 import {
   loadPreferenceRules,
@@ -996,9 +996,11 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
                 draftAsset={draftAsset}
                 isLoading={isLoading}
                 json={result?.json ?? null}
+                missionTitle={currentRunId ? (getMissionForReport(currentRunId)?.title ?? null) : null}
                 onConfirmDraftAsset={handleConfirmDraftAsset}
                 onDiscardDraftAsset={handleDiscardAsset}
                 parseStatus={result?.parseStatus ?? "not_attempted"}
+                runId={currentRunId || undefined}
               />
             </div>
           )}

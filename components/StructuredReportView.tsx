@@ -13,6 +13,8 @@ type StructuredReportViewProps = {
   assetCandidateDismissed?: boolean;
   onConfirmDraftAsset?: (asset: CognitiveAsset) => void;
   onDiscardDraftAsset?: () => void;
+  runId?: string;
+  missionTitle?: string | null;
 };
 
 type AssetActionProps = Pick<
@@ -452,6 +454,8 @@ export function StructuredReportView({
   assetCandidateDismissed,
   onConfirmDraftAsset,
   onDiscardDraftAsset,
+  runId,
+  missionTitle,
 }: StructuredReportViewProps) {
   if (isLoading) {
     return (
@@ -489,6 +493,20 @@ export function StructuredReportView({
         <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Structured Report</p>
         <h1 className="mt-1 text-xl font-semibold text-ink">离线任务分析报告</h1>
         <p className="mt-1 text-sm text-ink-muted">由 JSON 渲染，JSON 仍是唯一事实来源。</p>
+        {(runId || missionTitle !== undefined) && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {runId && (
+              <span className="rounded bg-surface-2 px-2 py-0.5 text-[10px] font-mono text-ink-muted">
+                Run: {runId}
+              </span>
+            )}
+            {missionTitle !== undefined && (
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${missionTitle ? "bg-moss/15 text-moss" : "bg-surface-2 text-ink-muted"}`}>
+                {missionTitle ? `Mission: ${missionTitle}` : "未关联 Mission"}
+              </span>
+            )}
+          </div>
+        )}
       </div>
       <MissionReview data={missionReview} />
       <DepthEvaluation data={depthEvaluation} />
