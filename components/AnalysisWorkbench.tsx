@@ -18,7 +18,8 @@ import { AgentOutputCards } from "./AgentOutputCards";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
 import type { RunLog } from "../lib/run-log";
 import type { Correction } from "../lib/correction-store";
-import { saveToHistory, loadHistory } from "../lib/history-store";
+import { saveToHistory, loadHistory, updateHistoryStatus } from "../lib/history-store";
+import type { HistoryStatus } from "../lib/history-store";
 import { extractAssetFromResponse } from "../lib/extract-asset";
 import type { CognitiveAsset } from "../lib/extract-asset";
 import { confirmAssetDraft } from "../lib/asset-confirmation";
@@ -722,6 +723,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   const [agentProgress, setAgentProgress] = useState<AgentProgressStep[]>([]);
   const [leftTab, setLeftTab] = useState<"history" | "mission">("history");
   const [inputCollapsed, setInputCollapsed] = useState(false);
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [currentReportStatus, setCurrentReportStatus] = useState<HistoryStatus>("draft");
 
   const currentMissionId = externalMissionId ?? internalMissionId;
   const setCurrentMissionId = onSelectMission ?? setInternalMissionId;
@@ -737,7 +740,6 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
 
   const isMultiAgent = agentSteps.length > 0;
 
-  const currentRunId = result?.runLog?.run_id ?? "";
   const assetAlreadySaved = currentRunId ? hasAssetFromRun(currentRunId) : false;
   const corrections = useMemo(() => {
     if (!currentRunId) return [];
@@ -778,16 +780,23 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
         analyzeResponse: response,
         status: "draft",
       });
+      setCurrentRunId(response.runLog.run_id);
+      setCurrentReportStatus("draft");
       setHistoryRefreshKey((k) => k + 1);
       if (currentMissionId) {
         assignReportToMission(currentMissionId, response.runLog.run_id);
         setMissionRefreshKey((k) => k + 1);
       }
+    } else {
+      setCurrentRunId(null);
+      setCurrentReportStatus("draft");
     }
   }, [currentMissionId]);
 
-  const handleHistorySelect = useCallback((response: AnalyzeResponse) => {
+  const handleHistorySelect = useCallback((response: AnalyzeResponse, runId: string, status: HistoryStatus) => {
     setResult(response);
+    setCurrentRunId(runId);
+    setCurrentReportStatus(status);
     setIsLoading(false);
     setDismissedDraft(false);
   }, []);
@@ -797,6 +806,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     const entry = history.find((h) => h.run_id === sourceRunId);
     if (entry) {
       setResult(entry.analyzeResponse);
+      setCurrentRunId(entry.run_id);
+      setCurrentReportStatus(entry.status);
       setIsLoading(false);
       setActiveTab("report");
     }
@@ -806,6 +817,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     setIsLoading(true);
     setResult(null);
     setAgentProgress([]);
+    setCurrentRunId(null);
+    setCurrentReportStatus("draft");
   }, []);
 
   const handleConfirmAsset = useCallback(() => {
@@ -828,6 +841,33 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   const handleCorrectionAdded = useCallback(() => {
     setCorrectionRefreshKey((k) => k + 1);
   }, []);
+
+  const handleMarkReviewed = useCallback(() => {
+    if (!currentRunId) return;
+    updateHistoryStatus(currentRunId, "reviewed");
+    setCurrentReportStatus("reviewed");
+    setHistoryRefreshKey((k) => k + 1);
+  }, [currentRunId]);
+
+  const handleMarkDiscarded = useCallback(() => {
+    if (!currentRunId) return;
+    updateHistoryStatus(currentRunId, "discarded");
+    setCurrentReportStatus("discarded");
+    setHistoryRefreshKey((k) => k + 1);
+  }, [currentRunId]);
+
+  const handleRestoreReport = useCallback(() => {
+    if (!currentRunId) return;
+    updateHistoryStatus(currentRunId, "draft");
+    setCurrentReportStatus("draft");
+    setHistoryRefreshKey((k) => k + 1);
+  }, [currentRunId]);
+
+  const handleHistoryStatusChange = useCallback((runId: string, newStatus: HistoryStatus) => {
+    if (runId === currentRunId) {
+      setCurrentReportStatus(newStatus);
+    }
+  }, [currentRunId]);
 
   function getCopyContent(): string | null {
     if (!result) return null;
@@ -922,7 +962,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
             </button>
             </div>
           </div>
-          {leftTab === "history" && <HistoryPanel onSelect={handleHistorySelect} refreshKey={historyRefreshKey} />}
+          {leftTab === "history" && <HistoryPanel onSelect={handleHistorySelect} onStatusChange={handleHistoryStatusChange} refreshKey={historyRefreshKey} />}
           {leftTab === "mission" && (
             <MissionPanel
               currentMissionId={currentMissionId}
@@ -999,7 +1039,11 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
                 missionTitle={currentRunId ? (getMissionForReport(currentRunId)?.title ?? null) : null}
                 onConfirmDraftAsset={handleConfirmDraftAsset}
                 onDiscardDraftAsset={handleDiscardAsset}
+                onMarkDiscarded={handleMarkDiscarded}
+                onMarkReviewed={handleMarkReviewed}
+                onRestoreReport={handleRestoreReport}
                 parseStatus={result?.parseStatus ?? "not_attempted"}
+                reportStatus={currentRunId ? currentReportStatus : undefined}
                 runId={currentRunId || undefined}
               />
             </div>
