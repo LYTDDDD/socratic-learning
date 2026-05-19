@@ -18,7 +18,8 @@ import { AgentOutputCards } from "./AgentOutputCards";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
 import type { RunLog } from "../lib/run-log";
 import type { Correction } from "../lib/correction-store";
-import { saveToHistory, loadHistory } from "../lib/history-store";
+import { saveToHistory, loadHistory, updateHistoryStatus } from "../lib/history-store";
+import type { HistoryStatus } from "../lib/history-store";
 import { extractAssetFromResponse } from "../lib/extract-asset";
 import type { CognitiveAsset } from "../lib/extract-asset";
 import { confirmAssetDraft } from "../lib/asset-confirmation";
@@ -711,6 +712,8 @@ type AnalysisWorkbenchProps = {
 
 export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelectMission, initialInputOverride, initialInputSource }: AnalysisWorkbenchProps) {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [currentReportStatus, setCurrentReportStatus] = useState<HistoryStatus>("draft");
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("report");
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
@@ -737,12 +740,12 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
 
   const isMultiAgent = agentSteps.length > 0;
 
-  const currentRunId = result?.runLog?.run_id ?? "";
-  const assetAlreadySaved = currentRunId ? hasAssetFromRun(currentRunId) : false;
+  const derivedRunId = result?.runLog?.run_id ?? "";
+  const assetAlreadySaved = derivedRunId ? hasAssetFromRun(derivedRunId) : false;
   const corrections = useMemo(() => {
-    if (!currentRunId) return [];
-    return loadCorrections(currentRunId);
-  }, [currentRunId, correctionRefreshKey]);
+    if (!derivedRunId) return [];
+    return loadCorrections(derivedRunId);
+  }, [derivedRunId, correctionRefreshKey]);
 
   const draftAsset = useMemo(() => {
     if (!result?.runLog || dismissedDraft) return null;
@@ -778,6 +781,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
         analyzeResponse: response,
         status: "draft",
       });
+      setCurrentRunId(response.runLog.run_id);
+      setCurrentReportStatus("draft");
       setHistoryRefreshKey((k) => k + 1);
       if (currentMissionId) {
         assignReportToMission(currentMissionId, response.runLog.run_id);
@@ -786,8 +791,10 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     }
   }, [currentMissionId]);
 
-  const handleHistorySelect = useCallback((response: AnalyzeResponse) => {
+  const handleHistorySelect = useCallback((response: AnalyzeResponse, runId: string, status: HistoryStatus) => {
     setResult(response);
+    setCurrentRunId(runId);
+    setCurrentReportStatus(status);
     setIsLoading(false);
     setDismissedDraft(false);
   }, []);
@@ -797,6 +804,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     const entry = history.find((h) => h.run_id === sourceRunId);
     if (entry) {
       setResult(entry.analyzeResponse);
+      setCurrentRunId(entry.run_id);
+      setCurrentReportStatus(entry.status);
       setIsLoading(false);
       setActiveTab("report");
     }
@@ -824,6 +833,33 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   const handleDiscardAsset = useCallback(() => {
     setDismissedDraft(true);
   }, []);
+
+  const handleMarkReviewed = useCallback(() => {
+    if (!currentRunId) return;
+    updateHistoryStatus(currentRunId, "reviewed");
+    setCurrentReportStatus("reviewed");
+    setHistoryRefreshKey((k) => k + 1);
+  }, [currentRunId]);
+
+  const handleMarkDiscarded = useCallback(() => {
+    if (!currentRunId) return;
+    updateHistoryStatus(currentRunId, "discarded");
+    setCurrentReportStatus("discarded");
+    setHistoryRefreshKey((k) => k + 1);
+  }, [currentRunId]);
+
+  const handleRestoreReport = useCallback(() => {
+    if (!currentRunId) return;
+    updateHistoryStatus(currentRunId, "draft");
+    setCurrentReportStatus("draft");
+    setHistoryRefreshKey((k) => k + 1);
+  }, [currentRunId]);
+
+  const handleHistoryStatusChange = useCallback((runId: string, newStatus: HistoryStatus) => {
+    if (runId === currentRunId) {
+      setCurrentReportStatus(newStatus);
+    }
+  }, [currentRunId]);
 
   const handleCorrectionAdded = useCallback(() => {
     setCorrectionRefreshKey((k) => k + 1);
@@ -922,7 +958,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
             </button>
             </div>
           </div>
-          {leftTab === "history" && <HistoryPanel onSelect={handleHistorySelect} refreshKey={historyRefreshKey} />}
+          {leftTab === "history" && <HistoryPanel onSelect={handleHistorySelect} onStatusChange={handleHistoryStatusChange} refreshKey={historyRefreshKey} />}
           {leftTab === "mission" && (
             <MissionPanel
               currentMissionId={currentMissionId}
@@ -998,7 +1034,11 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
                 json={result?.json ?? null}
                 onConfirmDraftAsset={handleConfirmDraftAsset}
                 onDiscardDraftAsset={handleDiscardAsset}
+                onMarkDiscarded={handleMarkDiscarded}
+                onMarkReviewed={handleMarkReviewed}
+                onRestoreReport={handleRestoreReport}
                 parseStatus={result?.parseStatus ?? "not_attempted"}
+                reportStatus={currentRunId ? currentReportStatus : undefined}
               />
             </div>
           )}
@@ -1069,11 +1109,11 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
       <div className="w-full shrink-0 space-y-4 border-t border-line bg-surface-1 p-4 lg:w-80 lg:border-l lg:border-t-0 lg:overflow-y-auto">
         {result?.runLog && <RunLogPanel runLog={result.runLog} />}
         {traceSummary && <TraceSummaryPanel traceSummary={traceSummary} />}
-        {currentRunId && (
+        {derivedRunId && (
           <CorrectionPanel
             existingCorrections={corrections}
             onCorrectionAdded={handleCorrectionAdded}
-            reportId={currentRunId}
+            reportId={derivedRunId}
           />
         )}
         <PreferenceRulePanel refreshKey={correctionRefreshKey} />

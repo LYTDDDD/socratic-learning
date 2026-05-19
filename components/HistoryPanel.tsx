@@ -7,8 +7,9 @@ import type { AnalyzeResponse } from "../lib/analyze-types";
 import { buildMarkdownFromAnalysisJson } from "../lib/analysis-markdown";
 
 type HistoryPanelProps = {
-  onSelect: (response: AnalyzeResponse) => void;
+  onSelect: (response: AnalyzeResponse, runId: string, status: HistoryStatus) => void;
   refreshKey: number;
+  onStatusChange?: (runId: string, newStatus: HistoryStatus) => void;
 };
 
 function reqStatusBadge(status: string) {
@@ -46,7 +47,7 @@ function formatTime(iso: string): string {
   }
 }
 
-export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
+export function HistoryPanel({ onSelect, refreshKey, onStatusChange }: HistoryPanelProps) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [showDiscarded, setShowDiscarded] = useState(false);
   const [copiedMdId, setCopiedMdId] = useState<string | null>(null);
@@ -73,20 +74,19 @@ export function HistoryPanel({ onSelect, refreshKey }: HistoryPanelProps) {
   }
 
   function handleSelect(entry: HistoryEntry) {
-    if (entry.status === "draft") {
-      updateHistoryStatus(entry.run_id, "reviewed");
-    }
-    onSelect(entry.analyzeResponse);
+    onSelect(entry.analyzeResponse, entry.run_id, entry.status);
     refresh();
   }
 
   function handleDiscard(runId: string) {
     updateHistoryStatus(runId, "discarded");
+    onStatusChange?.(runId, "discarded");
     refresh();
   }
 
   function handleRestore(runId: string) {
     updateHistoryStatus(runId, "draft");
+    onStatusChange?.(runId, "draft");
     refresh();
   }
 
