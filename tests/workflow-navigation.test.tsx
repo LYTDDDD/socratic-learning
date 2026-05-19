@@ -1,11 +1,11 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { HistoryPanel } from "../components/HistoryPanel";
 import { MissionPanel } from "../components/MissionPanel";
 import type { AnalyzeResponse } from "../lib/analyze-types";
 import { saveAndConfirmAsset } from "../lib/asset-store";
 import type { CognitiveAsset } from "../lib/extract-asset";
-import { saveToHistory, type HistoryEntry } from "../lib/history-store";
+import { loadHistory, saveToHistory, type HistoryEntry } from "../lib/history-store";
 import { assignReportToMission, saveMission } from "../lib/mission-store";
 
 class LocalStorageMock {
@@ -147,6 +147,49 @@ describe("workflow navigation panels", () => {
       expect(screen.getByText("to review").parentElement).toHaveTextContent("1");
       expect(screen.getByText("reviewed").parentElement).toHaveTextContent("1");
     });
+  });
+
+  it("passes reviewed status when selecting a draft history entry", async () => {
+    saveToHistory(makeHistoryEntry({ run_id: "run_draft_status", status: "draft" }));
+    const onSelect = vi.fn();
+
+    render(<HistoryPanel onSelect={onSelect} refreshKey={0} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /run_draft_status/ }));
+
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runLog: expect.objectContaining({ run_id: "run_draft_status" }),
+      }),
+      "run_draft_status",
+      "reviewed",
+    );
+    expect(loadHistory().find((entry) => entry.run_id === "run_draft_status")?.status).toBe("reviewed");
+  });
+
+  it("notifies parent when discarding and restoring a history entry", async () => {
+    saveToHistory(makeHistoryEntry({ run_id: "run_status_sync", status: "reviewed" }));
+    const onStatusChange = vi.fn();
+
+    const { container } = render(
+      <HistoryPanel onSelect={vi.fn()} onStatusChange={onStatusChange} refreshKey={0} />,
+    );
+
+    await screen.findByRole("button", { name: /run_status_sync/ });
+    const discardButton = container.querySelector('button[title="标记为已废弃"]');
+    expect(discardButton).not.toBeNull();
+    fireEvent.click(discardButton!);
+
+    expect(onStatusChange).toHaveBeenCalledWith("run_status_sync", "discarded");
+    expect(loadHistory().find((entry) => entry.run_id === "run_status_sync")?.status).toBe("discarded");
+
+    fireEvent.click(await screen.findByRole("button", { name: /显示已废弃/ }));
+    const restoreButton = container.querySelector('button[title="恢复"]');
+    expect(restoreButton).not.toBeNull();
+    fireEvent.click(restoreButton!);
+
+    expect(onStatusChange).toHaveBeenCalledWith("run_status_sync", "draft");
+    expect(loadHistory().find((entry) => entry.run_id === "run_status_sync")?.status).toBe("draft");
   });
 
   it("shows mission workspace workflow stats", async () => {
