@@ -3,6 +3,7 @@ import {
   saveToHistory,
   loadHistory,
   updateHistoryStatus,
+  appendRunLogUserAction,
   deleteFromHistory,
   clearHistory,
 } from "../lib/history-store";
@@ -148,6 +149,39 @@ describe("history-store", () => {
       // Original entry unchanged
       const loaded = loadHistory();
       expect(loaded[0].status).toBe("draft");
+    });
+  });
+
+  describe("appendRunLogUserAction", () => {
+    it("appends a user action to the matching run log", () => {
+      saveToHistory(makeEntry({ run_id: "run_action_test" }));
+
+      const action = appendRunLogUserAction("run_action_test", "copy_json");
+      const loaded = loadHistory();
+
+      expect(action).not.toBeNull();
+      expect(action?.type).toBe("copy_json");
+      expect(action?.at).toBeTruthy();
+      expect(loaded[0].analyzeResponse.runLog?.user_actions).toEqual([action]);
+    });
+
+    it("keeps at most 50 user actions per run log", () => {
+      saveToHistory(makeEntry({ run_id: "run_action_cap" }));
+
+      for (let i = 0; i < 55; i++) {
+        appendRunLogUserAction("run_action_cap", i === 54 ? "download_raw" : "copy_report");
+      }
+
+      const actions = loadHistory()[0].analyzeResponse.runLog?.user_actions ?? [];
+      expect(actions).toHaveLength(50);
+      expect(actions[49].type).toBe("download_raw");
+    });
+
+    it("returns null for a missing run id", () => {
+      saveToHistory(makeEntry({ run_id: "run_exists" }));
+
+      expect(appendRunLogUserAction("run_missing", "copy_report")).toBeNull();
+      expect(loadHistory()[0].analyzeResponse.runLog?.user_actions).toBeUndefined();
     });
   });
 

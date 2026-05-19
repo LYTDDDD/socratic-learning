@@ -6,11 +6,15 @@ import { buildMarkdownFromAnalysisJson } from "../lib/analysis-markdown";
 
 type DownloadButtonProps = {
   result: AnalyzeResponse | null;
+  onDownload?: (format: DownloadFormat) => void;
 };
+
+type DownloadFormat = "markdown" | "json" | "raw";
 
 type DownloadOption = {
   label: string;
   ext: string;
+  format: DownloadFormat;
   content: string | null;
   available: boolean;
 };
@@ -36,7 +40,7 @@ function download(content: string, filename: string, mimeType: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function DownloadButton({ result }: DownloadButtonProps) {
+export function DownloadButton({ result, onDownload }: DownloadButtonProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -59,12 +63,14 @@ export function DownloadButton({ result }: DownloadButtonProps) {
     {
       label: "Markdown",
       ext: "md",
+      format: "markdown",
       content: markdownContent,
       available: markdownContent != null,
     },
     {
       label: "JSON",
       ext: "json",
+      format: "json",
       content:
         result?.json != null && (result.parseStatus === "success" || result.parseStatus === "partial")
           ? JSON.stringify(result.json, null, 2)
@@ -74,6 +80,7 @@ export function DownloadButton({ result }: DownloadButtonProps) {
     {
       label: "Raw Text",
       ext: "txt",
+      format: "raw",
       content: result?.raw ?? null,
       available: result?.raw != null,
     },
@@ -89,6 +96,7 @@ export function DownloadButton({ result }: DownloadButtonProps) {
       txt: "text/plain;charset=utf-8",
     };
     download(opt.content, `analysis-${stamp}.${opt.ext}`, mimeTypes[opt.ext]);
+    onDownload?.(opt.format);
     setOpen(false);
   }
 
