@@ -3,6 +3,7 @@ import { describe, expect, it, beforeAll, beforeEach, vi } from "vitest";
 import { StructuredReportView } from "../components/StructuredReportView";
 import type { CognitiveAsset } from "../lib/extract-asset";
 import { saveAsset } from "../lib/asset-store";
+import { diagnoseAnalysisJson } from "../lib/analysis-schema-diagnostics";
 
 class LocalStorageMock {
   private store: Record<string, string> = {};
@@ -367,6 +368,7 @@ describe("StructuredReportView", () => {
     expect(screen.getByText("资产更新建议")).toBeInTheDocument();
   });
 
+<<<<<<< HEAD
   it("shows apply button for proposals with existing target asset", () => {
     saveAsset({
       asset_id: "asset_001",
@@ -459,5 +461,49 @@ describe("StructuredReportView", () => {
     expect(buttons.length).toBe(2);
     expect(screen.getByText("第一次更新")).toBeInTheDocument();
     expect(screen.getByText("第二次更新")).toBeInTheDocument();
+  });
+
+  it("transitions from not_attempted to success without hook order error", () => {
+    const { rerender } = render(
+      <StructuredReportView json={null} parseStatus="not_attempted" />,
+    );
+    expect(screen.getByText(/暂无结构化报告/)).toBeInTheDocument();
+
+    const json = makeReportJson();
+    rerender(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.getByText("离线任务分析报告")).toBeInTheDocument();
+    expect(screen.getByText("判断学生是否真正理解斜率")).toBeInTheDocument();
+  });
+
+  it("transitions from loading to success without hook order error", () => {
+    const { rerender } = render(
+      <StructuredReportView json={null} parseStatus="success" isLoading />,
+    );
+    expect(screen.getByText(/正在等待结构化报告/)).toBeInTheDocument();
+
+    const json = makeReportJson();
+    rerender(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.getByText("离线任务分析报告")).toBeInTheDocument();
+  });
+
+  it("shows diagnostic badge for complete report", () => {
+    const json = makeReportJson();
+    const diagnostic = diagnoseAnalysisJson(json);
+    expect(diagnostic.level).toBe("complete");
+
+    render(<StructuredReportView json={json} parseStatus="success" />);
+    expect(screen.getByText("完整")).toBeInTheDocument();
+  });
+
+  it("shows diagnostic badge for partial report", () => {
+    const json = makeReportJson();
+    delete (json as Record<string, unknown>).asset_decision;
+    const diagnostic = diagnoseAnalysisJson(json);
+    expect(diagnostic.level).toBe("partial");
+
+    render(<StructuredReportView json={json} parseStatus="success" />);
+    expect(screen.getByText("部分字段缺失")).toBeInTheDocument();
   });
 });
