@@ -368,7 +368,6 @@ describe("StructuredReportView", () => {
     expect(screen.getByText("资产更新建议")).toBeInTheDocument();
   });
 
-<<<<<<< HEAD
   it("shows apply button for proposals with existing target asset", () => {
     saveAsset({
       asset_id: "asset_001",
