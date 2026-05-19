@@ -787,6 +787,9 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
         assignReportToMission(currentMissionId, response.runLog.run_id);
         setMissionRefreshKey((k) => k + 1);
       }
+    } else {
+      setCurrentRunId(null);
+      setCurrentReportStatus("draft");
     }
   }, [currentMissionId]);
 
@@ -814,6 +817,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     setIsLoading(true);
     setResult(null);
     setAgentProgress([]);
+    setCurrentRunId(null);
+    setCurrentReportStatus("draft");
   }, []);
 
   const handleConfirmAsset = useCallback(() => {

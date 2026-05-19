@@ -74,10 +74,12 @@ export function HistoryPanel({ onSelect, onStatusChange, refreshKey }: HistoryPa
   }
 
   function handleSelect(entry: HistoryEntry) {
+    let status = entry.status;
     if (entry.status === "draft") {
       updateHistoryStatus(entry.run_id, "reviewed");
+      status = "reviewed";
     }
-    onSelect(entry.analyzeResponse, entry.run_id, entry.status);
+    onSelect(entry.analyzeResponse, entry.run_id, status);
     refresh();
   }
 

@@ -573,4 +573,13 @@ describe("StructuredReportView", () => {
     expect(screen.queryByText("已审阅")).not.toBeInTheDocument();
     expect(screen.queryByText("已废弃")).not.toBeInTheDocument();
   });
+
+  it("shows reviewed status when draft report is selected from history", () => {
+    const json = makeReportJson();
+    const onSelect = vi.fn();
+    // Simulate: HistoryPanel calls onSelect with status="reviewed" after auto-upgrading draft
+    render(<StructuredReportView json={json} parseStatus="success" reportStatus="reviewed" />);
+    expect(screen.getByText("已审阅")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "标记已审阅" })).not.toBeInTheDocument();
+  });
 });
