@@ -156,7 +156,7 @@ describe("applyAssetUpdateProposal", () => {
     }
   });
 
-  it("applies minor_edit by updating current version in place", () => {
+  it("applies minor_edit by creating new version, not overwriting old", () => {
     saveAsset(makeAsset());
 
     const result = applyAssetUpdateProposal({
@@ -172,10 +172,12 @@ describe("applyAssetUpdateProposal", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.asset.versions.length).toBe(1);
+      expect(result.asset.versions.length).toBe(2);
+      expect(result.asset.current_version_id).not.toBe("v1");
       expect(result.asset.core_insight).toBe("修正后的核心洞察");
-      const currentVersion = result.asset.versions.find((v) => v.id === "v1");
-      expect(currentVersion!.coreInsight).toBe("修正后的核心洞察");
+      const oldVersion = result.asset.versions.find((v) => v.id === "v1");
+      expect(oldVersion).toBeDefined();
+      expect(oldVersion!.coreInsight).toBe("原始核心洞察");
     }
   });
 });

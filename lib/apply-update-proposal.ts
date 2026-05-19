@@ -1,4 +1,4 @@
-import { loadAssets, createAssetVersion, minorEditAsset } from "./asset-store";
+import { loadAssets, createAssetVersion } from "./asset-store";
 import type { CognitiveAsset } from "./extract-asset";
 
 type UpdateProposal = {
@@ -53,12 +53,9 @@ export function applyAssetUpdateProposal(proposal: UpdateProposal): ApplyResult 
     return { success: false, error: "提案中没有可应用的变更字段" };
   }
 
-  const changeReason = proposal.reason || "通过资产更新建议应用";
-
-  if (action === "minor_edit") {
-    const updated = minorEditAsset(target, updates);
-    return { success: true, asset: updated };
-  }
+  const changeReason = proposal.reason
+    ? `[${action}] ${proposal.reason}`
+    : `通过资产更新建议应用（${action}）`;
 
   const updated = createAssetVersion(target, updates, changeReason);
   return { success: true, asset: updated };
