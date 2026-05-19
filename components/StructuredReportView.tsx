@@ -214,20 +214,137 @@ function DepthEvaluation({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+type UpdateProposalItem = {
+  suggested_action: string;
+  related_asset_id: string;
+  related_asset_title: string;
+  reason: string;
+  evidence: string | string[];
+  suggested_changes?: Record<string, unknown>;
+};
+
+function normalizeUpdateProposals(value: unknown): UpdateProposalItem[] {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .filter(isRecord)
+      .map((item) => ({
+        suggested_action: asText(item.suggested_action),
+        related_asset_id: asText(item.related_asset_id),
+        related_asset_title: asText(item.related_asset_title),
+        reason: asText(item.reason),
+        evidence: Array.isArray(item.evidence) ? item.evidence.map(asText).filter(Boolean) : asText(item.evidence),
+        suggested_changes: isRecord(item.suggested_changes) ? item.suggested_changes : undefined,
+      }))
+      .filter((p) => p.suggested_action && p.suggested_action !== "none" && p.suggested_action !== "ignore");
+  }
+  if (isRecord(value)) {
+    const action = asText(value.suggested_action);
+    if (!action || action === "none" || action === "ignore") return [];
+    return [
+      {
+        suggested_action: action,
+        related_asset_id: asText(value.related_asset_id),
+        related_asset_title: asText(value.related_asset_title),
+        reason: asText(value.reason),
+        evidence: Array.isArray(value.evidence) ? value.evidence.map(asText).filter(Boolean) : asText(value.evidence),
+        suggested_changes: isRecord(value.suggested_changes) ? value.suggested_changes : undefined,
+      },
+    ];
+  }
+  return [];
+}
+
+function actionLabel(action: string): string {
+  if (action === "minor_edit") return "小修改";
+  if (action === "create_new_version") return "新版本";
+  return action;
+}
+
+function actionTone(action: string): string {
+  if (action === "minor_edit") return "bg-amber/15 text-amber";
+  if (action === "create_new_version") return "bg-blue/15 text-blue";
+  return "bg-surface-2 text-ink-muted";
+}
+
+function AssetUpdateProposals({ proposals }: { proposals: UpdateProposalItem[] }) {
+  if (proposals.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">资产更新建议</p>
+      <div className="mt-2 divide-y divide-line rounded-md border border-line">
+        {proposals.map((p, index) => (
+          <div className="p-3" key={`proposal-${index}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${actionTone(p.suggested_action)}`}>
+                {actionLabel(p.suggested_action)}
+              </span>
+              {p.related_asset_title && (
+                <span className="text-sm font-semibold text-ink">{p.related_asset_title}</span>
+              )}
+              {p.related_asset_id && (
+                <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-mono text-ink-muted">{p.related_asset_id}</span>
+              )}
+            </div>
+            {p.reason && <p className="mt-2 text-sm leading-6 text-ink">{p.reason}</p>}
+            {Array.isArray(p.evidence) && p.evidence.length > 0 && (
+              <ul className="mt-1.5 space-y-1 text-sm leading-6 text-ink-muted">
+                {p.evidence.map((e, ei) => (
+                  <li className="flex gap-2" key={`evidence-${index}-${ei}`}>
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-muted/50" />
+                    <span>{e}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {typeof p.evidence === "string" && p.evidence && (
+              <p className="mt-1.5 text-sm leading-6 text-ink-muted">{p.evidence}</p>
+            )}
+            {p.suggested_changes && Object.keys(p.suggested_changes).length > 0 && (
+              <div className="mt-2 rounded-md border border-line bg-surface-2/50 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">建议改动</p>
+                <div className="mt-1.5 space-y-1 text-sm text-ink">
+                  {Object.entries(p.suggested_changes).map(([key, val]) => (
+                    <div key={key}>
+                      <span className="text-ink-muted">{key}：</span>
+                      <span>{typeof val === "string" ? val : JSON.stringify(val)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AssetDecision({
   data,
-  updateProposal,
+  missionReviewUpdateProposal,
+  assetDecisionUpdateProposals,
   draftAsset,
   assetAlreadySaved,
   assetCandidateDismissed,
   onConfirmDraftAsset,
   onDiscardDraftAsset,
-}: { data: Record<string, unknown>; updateProposal: Record<string, unknown> } & AssetActionProps) {
+}: {
+  data: Record<string, unknown>;
+  missionReviewUpdateProposal: unknown;
+  assetDecisionUpdateProposals: unknown;
+} & AssetActionProps) {
   const pkg = asRecord(data.asset_candidate_package);
   const draft = asRecord(pkg.draft_asset);
   const connectionLayer = asRecord(draft.connection_layer);
   const canConfirm = Boolean(draftAsset && onConfirmDraftAsset && !assetAlreadySaved);
   const canDiscard = Boolean(draftAsset && onDiscardDraftAsset && !assetAlreadySaved);
+
+  const allProposals = [
+    ...normalizeUpdateProposals(missionReviewUpdateProposal),
+    ...normalizeUpdateProposals(assetDecisionUpdateProposals),
+  ];
 
   return (
     <Section eyebrow="Asset Decision" title="资产决策">
@@ -307,14 +424,7 @@ function AssetDecision({
         </div>
       )}
 
-      {Object.keys(updateProposal).length > 0 && (
-        <div className="rounded-md border border-line px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">资产更新建议</p>
-          <Field label="建议动作" value={updateProposal.suggested_action} />
-          <Field label="原因" value={updateProposal.reason} />
-          <BulletList label="证据" values={updateProposal.evidence} />
-        </div>
-      )}
+      <AssetUpdateProposals proposals={allProposals} />
     </Section>
   );
 }
@@ -385,11 +495,12 @@ export function StructuredReportView({
       <AssetDecision
         assetAlreadySaved={assetAlreadySaved}
         assetCandidateDismissed={assetCandidateDismissed}
+        assetDecisionUpdateProposals={assetDecision.update_proposals}
         data={assetDecision}
         draftAsset={draftAsset}
+        missionReviewUpdateProposal={missionReview.asset_update_proposal}
         onConfirmDraftAsset={onConfirmDraftAsset}
         onDiscardDraftAsset={onDiscardDraftAsset}
-        updateProposal={asRecord(missionReview.asset_update_proposal)}
       />
       <TraceSummary data={traceSummary} />
     </div>

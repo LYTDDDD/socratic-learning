@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { StructuredReportView } from "../components/StructuredReportView";
 import type { CognitiveAsset } from "../lib/extract-asset";
 
-function makeReportJson() {
+function makeReportJson(): Record<string, unknown> {
   return {
     mission_review: {
       original_goal: "判断学生是否真正理解斜率",
@@ -31,13 +31,13 @@ function makeReportJson() {
       asset_update_proposal: {
         suggested_action: "none",
         reason: "没有旧资产上下文。",
-        evidence: [],
+        evidence: [] as string[],
       },
       next_action: {
         action: "用三道迁移题测试该诊断方法。",
         verification_method: "比较学生解释质量。",
       },
-    },
+    } as Record<string, unknown>,
     depth_evaluation: {
       overall_depth_score: 7,
       overall_reason: "有明确判断变化。",
@@ -59,7 +59,7 @@ function makeReportJson() {
         qualified: true,
         reason: "满足候选阈值。",
       },
-    },
+    } as Record<string, unknown>,
     asset_decision: {
       asset_candidate: true,
       why_worth_saving: "可复用为课堂理解诊断方法。",
@@ -87,14 +87,14 @@ function makeReportJson() {
           },
         },
       },
-    },
+    } as Record<string, unknown>,
     trace_summary: {
       mission_detected: true,
       analysis_path: ["识别目标", "评估判断变化"],
       key_evidence_used: ["学生解释不出参数含义"],
       policy_checks: ["未展示隐藏推理"],
       uncertainties: ["样本较少"],
-    },
+    } as Record<string, unknown>,
   };
 }
 
@@ -244,5 +244,105 @@ describe("StructuredReportView", () => {
 
     expect(screen.getByText("已放弃候选")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "确认入库" })).not.toBeInTheDocument();
+  });
+
+  it("does not render update proposals section when action is none", () => {
+    render(<StructuredReportView json={makeReportJson()} parseStatus="success" />);
+
+    expect(screen.queryByText("资产更新建议")).not.toBeInTheDocument();
+  });
+
+  it("renders mission_review.asset_update_proposal with valid action", () => {
+    const json = makeReportJson();
+    (json.mission_review as Record<string, unknown>).asset_update_proposal = {
+      suggested_action: "minor_edit",
+      related_asset_id: "asset_001",
+      related_asset_title: "旧诊断方法",
+      reason: "新对话补充了迁移维度",
+      evidence: ["学生解释不出参数含义"],
+    };
+    render(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.getByText("资产更新建议")).toBeInTheDocument();
+    expect(screen.getByText("小修改")).toBeInTheDocument();
+    expect(screen.getByText("旧诊断方法")).toBeInTheDocument();
+    expect(screen.getByText("asset_001")).toBeInTheDocument();
+    expect(screen.getByText("新对话补充了迁移维度")).toBeInTheDocument();
+  });
+
+  it("renders asset_decision.update_proposals array", () => {
+    const json = makeReportJson();
+    (json.asset_decision as Record<string, unknown>).update_proposals = [
+      {
+        related_asset_id: "asset_002",
+        related_asset_title: "概念理解框架",
+        suggested_action: "create_new_version",
+        reason: "需要增加边界判断维度",
+        evidence: "深度评估显示边界清晰度不足",
+        suggested_changes: { core_insight: "更新后的核心洞察" },
+      },
+    ];
+    render(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.getByText("资产更新建议")).toBeInTheDocument();
+    expect(screen.getByText("新版本")).toBeInTheDocument();
+    expect(screen.getByText("概念理解框架")).toBeInTheDocument();
+    expect(screen.getByText("需要增加边界判断维度")).toBeInTheDocument();
+    expect(screen.getByText("建议改动")).toBeInTheDocument();
+    expect(screen.getByText(/更新后的核心洞察/)).toBeInTheDocument();
+  });
+
+  it("merges proposals from both mission_review and asset_decision", () => {
+    const json = makeReportJson();
+    (json.mission_review as Record<string, unknown>).asset_update_proposal = {
+      suggested_action: "minor_edit",
+      related_asset_id: "asset_001",
+      related_asset_title: "旧诊断方法",
+      reason: "补充迁移维度",
+      evidence: [] as string[],
+    };
+    (json.asset_decision as Record<string, unknown>).update_proposals = [
+      {
+        related_asset_id: "asset_002",
+        related_asset_title: "概念理解框架",
+        suggested_action: "create_new_version",
+        reason: "需要增加边界判断",
+        evidence: "深度评估不足",
+      },
+    ];
+    render(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.getByText("旧诊断方法")).toBeInTheDocument();
+    expect(screen.getByText("概念理解框架")).toBeInTheDocument();
+  });
+
+  it("filters out ignore/none actions from proposals", () => {
+    const json = makeReportJson();
+    (json.asset_decision as Record<string, unknown>).update_proposals = [
+      {
+        related_asset_id: "asset_003",
+        related_asset_title: "应忽略的资产",
+        suggested_action: "ignore",
+        reason: "不相关",
+        evidence: "",
+      },
+    ];
+    render(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.queryByText("资产更新建议")).not.toBeInTheDocument();
+    expect(screen.queryByText("应忽略的资产")).not.toBeInTheDocument();
+  });
+
+  it("handles malformed update proposals gracefully", () => {
+    const json = makeReportJson();
+    (json.asset_decision as Record<string, unknown>).update_proposals = [
+      "not an object",
+      null,
+      { suggested_action: "minor_edit" },
+    ];
+    (json.mission_review as Record<string, unknown>).asset_update_proposal = 42;
+    render(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.getByText("资产更新建议")).toBeInTheDocument();
   });
 });
