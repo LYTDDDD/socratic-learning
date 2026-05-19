@@ -192,6 +192,45 @@ describe("workflow navigation panels", () => {
     expect(loadHistory().find((entry) => entry.run_id === "run_status_sync")?.status).toBe("draft");
   });
 
+  it("records a user action when copying markdown from history", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    saveToHistory(makeHistoryEntry({ run_id: "run_history_md_copy", status: "reviewed" }));
+    const onUserActionRecorded = vi.fn();
+
+    render(<HistoryPanel onSelect={vi.fn()} onUserActionRecorded={onUserActionRecorded} refreshKey={0} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "M" }));
+
+    await waitFor(() => {
+      const actions = loadHistory()[0].analyzeResponse.runLog?.user_actions ?? [];
+      expect(actions[0]?.type).toBe("copy_markdown");
+      expect(onUserActionRecorded).toHaveBeenCalledWith("run_history_md_copy", actions[0]);
+    });
+    expect(writeText).toHaveBeenCalledWith("# report");
+  });
+
+  it("records a user action when copying json from history", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    saveToHistory(makeHistoryEntry({ run_id: "run_history_json_copy", status: "reviewed" }));
+
+    render(<HistoryPanel onSelect={vi.fn()} refreshKey={0} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "J" }));
+
+    await waitFor(() => {
+      expect(loadHistory()[0].analyzeResponse.runLog?.user_actions?.[0]?.type).toBe("copy_json");
+    });
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("run_history_json_copy"));
+  });
+
   it("shows mission workspace workflow stats", async () => {
     const mission = saveMission({
       title: "函数理解诊断",

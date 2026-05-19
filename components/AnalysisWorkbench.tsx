@@ -17,7 +17,7 @@ import { AgentStepProgress, parseAgentSteps } from "./AgentStepProgress";
 import type { AgentProgressStep } from "./AgentStepProgress";
 import { AgentOutputCards } from "./AgentOutputCards";
 import type { AnalyzeInput, AnalyzeResponse } from "../lib/analyze-types";
-import type { RunLogUserActionType } from "../lib/run-log";
+import type { RunLogUserAction, RunLogUserActionType } from "../lib/run-log";
 import type { Correction } from "../lib/correction-store";
 import { appendRunLogUserAction, saveToHistory, loadHistory, updateHistoryStatus } from "../lib/history-store";
 import type { HistoryStatus } from "../lib/history-store";
@@ -748,6 +748,20 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     });
   }, [currentRunId]);
 
+  const handleHistoryUserActionRecorded = useCallback((runId: string, action: RunLogUserAction) => {
+    if (runId !== currentRunId) return;
+    setResult((current) => {
+      if (!current?.runLog || current.runLog.run_id !== runId) return current;
+      return {
+        ...current,
+        runLog: {
+          ...current.runLog,
+          user_actions: [...(current.runLog.user_actions ?? []), action],
+        },
+      };
+    });
+  }, [currentRunId]);
+
   const handleConfirmAsset = useCallback(() => {
     recordUserAction("confirm_asset");
     setAssetRefreshKey((k) => k + 1);
@@ -909,7 +923,14 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
             </button>
             </div>
           </div>
-          {leftTab === "history" && <HistoryPanel onSelect={handleHistorySelect} onStatusChange={handleHistoryStatusChange} refreshKey={historyRefreshKey} />}
+          {leftTab === "history" && (
+            <HistoryPanel
+              onSelect={handleHistorySelect}
+              onStatusChange={handleHistoryStatusChange}
+              onUserActionRecorded={handleHistoryUserActionRecorded}
+              refreshKey={historyRefreshKey}
+            />
+          )}
           {leftTab === "mission" && (
             <MissionPanel
               currentMissionId={currentMissionId}
