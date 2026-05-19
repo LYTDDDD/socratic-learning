@@ -3,6 +3,7 @@
 import { useState, useCallback, type ReactNode } from "react";
 import type { AnalyzeResponse } from "../lib/analyze-types";
 import type { CognitiveAsset } from "../lib/extract-asset";
+import type { HistoryStatus } from "../lib/history-store";
 import { applyAssetUpdateProposal, findAssetById } from "../lib/apply-update-proposal";
 import { diagnoseAnalysisJson, diagnosticLabel, diagnosticTone } from "../lib/analysis-schema-diagnostics";
 
@@ -18,6 +19,10 @@ type StructuredReportViewProps = {
   runId?: string;
   missionTitle?: string | null;
   onAssetUpdated?: () => void;
+  reportStatus?: HistoryStatus;
+  onMarkReviewed?: () => void;
+  onMarkDiscarded?: () => void;
+  onRestoreReport?: () => void;
 };
 
 type AssetActionProps = Pick<
@@ -527,6 +532,74 @@ function TraceSummary({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+function reportStatusLabel(status: HistoryStatus): string {
+  if (status === "reviewed") return "已审阅";
+  if (status === "discarded") return "已废弃";
+  return "待审阅";
+}
+
+function reportStatusTone(status: HistoryStatus): string {
+  if (status === "reviewed") return "bg-moss/15 text-moss";
+  if (status === "discarded") return "bg-surface-2 text-ink-muted";
+  return "bg-amber/15 text-amber";
+}
+
+function ReportStatusBar({
+  status,
+  onMarkReviewed,
+  onMarkDiscarded,
+  onRestoreReport,
+}: {
+  status: HistoryStatus;
+  onMarkReviewed?: () => void;
+  onMarkDiscarded?: () => void;
+  onRestoreReport?: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${reportStatusTone(status)}`}>
+        {reportStatusLabel(status)}
+      </span>
+      {status === "draft" && (
+        <>
+          <button
+            className="rounded-md bg-moss/90 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-moss"
+            onClick={onMarkReviewed}
+            type="button"
+          >
+            标记已审阅
+          </button>
+          <button
+            className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink-muted transition hover:bg-surface-2"
+            onClick={onMarkDiscarded}
+            type="button"
+          >
+            标记废弃
+          </button>
+        </>
+      )}
+      {status === "reviewed" && (
+        <button
+          className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink-muted transition hover:bg-surface-2"
+          onClick={onMarkDiscarded}
+          type="button"
+        >
+          标记废弃
+        </button>
+      )}
+      {status === "discarded" && (
+        <button
+          className="rounded-md bg-blue/90 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue"
+          onClick={onRestoreReport}
+          type="button"
+        >
+          恢复报告
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function StructuredReportView({
   json,
   parseStatus,
@@ -539,6 +612,10 @@ export function StructuredReportView({
   runId,
   missionTitle,
   onAssetUpdated,
+  reportStatus,
+  onMarkReviewed,
+  onMarkDiscarded,
+  onRestoreReport,
 }: StructuredReportViewProps) {
   if (isLoading) {
     return (
@@ -611,6 +688,14 @@ export function StructuredReportView({
             )}
           </div>
         </div>
+        {reportStatus && (
+          <ReportStatusBar
+            onMarkDiscarded={onMarkDiscarded}
+            onMarkReviewed={onMarkReviewed}
+            onRestoreReport={onRestoreReport}
+            status={reportStatus}
+          />
+        )}
       </div>
       <MissionReview data={missionReview} />
       <DepthEvaluation data={depthEvaluation} />

@@ -505,4 +505,72 @@ describe("StructuredReportView", () => {
     render(<StructuredReportView json={json} parseStatus="success" />);
     expect(screen.getByText("部分字段缺失")).toBeInTheDocument();
   });
+
+  it("shows ReportStatusBar with draft status and action buttons", () => {
+    const json = makeReportJson();
+    render(<StructuredReportView json={json} parseStatus="success" reportStatus="draft" />);
+    expect(screen.getByText("待审阅")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "标记已审阅" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "标记废弃" })).toBeInTheDocument();
+  });
+
+  it("shows reviewed status with discard button", () => {
+    const json = makeReportJson();
+    render(<StructuredReportView json={json} parseStatus="success" reportStatus="reviewed" />);
+    expect(screen.getByText("已审阅")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "标记已审阅" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "标记废弃" })).toBeInTheDocument();
+  });
+
+  it("shows discarded status with restore button", () => {
+    const json = makeReportJson();
+    render(<StructuredReportView json={json} parseStatus="success" reportStatus="discarded" />);
+    expect(screen.getByText("已废弃")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "恢复报告" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "标记废弃" })).not.toBeInTheDocument();
+  });
+
+  it("syncs status bar when reportStatus prop changes from draft to discarded", () => {
+    const json = makeReportJson();
+    const onMarkDiscarded = vi.fn();
+    const { rerender } = render(
+      <StructuredReportView json={json} parseStatus="success" reportStatus="draft" onMarkDiscarded={onMarkDiscarded} />,
+    );
+    expect(screen.getByText("待审阅")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "标记废弃" }));
+    expect(onMarkDiscarded).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <StructuredReportView json={json} parseStatus="success" reportStatus="discarded" onMarkDiscarded={onMarkDiscarded} />,
+    );
+    expect(screen.getByText("已废弃")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "恢复报告" })).toBeInTheDocument();
+  });
+
+  it("syncs status bar when reportStatus prop changes from discarded to draft via restore", () => {
+    const json = makeReportJson();
+    const onRestoreReport = vi.fn();
+    const { rerender } = render(
+      <StructuredReportView json={json} parseStatus="success" reportStatus="discarded" onRestoreReport={onRestoreReport} />,
+    );
+    expect(screen.getByText("已废弃")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "恢复报告" }));
+    expect(onRestoreReport).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <StructuredReportView json={json} parseStatus="success" reportStatus="draft" onRestoreReport={onRestoreReport} />,
+    );
+    expect(screen.getByText("待审阅")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "标记已审阅" })).toBeInTheDocument();
+  });
+
+  it("hides ReportStatusBar when reportStatus is not provided", () => {
+    const json = makeReportJson();
+    render(<StructuredReportView json={json} parseStatus="success" />);
+    expect(screen.queryByText("待审阅")).not.toBeInTheDocument();
+    expect(screen.queryByText("已审阅")).not.toBeInTheDocument();
+    expect(screen.queryByText("已废弃")).not.toBeInTheDocument();
+  });
 });
