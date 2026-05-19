@@ -4,6 +4,7 @@ import { useState, useCallback, type ReactNode } from "react";
 import type { AnalyzeResponse } from "../lib/analyze-types";
 import type { CognitiveAsset } from "../lib/extract-asset";
 import { applyAssetUpdateProposal, findAssetById } from "../lib/apply-update-proposal";
+import { diagnoseAnalysisJson, diagnosticLabel, diagnosticTone } from "../lib/analysis-schema-diagnostics";
 
 type StructuredReportViewProps = {
   json: unknown | null;
@@ -535,26 +536,47 @@ export function StructuredReportView({
   const assetDecision = asRecord(root.asset_decision);
   const traceSummary = asRecord(root.trace_summary);
 
+  const diagnostic = diagnoseAnalysisJson(json);
+
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-surface-1">
       <div className="border-b border-line px-5 py-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Structured Report</p>
-        <h1 className="mt-1 text-xl font-semibold text-ink">离线任务分析报告</h1>
-        <p className="mt-1 text-sm text-ink-muted">由 JSON 渲染，JSON 仍是唯一事实来源。</p>
-        {(runId || missionTitle !== undefined) && (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {runId && (
-              <span className="rounded bg-surface-2 px-2 py-0.5 text-[10px] font-mono text-ink-muted">
-                Run: {runId}
-              </span>
-            )}
-            {missionTitle !== undefined && (
-              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${missionTitle ? "bg-moss/15 text-moss" : "bg-surface-2 text-ink-muted"}`}>
-                {missionTitle ? `Mission: ${missionTitle}` : "未关联 Mission"}
-              </span>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-blue">Structured Report</p>
+            <h1 className="mt-1 text-xl font-semibold text-ink">离线任务分析报告</h1>
+            <p className="mt-1 text-sm text-ink-muted">由 JSON 渲染，JSON 仍是唯一事实来源。</p>
+            {(runId || missionTitle !== undefined) && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {runId && (
+                  <span className="rounded bg-surface-2 px-2 py-0.5 text-[10px] font-mono text-ink-muted">
+                    Run: {runId}
+                  </span>
+                )}
+                {missionTitle !== undefined && (
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${missionTitle ? "bg-moss/15 text-moss" : "bg-surface-2 text-ink-muted"}`}>
+                    {missionTitle ? `Mission: ${missionTitle}` : "未关联 Mission"}
+                  </span>
+                )}
+              </div>
             )}
           </div>
-        )}
+          <div className="flex flex-col items-end gap-1">
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${diagnosticTone(diagnostic.level)}`}>
+              {diagnosticLabel(diagnostic.level)}
+            </span>
+            {diagnostic.level === "partial" && diagnostic.missingPaths.length > 0 && (
+              <div className="mt-1 max-w-64 rounded-md border border-amber/20 bg-amber/5 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber">缺失字段</p>
+                <ul className="mt-1 space-y-0.5">
+                  {diagnostic.missingPaths.map((p) => (
+                    <li className="text-xs text-ink-muted" key={p}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
       <MissionReview data={missionReview} />
       <DepthEvaluation data={depthEvaluation} />
