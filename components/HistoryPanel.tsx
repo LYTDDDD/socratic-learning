@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { HistoryEntry, HistoryStatus } from "../lib/history-store";
-import { loadHistory, deleteFromHistory, clearHistory, updateHistoryStatus } from "../lib/history-store";
+import { appendRunLogUserAction, loadHistory, deleteFromHistory, clearHistory, updateHistoryStatus } from "../lib/history-store";
 import type { AnalyzeResponse } from "../lib/analyze-types";
 import { buildMarkdownFromAnalysisJson } from "../lib/analysis-markdown";
+import type { RunLogUserAction } from "../lib/run-log";
 
 type HistoryPanelProps = {
   onSelect: (response: AnalyzeResponse, runId: string, status: HistoryStatus) => void;
   onStatusChange?: (runId: string, newStatus: HistoryStatus) => void;
+  onUserActionRecorded?: (runId: string, action: RunLogUserAction) => void;
   refreshKey: number;
 };
 
@@ -47,7 +49,7 @@ function formatTime(iso: string): string {
   }
 }
 
-export function HistoryPanel({ onSelect, onStatusChange, refreshKey }: HistoryPanelProps) {
+export function HistoryPanel({ onSelect, onStatusChange, onUserActionRecorded, refreshKey }: HistoryPanelProps) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [showDiscarded, setShowDiscarded] = useState(false);
   const [copiedMdId, setCopiedMdId] = useState<string | null>(null);
@@ -99,6 +101,8 @@ export function HistoryPanel({ onSelect, onStatusChange, refreshKey }: HistoryPa
     const text = entry.analyzeResponse.markdown ?? buildMarkdownFromAnalysisJson(entry.analyzeResponse.json) ?? "";
     try {
       await navigator.clipboard.writeText(text);
+      const action = appendRunLogUserAction(entry.run_id, "copy_markdown");
+      if (action) onUserActionRecorded?.(entry.run_id, action);
       setCopiedMdId(entry.run_id);
       setTimeout(() => setCopiedMdId((prev) => (prev === entry.run_id ? null : prev)), 1500);
     } catch {}
@@ -108,6 +112,8 @@ export function HistoryPanel({ onSelect, onStatusChange, refreshKey }: HistoryPa
     const text = JSON.stringify(entry.analyzeResponse, null, 2);
     try {
       await navigator.clipboard.writeText(text);
+      const action = appendRunLogUserAction(entry.run_id, "copy_json");
+      if (action) onUserActionRecorded?.(entry.run_id, action);
       setCopiedJsonId(entry.run_id);
       setTimeout(() => setCopiedJsonId((prev) => (prev === entry.run_id ? null : prev)), 1500);
     } catch {}
