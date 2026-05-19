@@ -20,6 +20,8 @@ import type { RunLog } from "../lib/run-log";
 import type { Correction } from "../lib/correction-store";
 import { saveToHistory, loadHistory } from "../lib/history-store";
 import { extractAssetFromResponse } from "../lib/extract-asset";
+import type { CognitiveAsset } from "../lib/extract-asset";
+import { confirmAssetDraft } from "../lib/asset-confirmation";
 import { hasAssetFromRun } from "../lib/asset-store";
 import { Separator } from "./ui/separator";
 import type { PreferenceRule } from "../lib/preference-rule-store";
@@ -736,6 +738,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   const isMultiAgent = agentSteps.length > 0;
 
   const currentRunId = result?.runLog?.run_id ?? "";
+  const assetAlreadySaved = currentRunId ? hasAssetFromRun(currentRunId) : false;
   const corrections = useMemo(() => {
     if (!currentRunId) return [];
     return loadCorrections(currentRunId);
@@ -808,6 +811,11 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   const handleConfirmAsset = useCallback(() => {
     setAssetRefreshKey((k) => k + 1);
   }, []);
+
+  const handleConfirmDraftAsset = useCallback((asset: CognitiveAsset) => {
+    confirmAssetDraft(asset, currentMissionId);
+    setAssetRefreshKey((k) => k + 1);
+  }, [currentMissionId]);
 
   const handleAssetsChanged = useCallback(() => {
     setAssetRefreshKey((k) => k + 1);
@@ -983,8 +991,13 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           {activeTab === "report" && (
             <div className="p-5">
               <StructuredReportView
+                assetAlreadySaved={assetAlreadySaved}
+                assetCandidateDismissed={dismissedDraft}
+                draftAsset={draftAsset}
                 isLoading={isLoading}
                 json={result?.json ?? null}
+                onConfirmDraftAsset={handleConfirmDraftAsset}
+                onDiscardDraftAsset={handleDiscardAsset}
                 parseStatus={result?.parseStatus ?? "not_attempted"}
               />
             </div>

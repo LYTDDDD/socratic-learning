@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { StructuredReportView } from "../components/StructuredReportView";
+import type { CognitiveAsset } from "../lib/extract-asset";
 
 function makeReportJson() {
   return {
@@ -97,6 +98,78 @@ function makeReportJson() {
   };
 }
 
+function makeDraftAsset(): CognitiveAsset {
+  return {
+    asset_id: "asset_report_1",
+    created_at: "2026-05-19T00:00:00.000Z",
+    source_run_id: "run_report_1",
+    status: "draft",
+    asset_type: "MethodCard",
+    maturity: "Reference",
+    title: "理解诊断三问",
+    ai_generated_summary: "",
+    core_insight: "真正理解需要能解释意义并迁移。",
+    my_understanding: "",
+    problem_it_solves: "避免把会算误判成理解。",
+    original_judgment: "会算就是理解。",
+    revised_judgment: "能解释和迁移才更接近理解。",
+    my_judgment: "",
+    transferable_value: "可用于其他抽象概念教学。",
+    review_questions: ["为什么会算不等于理解？"],
+    source_mission: "",
+    confidence: 0,
+    special_fields: {},
+    full_package: {},
+    connection_questions: [],
+    application_questions: [],
+    user_built_connections: {
+      related_concepts: [],
+      related_assets: [],
+      mental_models: [],
+      prior_experience: [],
+      opposite_cases: [],
+      application_scenarios: [],
+      open_questions: [],
+    },
+    ai_suggested_connections: {
+      related_concepts: [],
+      related_assets: [],
+      mental_models: [],
+      prior_experience: [],
+      opposite_cases: [],
+      application_scenarios: [],
+      open_questions: [],
+    },
+    connection_layer: {
+      related_concepts: [],
+      related_assets: [],
+      mental_models: [],
+      prior_experience: [],
+      opposite_cases: [],
+      application_scenarios: [],
+      open_questions: [],
+    },
+    usage_evidence: [],
+    ai_generated_draft: {},
+    user_final_asset: null,
+    current_version_id: "ver_report_1",
+    versions: [
+      {
+        id: "ver_report_1",
+        assetId: "asset_report_1",
+        versionNumber: 1,
+        title: "理解诊断三问",
+        coreInsight: "真正理解需要能解释意义并迁移。",
+        originalJudgment: "会算就是理解。",
+        revisedJudgment: "能解释和迁移才更接近理解。",
+        myUnderstanding: "",
+        transferableValue: "可用于其他抽象概念教学。",
+        createdAt: "2026-05-19T00:00:00.000Z",
+      },
+    ],
+  };
+}
+
 describe("StructuredReportView", () => {
   it("renders the major JSON-only report sections", () => {
     render(<StructuredReportView json={makeReportJson()} parseStatus="success" />);
@@ -123,5 +196,53 @@ describe("StructuredReportView", () => {
     render(<StructuredReportView json={{}} parseStatus="failed" />);
 
     expect(screen.getByText("JSON 解析失败，无法渲染结构化报告。")).toBeInTheDocument();
+  });
+
+  it("exposes asset candidate actions from the report", () => {
+    const draftAsset = makeDraftAsset();
+    const onConfirm = vi.fn();
+    const onDiscard = vi.fn();
+    render(
+      <StructuredReportView
+        draftAsset={draftAsset}
+        json={makeReportJson()}
+        onConfirmDraftAsset={onConfirm}
+        onDiscardDraftAsset={onDiscard}
+        parseStatus="success"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "确认入库" }));
+    fireEvent.click(screen.getByRole("button", { name: "放弃候选" }));
+
+    expect(onConfirm).toHaveBeenCalledWith(draftAsset);
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows saved state for an already confirmed asset candidate", () => {
+    render(
+      <StructuredReportView
+        assetAlreadySaved
+        draftAsset={makeDraftAsset()}
+        json={makeReportJson()}
+        parseStatus="success"
+      />,
+    );
+
+    expect(screen.getByText("已确认入库")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "确认入库" })).not.toBeInTheDocument();
+  });
+
+  it("shows discarded state for a dismissed asset candidate", () => {
+    render(
+      <StructuredReportView
+        assetCandidateDismissed
+        json={makeReportJson()}
+        parseStatus="success"
+      />,
+    );
+
+    expect(screen.getByText("已放弃候选")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "确认入库" })).not.toBeInTheDocument();
   });
 });
