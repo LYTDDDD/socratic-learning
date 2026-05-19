@@ -2,12 +2,23 @@
 
 import type { ReactNode } from "react";
 import type { AnalyzeResponse } from "../lib/analyze-types";
+import type { CognitiveAsset } from "../lib/extract-asset";
 
 type StructuredReportViewProps = {
   json: unknown | null;
   parseStatus: AnalyzeResponse["parseStatus"];
   isLoading?: boolean;
+  draftAsset?: CognitiveAsset | null;
+  assetAlreadySaved?: boolean;
+  assetCandidateDismissed?: boolean;
+  onConfirmDraftAsset?: (asset: CognitiveAsset) => void;
+  onDiscardDraftAsset?: () => void;
 };
+
+type AssetActionProps = Pick<
+  StructuredReportViewProps,
+  "draftAsset" | "assetAlreadySaved" | "assetCandidateDismissed" | "onConfirmDraftAsset" | "onDiscardDraftAsset"
+>;
 
 const dimensionLabels: Record<string, string> = {
   judgment_shift: "Judgment Shift",
@@ -203,10 +214,20 @@ function DepthEvaluation({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-function AssetDecision({ data, updateProposal }: { data: Record<string, unknown>; updateProposal: Record<string, unknown> }) {
+function AssetDecision({
+  data,
+  updateProposal,
+  draftAsset,
+  assetAlreadySaved,
+  assetCandidateDismissed,
+  onConfirmDraftAsset,
+  onDiscardDraftAsset,
+}: { data: Record<string, unknown>; updateProposal: Record<string, unknown> } & AssetActionProps) {
   const pkg = asRecord(data.asset_candidate_package);
   const draft = asRecord(pkg.draft_asset);
   const connectionLayer = asRecord(draft.connection_layer);
+  const canConfirm = Boolean(draftAsset && onConfirmDraftAsset && !assetAlreadySaved);
+  const canDiscard = Boolean(draftAsset && onDiscardDraftAsset && !assetAlreadySaved);
 
   return (
     <Section eyebrow="Asset Decision" title="资产决策">
@@ -230,6 +251,38 @@ function AssetDecision({ data, updateProposal }: { data: Record<string, unknown>
         <div className="rounded-md border border-blue/20 bg-blue/5 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue">Draft Asset</p>
           <h3 className="mt-1 text-base font-semibold text-ink">{asText(draft.title) || "未命名资产候选"}</h3>
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-b border-blue/10 pb-3">
+            {assetAlreadySaved ? (
+              <span className="rounded-full bg-moss/15 px-3 py-1 text-xs font-semibold text-moss">已确认入库</span>
+            ) : assetCandidateDismissed ? (
+              <span className="rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-ink-muted">已放弃候选</span>
+            ) : draftAsset ? (
+              <>
+                <button
+                  className="rounded-md bg-blue px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue/90"
+                  disabled={!canConfirm}
+                  onClick={() => {
+                    if (draftAsset && onConfirmDraftAsset) onConfirmDraftAsset(draftAsset);
+                  }}
+                  type="button"
+                >
+                  确认入库
+                </button>
+                <button
+                  className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink-muted transition hover:bg-surface-2"
+                  disabled={!canDiscard}
+                  onClick={() => {
+                    if (onDiscardDraftAsset) onDiscardDraftAsset();
+                  }}
+                  type="button"
+                >
+                  放弃候选
+                </button>
+              </>
+            ) : (
+              <span className="rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-ink-muted">等待候选包</span>
+            )}
+          </div>
           <div className="mt-3 grid gap-4 lg:grid-cols-2">
             <Field label="核心洞察" value={draft.core_insight} />
             <Field label="AI 摘要" value={draft.ai_generated_summary} />
@@ -280,7 +333,16 @@ function TraceSummary({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-export function StructuredReportView({ json, parseStatus, isLoading }: StructuredReportViewProps) {
+export function StructuredReportView({
+  json,
+  parseStatus,
+  isLoading,
+  draftAsset,
+  assetAlreadySaved,
+  assetCandidateDismissed,
+  onConfirmDraftAsset,
+  onDiscardDraftAsset,
+}: StructuredReportViewProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-64 items-center justify-center rounded-md border border-dashed border-line bg-surface-1 text-sm text-ink-muted">
@@ -320,7 +382,15 @@ export function StructuredReportView({ json, parseStatus, isLoading }: Structure
       </div>
       <MissionReview data={missionReview} />
       <DepthEvaluation data={depthEvaluation} />
-      <AssetDecision data={assetDecision} updateProposal={asRecord(missionReview.asset_update_proposal)} />
+      <AssetDecision
+        assetAlreadySaved={assetAlreadySaved}
+        assetCandidateDismissed={assetCandidateDismissed}
+        data={assetDecision}
+        draftAsset={draftAsset}
+        onConfirmDraftAsset={onConfirmDraftAsset}
+        onDiscardDraftAsset={onDiscardDraftAsset}
+        updateProposal={asRecord(missionReview.asset_update_proposal)}
+      />
       <TraceSummary data={traceSummary} />
     </div>
   );

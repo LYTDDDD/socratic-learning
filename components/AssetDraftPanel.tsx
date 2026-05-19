@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CognitiveAsset, ConnectionLayer, UsageEvidence } from "../lib/extract-asset";
-import { inferAssetMaturity } from "../lib/extract-asset";
-import { saveAndConfirmAsset } from "../lib/asset-store";
+import { confirmAssetDraft } from "../lib/asset-confirmation";
 
 type AssetDraftPanelProps = {
   asset: CognitiveAsset;
@@ -130,31 +129,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
 
   function handleConfirm() {
     const baseAsset = editing ? editedAsset : asset;
-    const userBuiltAsset = {
-      ...cloneAsset(baseAsset),
-      user_built_connections: { ...baseAsset.connection_layer },
-    };
-    const maturedAsset = {
-      ...userBuiltAsset,
-      maturity: inferAssetMaturity(userBuiltAsset),
-    };
-    const userFinalAsset = cloneAsset(maturedAsset);
-    const toSave: CognitiveAsset = {
-      ...maturedAsset,
-      user_final_asset: userFinalAsset,
-      ...(currentMissionId
-        ? {
-            source_mission: currentMissionId,
-            full_package: {
-              ...(typeof maturedAsset.full_package === "object" && maturedAsset.full_package ? maturedAsset.full_package : {}),
-              ...(maturedAsset.source_mission && maturedAsset.source_mission !== currentMissionId
-                ? { ai_source_mission_text: maturedAsset.source_mission }
-                : {}),
-            },
-          }
-        : {}),
-    };
-    saveAndConfirmAsset(toSave);
+    confirmAssetDraft(baseAsset, currentMissionId);
     setConfirmed(true);
     onConfirm();
   }
