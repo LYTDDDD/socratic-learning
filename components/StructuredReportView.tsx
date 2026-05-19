@@ -1,8 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import type { AnalyzeResponse } from "../lib/analyze-types";
 import type { CognitiveAsset } from "../lib/extract-asset";
+import { applyAssetUpdateProposal, findAssetById } from "../lib/apply-update-proposal";
 
 type StructuredReportViewProps = {
   json: unknown | null;
@@ -15,6 +16,7 @@ type StructuredReportViewProps = {
   onDiscardDraftAsset?: () => void;
   runId?: string;
   missionTitle?: string | null;
+  onAssetUpdated?: () => void;
 };
 
 type AssetActionProps = Pick<
@@ -269,55 +271,99 @@ function actionTone(action: string): string {
   return "bg-surface-2 text-ink-muted";
 }
 
-function AssetUpdateProposals({ proposals }: { proposals: UpdateProposalItem[] }) {
+function AssetUpdateProposals({ proposals, onAssetUpdated }: { proposals: UpdateProposalItem[]; onAssetUpdated?: () => void }) {
+  const [appliedKeys, setAppliedKeys] = useState<Set<string>>(new Set());
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleApply = useCallback((p: UpdateProposalItem, index: number) => {
+    const key = `${p.related_asset_id}-${p.suggested_action}-${index}`;
+    const result = applyAssetUpdateProposal(p);
+    if (result.success) {
+      setAppliedKeys((prev) => new Set(prev).add(key));
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      onAssetUpdated?.();
+    } else {
+      setErrors((prev) => ({ ...prev, [key]: result.error }));
+    }
+  }, [onAssetUpdated]);
+
   if (proposals.length === 0) return null;
 
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">资产更新建议</p>
       <div className="mt-2 divide-y divide-line rounded-md border border-line">
-        {proposals.map((p, index) => (
-          <div className="p-3" key={`proposal-${index}`}>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${actionTone(p.suggested_action)}`}>
-                {actionLabel(p.suggested_action)}
-              </span>
-              {p.related_asset_title && (
-                <span className="text-sm font-semibold text-ink">{p.related_asset_title}</span>
-              )}
-              {p.related_asset_id && (
-                <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-mono text-ink-muted">{p.related_asset_id}</span>
-              )}
-            </div>
-            {p.reason && <p className="mt-2 text-sm leading-6 text-ink">{p.reason}</p>}
-            {Array.isArray(p.evidence) && p.evidence.length > 0 && (
-              <ul className="mt-1.5 space-y-1 text-sm leading-6 text-ink-muted">
-                {p.evidence.map((e, ei) => (
-                  <li className="flex gap-2" key={`evidence-${index}-${ei}`}>
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-muted/50" />
-                    <span>{e}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {typeof p.evidence === "string" && p.evidence && (
-              <p className="mt-1.5 text-sm leading-6 text-ink-muted">{p.evidence}</p>
-            )}
-            {p.suggested_changes && Object.keys(p.suggested_changes).length > 0 && (
-              <div className="mt-2 rounded-md border border-line bg-surface-2/50 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">建议改动</p>
-                <div className="mt-1.5 space-y-1 text-sm text-ink">
-                  {Object.entries(p.suggested_changes).map(([key, val]) => (
-                    <div key={key}>
-                      <span className="text-ink-muted">{key}：</span>
-                      <span>{typeof val === "string" ? val : JSON.stringify(val)}</span>
-                    </div>
-                  ))}
-                </div>
+        {proposals.map((p, index) => {
+          const key = `${p.related_asset_id}-${p.suggested_action}-${index}`;
+          const applied = appliedKeys.has(key);
+          const error = errors[key];
+          const targetAsset = findAssetById(p.related_asset_id);
+
+          return (
+            <div className="p-3" key={key}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${actionTone(p.suggested_action)}`}>
+                  {actionLabel(p.suggested_action)}
+                </span>
+                {p.related_asset_title && (
+                  <span className="text-sm font-semibold text-ink">{p.related_asset_title}</span>
+                )}
+                {p.related_asset_id && (
+                  <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-mono text-ink-muted">{p.related_asset_id}</span>
+                )}
               </div>
-            )}
-          </div>
-        ))}
+              {p.reason && <p className="mt-2 text-sm leading-6 text-ink">{p.reason}</p>}
+              {Array.isArray(p.evidence) && p.evidence.length > 0 && (
+                <ul className="mt-1.5 space-y-1 text-sm leading-6 text-ink-muted">
+                  {p.evidence.map((e, ei) => (
+                    <li className="flex gap-2" key={`evidence-${index}-${ei}`}>
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-muted/50" />
+                      <span>{e}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {typeof p.evidence === "string" && p.evidence && (
+                <p className="mt-1.5 text-sm leading-6 text-ink-muted">{p.evidence}</p>
+              )}
+              {p.suggested_changes && Object.keys(p.suggested_changes).length > 0 && (
+                <div className="mt-2 rounded-md border border-line bg-surface-2/50 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">建议改动</p>
+                  <div className="mt-1.5 space-y-1 text-sm text-ink">
+                    {Object.entries(p.suggested_changes).map(([k, val]) => (
+                      <div key={k}>
+                        <span className="text-ink-muted">{k}：</span>
+                        <span>{typeof val === "string" ? val : JSON.stringify(val)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {applied && (
+                  <span className="rounded-full bg-moss/15 px-2.5 py-0.5 text-[10px] font-semibold text-moss">已应用</span>
+                )}
+                {!applied && targetAsset && (
+                  <button
+                    className="rounded-md bg-blue px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue/90"
+                    onClick={() => handleApply(p, index)}
+                    type="button"
+                  >
+                    应用为新版本
+                  </button>
+                )}
+                {!applied && !targetAsset && p.related_asset_id && (
+                  <span className="text-xs text-amber">未找到关联资产</span>
+                )}
+                {error && <span className="text-xs text-amber">{error}</span>}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -332,11 +378,12 @@ function AssetDecision({
   assetCandidateDismissed,
   onConfirmDraftAsset,
   onDiscardDraftAsset,
+  onAssetUpdated,
 }: {
   data: Record<string, unknown>;
   missionReviewUpdateProposal: unknown;
   assetDecisionUpdateProposals: unknown;
-} & AssetActionProps) {
+} & AssetActionProps & { onAssetUpdated?: () => void }) {
   const pkg = asRecord(data.asset_candidate_package);
   const draft = asRecord(pkg.draft_asset);
   const connectionLayer = asRecord(draft.connection_layer);
@@ -426,7 +473,7 @@ function AssetDecision({
         </div>
       )}
 
-      <AssetUpdateProposals proposals={allProposals} />
+      <AssetUpdateProposals onAssetUpdated={onAssetUpdated} proposals={allProposals} />
     </Section>
   );
 }
@@ -456,6 +503,7 @@ export function StructuredReportView({
   onDiscardDraftAsset,
   runId,
   missionTitle,
+  onAssetUpdated,
 }: StructuredReportViewProps) {
   if (isLoading) {
     return (
@@ -517,6 +565,7 @@ export function StructuredReportView({
         data={assetDecision}
         draftAsset={draftAsset}
         missionReviewUpdateProposal={missionReview.asset_update_proposal}
+        onAssetUpdated={onAssetUpdated}
         onConfirmDraftAsset={onConfirmDraftAsset}
         onDiscardDraftAsset={onDiscardDraftAsset}
       />

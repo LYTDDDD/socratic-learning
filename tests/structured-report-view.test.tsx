@@ -1,7 +1,28 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, beforeAll, beforeEach, vi } from "vitest";
 import { StructuredReportView } from "../components/StructuredReportView";
 import type { CognitiveAsset } from "../lib/extract-asset";
+import { saveAsset } from "../lib/asset-store";
+
+class LocalStorageMock {
+  private store: Record<string, string> = {};
+  getItem(key: string): string | null { return this.store[key] ?? null; }
+  setItem(key: string, value: string): void { this.store[key] = value; }
+  removeItem(key: string): void { delete this.store[key]; }
+  clear(): void { this.store = {}; }
+  get length(): number { return Object.keys(this.store).length; }
+  key(index: number): string | null { const keys = Object.keys(this.store); return keys[index] ?? null; }
+}
+
+const mockLocalStorage = new LocalStorageMock();
+
+beforeAll(() => {
+  globalThis.localStorage = mockLocalStorage as unknown as Storage;
+});
+
+beforeEach(() => {
+  mockLocalStorage.clear();
+});
 
 function makeReportJson(): Record<string, unknown> {
   return {
@@ -344,5 +365,99 @@ describe("StructuredReportView", () => {
     render(<StructuredReportView json={json} parseStatus="success" />);
 
     expect(screen.getByText("资产更新建议")).toBeInTheDocument();
+  });
+
+  it("shows apply button for proposals with existing target asset", () => {
+    saveAsset({
+      asset_id: "asset_001",
+      title: "测试资产",
+      asset_type: "MethodCard",
+      maturity: "Reference",
+      status: "confirmed",
+      core_insight: "旧洞察",
+      original_judgment: "",
+      revised_judgment: "",
+      my_understanding: "",
+      transferable_value: "",
+      source_run_id: "run_001",
+      created_at: new Date().toISOString(),
+      current_version_id: "v1",
+      versions: [],
+    } as unknown as CognitiveAsset);
+    const json = makeReportJson();
+    (json.asset_decision as Record<string, unknown>).update_proposals = [
+      {
+        related_asset_id: "asset_001",
+        related_asset_title: "测试资产",
+        suggested_action: "create_new_version",
+        reason: "需要更新",
+        evidence: [] as string[],
+        suggested_changes: { core_insight: "新洞察" },
+      },
+    ];
+    render(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.getByRole("button", { name: "应用为新版本" })).toBeInTheDocument();
+  });
+
+  it("shows not found warning when target asset does not exist", () => {
+    const json = makeReportJson();
+    (json.asset_decision as Record<string, unknown>).update_proposals = [
+      {
+        related_asset_id: "nonexistent_asset",
+        related_asset_title: "不存在的资产",
+        suggested_action: "create_new_version",
+        reason: "需要更新",
+        evidence: [] as string[],
+      },
+    ];
+    render(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.getByText("未找到关联资产")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "应用为新版本" })).not.toBeInTheDocument();
+  });
+
+  it("distinguishes multiple proposals with same asset_id and action via index", () => {
+    saveAsset({
+      asset_id: "asset_001",
+      title: "测试资产",
+      asset_type: "MethodCard",
+      maturity: "Reference",
+      status: "confirmed",
+      core_insight: "旧洞察",
+      original_judgment: "",
+      revised_judgment: "",
+      my_understanding: "",
+      transferable_value: "",
+      source_run_id: "run_001",
+      created_at: new Date().toISOString(),
+      current_version_id: "v1",
+      versions: [],
+    } as unknown as CognitiveAsset);
+    const json = makeReportJson();
+    (json.asset_decision as Record<string, unknown>).update_proposals = [
+      {
+        related_asset_id: "asset_001",
+        related_asset_title: "测试资产",
+        suggested_action: "create_new_version",
+        reason: "第一次更新",
+        evidence: [] as string[],
+        suggested_changes: { core_insight: "洞察A" },
+      },
+      {
+        related_asset_id: "asset_001",
+        related_asset_title: "测试资产",
+        suggested_action: "create_new_version",
+        reason: "第二次更新",
+        evidence: [] as string[],
+        suggested_changes: { core_insight: "洞察B" },
+      },
+    ];
+    render(<StructuredReportView json={json} parseStatus="success" />);
+
+    const buttons = screen.getAllByRole("button", { name: "应用为新版本" });
+    expect(buttons.length).toBe(2);
+    expect(screen.getByText("第一次更新")).toBeInTheDocument();
+    expect(screen.getByText("第二次更新")).toBeInTheDocument();
   });
 });
