@@ -9,6 +9,8 @@ import type { RunLogUserAction } from "../lib/run-log";
 
 type HistoryPanelProps = {
   onSelect: (response: AnalyzeResponse, runId: string, status: HistoryStatus) => void;
+  onClear?: () => void;
+  onDelete?: (runId: string) => void;
   onStatusChange?: (runId: string, newStatus: HistoryStatus) => void;
   onUserActionRecorded?: (runId: string, action: RunLogUserAction) => void;
   refreshKey: number;
@@ -49,7 +51,7 @@ function formatTime(iso: string): string {
   }
 }
 
-export function HistoryPanel({ onSelect, onStatusChange, onUserActionRecorded, refreshKey }: HistoryPanelProps) {
+export function HistoryPanel({ onSelect, onClear, onDelete, onStatusChange, onUserActionRecorded, refreshKey }: HistoryPanelProps) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [showDiscarded, setShowDiscarded] = useState(false);
   const [copiedMdId, setCopiedMdId] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export function HistoryPanel({ onSelect, onStatusChange, onUserActionRecorded, r
   function handleDelete(runId: string) {
     if (!window.confirm("确认删除这条历史记录？此操作无法撤销。")) return;
     deleteFromHistory(runId);
+    onDelete?.(runId);
     refresh();
   }
 
@@ -73,6 +76,7 @@ export function HistoryPanel({ onSelect, onStatusChange, onUserActionRecorded, r
     if (!window.confirm("确认清空全部历史记录？此操作无法撤销。")) return;
     clearHistory();
     setEntries([]);
+    onClear?.();
   }
 
   function handleSelect(entry: HistoryEntry) {

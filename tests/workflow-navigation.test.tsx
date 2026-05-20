@@ -231,6 +231,38 @@ describe("workflow navigation panels", () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("run_history_json_copy"));
   });
 
+  it("notifies parent when deleting a history entry", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    saveToHistory(makeHistoryEntry({ run_id: "run_delete_notify", status: "reviewed" }));
+    const onDelete = vi.fn();
+
+    const { container } = render(<HistoryPanel onSelect={vi.fn()} onDelete={onDelete} refreshKey={0} />);
+
+    await screen.findByRole("button", { name: /run_delete_notify/ });
+    const deleteButton = container.querySelector('button[title="删除"]');
+    expect(deleteButton).not.toBeNull();
+    fireEvent.click(deleteButton!);
+
+    expect(onDelete).toHaveBeenCalledWith("run_delete_notify");
+    expect(loadHistory().find((entry) => entry.run_id === "run_delete_notify")).toBeUndefined();
+    vi.restoreAllMocks();
+  });
+
+  it("notifies parent when clearing history", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    saveToHistory(makeHistoryEntry({ run_id: "run_clear_a", status: "reviewed" }));
+    saveToHistory(makeHistoryEntry({ run_id: "run_clear_b", status: "draft" }));
+    const onClear = vi.fn();
+
+    render(<HistoryPanel onSelect={vi.fn()} onClear={onClear} refreshKey={0} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "清空历史" }));
+
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(loadHistory()).toEqual([]);
+    vi.restoreAllMocks();
+  });
+
   it("shows mission workspace workflow stats", async () => {
     const mission = saveMission({
       title: "函数理解诊断",

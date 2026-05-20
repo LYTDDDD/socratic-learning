@@ -732,6 +732,27 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     setCurrentReportStatus("draft");
   }, []);
 
+  const clearCurrentReport = useCallback(() => {
+    setResult(null);
+    setIsLoading(false);
+    setDismissedDraft(false);
+    setAgentProgress([]);
+    setCurrentRunId(null);
+    setCurrentReportStatus("draft");
+  }, []);
+
+  const handleHistoryDelete = useCallback((runId: string) => {
+    if (runId === currentRunId) {
+      clearCurrentReport();
+    }
+  }, [clearCurrentReport, currentRunId]);
+
+  const handleHistoryClear = useCallback(() => {
+    if (currentRunId) {
+      clearCurrentReport();
+    }
+  }, [clearCurrentReport, currentRunId]);
+
   const recordUserAction = useCallback((type: RunLogUserActionType) => {
     if (!currentRunId) return;
     const action = appendRunLogUserAction(currentRunId, type);
@@ -926,6 +947,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           {leftTab === "history" && (
             <HistoryPanel
               onSelect={handleHistorySelect}
+              onClear={handleHistoryClear}
+              onDelete={handleHistoryDelete}
               onStatusChange={handleHistoryStatusChange}
               onUserActionRecorded={handleHistoryUserActionRecorded}
               refreshKey={historyRefreshKey}
