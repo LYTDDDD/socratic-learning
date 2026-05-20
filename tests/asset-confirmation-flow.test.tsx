@@ -66,12 +66,12 @@ function makeCandidateAsset(): CognitiveAsset {
     connection_questions: ["What prior case does this resemble?"],
     application_questions: ["Where can I apply this next?"],
     user_built_connections: {
-      related_concepts: [],
+      related_concepts: ["worked examples"],
       related_assets: [],
-      mental_models: [],
+      mental_models: ["concrete to abstract"],
       prior_experience: [],
       opposite_cases: [],
-      application_scenarios: [],
+      application_scenarios: ["reviewing shallow formula recall"],
       open_questions: [],
     },
     ai_suggested_connections: {
