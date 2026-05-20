@@ -216,12 +216,47 @@ function extractBareJsonObject(text: string): ExtractJsonResult | null {
   for (let start = 0; start < text.length; start++) {
     if (text[start] !== "{") continue;
 
-    const candidate = text.substring(start).trim();
+    const end = findBalancedObjectEnd(text, start);
+    const candidate = end === null ? text.substring(start).trim() : text.substring(start, end + 1);
     const parsed = tryParseJson(candidate);
 
     if (parsed) {
-      const markdown = text.substring(0, start).replace(/\n{3,}/g, "\n\n").trim();
+      const after = end === null ? "" : text.substring(end + 1);
+      const markdown = (text.substring(0, start) + after).replace(/\n{3,}/g, "\n\n").trim();
       return { success: true, json: parsed, markdown };
+    }
+  }
+
+  return null;
+}
+
+function findBalancedObjectEnd(text: string, start: number): number | null {
+  let depth = 0;
+  let inString = false;
+  let stringChar = "";
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (ch === "\\") {
+        i++;
+      } else if (ch === stringChar) {
+        inString = false;
+        stringChar = "";
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      inString = true;
+      stringChar = ch;
+    } else if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0) return i;
+      if (depth < 0) return null;
     }
   }
 
