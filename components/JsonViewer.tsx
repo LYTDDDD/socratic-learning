@@ -33,7 +33,7 @@ export function JsonViewer({ json, parseStatus, raw }: JsonViewerProps) {
               onClick={() => setShowRaw((prev) => !prev)}
               type="button"
             >
-              {showRaw ? "隐藏 Raw Output" : "查看 Raw Output"}
+              {showRaw ? "隐藏模型原始输出" : "查看模型原始输出"}
             </button>
             {showRaw && (
               <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-2 p-4 text-sm leading-6 text-white">

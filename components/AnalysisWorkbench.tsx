@@ -47,7 +47,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "report", label: "Report" },
   { key: "json", label: "JSON" },
   { key: "markdown", label: "Markdown" },
-  { key: "raw", label: "Raw" },
+  { key: "raw", label: "原始输出" },
   { key: "agents", label: "Agents" },
 ];
 
@@ -976,7 +976,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
               <p className="text-xs font-semibold uppercase tracking-wider text-blue">Offline Mission Analysis</p>
               <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">离线任务分析工作台</h1>
               <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-                输入对话，生成 Mission Review、DepthScore 与认知资产候选。JSON 是事实来源，Markdown 由 JSON 导出，Raw / Run Log 用于追踪。
+                输入对话，生成 Mission Review、DepthScore 与认知资产候选。JSON 是事实来源，Markdown 由 JSON 导出，模型原始输出 / Run Log 用于调试追溯。
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1062,7 +1062,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           )}
           {activeTab === "raw" && (
             <div className="p-5">
-              <h2 className="mb-3 text-base font-semibold">Raw Output</h2>
+              <h2 className="mb-3 text-base font-semibold">模型原始输出</h2>
               {result?.raw ? (
                 <pre className="overflow-auto whitespace-pre-wrap break-words rounded-xl bg-surface-2 p-4 text-sm leading-6 text-white">
                   {result.raw}

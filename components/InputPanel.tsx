@@ -342,7 +342,7 @@ export function InputPanel({
           (result) => {
             setReadyMessage(
               result.error ??
-                (result.raw ? "模型调用完成，已收到 raw output。" : "Analyze API 已接收输入。"),
+                (result.raw ? "模型调用完成，已收到模型原始输出。" : "Analyze API 已接收输入。"),
             );
             onAnalyzeFinish?.(result);
           },
@@ -390,7 +390,7 @@ export function InputPanel({
 
       setReadyMessage(
         result.error ??
-          (result.raw ? "模型调用完成，已收到 raw output。" : "Analyze API 已接收输入。"),
+          (result.raw ? "模型调用完成，已收到模型原始输出。" : "Analyze API 已接收输入。"),
       );
       onAnalyzeFinish?.(result);
     } catch (error) {
