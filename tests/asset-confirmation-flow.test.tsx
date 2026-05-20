@@ -144,6 +144,43 @@ describe("asset confirmation flow", () => {
     expect(loadAssets()).toEqual([]);
   });
 
+  it("enables confirmation after editing in user understanding and a user-built connection", async () => {
+    const asset = makeCandidateAsset();
+    asset.my_understanding = "";
+    asset.user_built_connections = {
+      related_concepts: [],
+      related_assets: [],
+      mental_models: [],
+      prior_experience: [],
+      opposite_cases: [],
+      application_scenarios: [],
+      open_questions: [],
+    };
+    const onConfirm = vi.fn();
+
+    render(<AssetDraftPanel asset={asset} onConfirm={onConfirm} onDiscard={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑候选包" }));
+    const confirmButton = screen.getByRole("button", { name: "编辑后确认母卡" });
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("我的理解"), {
+      target: { value: "我会先让学生解释例子，再抽象成规则。" },
+    });
+    fireEvent.change(screen.getByLabelText("user-built related concepts"), {
+      target: { value: "student-built concept" },
+    });
+
+    const enabledConfirmButton = screen.getByRole("button", { name: "编辑后确认母卡" });
+    expect(enabledConfirmButton).not.toBeDisabled();
+    fireEvent.click(enabledConfirmButton);
+
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+    const [saved] = loadAssets();
+    expect(saved.my_understanding).toContain("先让学生解释例子");
+    expect(saved.user_built_connections.related_concepts).toEqual(["student-built concept"]);
+  });
+
   it("refreshes asset library and review mode after confirming a candidate", async () => {
     render(<ConfirmationFlowHarness />);
 
