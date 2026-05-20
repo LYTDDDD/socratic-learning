@@ -114,6 +114,10 @@ function flattenConnectionLayer(connectionLayer: ConnectionLayer): string[] {
   return Object.values(connectionLayer).flat();
 }
 
+function hasConfirmationInput(asset: CognitiveAsset): boolean {
+  return asset.my_understanding.trim().length > 0 && flattenConnectionLayer(asset.user_built_connections).length > 0;
+}
+
 export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId }: AssetDraftPanelProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -129,6 +133,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
 
   function handleConfirm() {
     const baseAsset = editing ? editedAsset : asset;
+    if (!hasConfirmationInput(baseAsset)) return;
     confirmAssetDraft(baseAsset, currentMissionId);
     setConfirmed(true);
     onConfirm();
@@ -167,8 +172,9 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
   }
 
   const displayAsset = editing ? editedAsset : asset;
-  const userConnectionCount = flattenConnectionLayer(displayAsset.connection_layer).length;
+  const userConnectionCount = flattenConnectionLayer(displayAsset.user_built_connections).length;
   const aiConnectionCount = flattenConnectionLayer(displayAsset.ai_suggested_connections).length;
+  const canConfirm = hasConfirmationInput(displayAsset);
   const questionCount =
     displayAsset.review_questions.length +
     displayAsset.connection_questions.length +
@@ -536,8 +542,18 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+        {!canConfirm && (
+          <p className="w-full text-xs text-amber">
+            请先编辑候选包，补充“我的理解”和至少 1 条用户连接后再确认入库。
+          </p>
+        )}
         <button
-          className="rounded-lg bg-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue/90"
+          className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+            canConfirm
+              ? "bg-blue text-white hover:bg-blue/90"
+              : "cursor-not-allowed bg-surface-2 text-ink-muted"
+          }`}
+          disabled={!canConfirm}
           onClick={handleConfirm}
           type="button"
         >
