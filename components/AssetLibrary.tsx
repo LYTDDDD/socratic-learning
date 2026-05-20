@@ -246,7 +246,7 @@ function AssetDetail({ asset, onClose, onNavigateToHistory, onAssetUpdated }: { 
   const [changeReason, setChangeReason] = useState("");
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [reviewRecords, setReviewRecords] = useState<ReviewRecord[]>([]);
-  const connectionCount = countConnectionItems(liveAsset.connection_layer);
+  const connectionCount = countConnectionItems(liveAsset.user_built_connections);
   const aiConnectionCount = countConnectionItems(liveAsset.ai_suggested_connections);
   const savedSubCardCount = subCards.filter((card) => card.status === "saved").length;
   const reviewQuestionCount =
@@ -660,7 +660,7 @@ function AssetDetail({ asset, onClose, onNavigateToHistory, onAssetUpdated }: { 
             </div>
           )}
           {(() => {
-            const cl = liveAsset.connection_layer;
+            const cl = liveAsset.user_built_connections;
             const aiCl = liveAsset.ai_suggested_connections;
             const clEntries: [string, string, string[], string[]][] = [
               ["related_concepts", "相关概念", cl.related_concepts, aiCl.related_concepts],
@@ -925,7 +925,7 @@ export function AssetLibrary({ refreshKey, onNavigateToHistory, onAssetsChanged 
     return assets.reduce(
       (stats, asset) => {
         const subCards = countSavedSubCards(asset.asset_id);
-        const connectionItems = countConnectionItems(asset.connection_layer);
+        const connectionItems = countConnectionItems(asset.user_built_connections);
         return {
           motherCards: stats.motherCards + (asset.status === "confirmed" ? 1 : 0),
           drafts: stats.drafts + (asset.status === "draft" ? 1 : 0),
@@ -1078,7 +1078,7 @@ export function AssetLibrary({ refreshKey, onNavigateToHistory, onAssetsChanged 
                       <span className="ml-2">{formatTime(asset.created_at)}</span>
                     </div>
                     <div className="mt-1 text-[10px] text-ink-muted/70">
-                      连接 {countConnectionItems(asset.connection_layer)} · 子卡 {countSavedSubCards(asset.asset_id)} · 复习题 {asset.review_questions.length}
+                      连接 {countConnectionItems(asset.user_built_connections)} · 子卡 {countSavedSubCards(asset.asset_id)} · 复习题 {asset.review_questions.length}
                     </div>
                   </button>
                   <button

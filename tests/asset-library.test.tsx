@@ -138,4 +138,49 @@ describe("AssetLibrary", () => {
     expect(screen.getByText("User-first Connection Layer")).toBeInTheDocument();
     expect(screen.getByText("Review Prompts")).toBeInTheDocument();
   });
+
+  it("does not count or display legacy connection_layer values as user-built connections", async () => {
+    saveAndConfirmAsset(makeAsset({
+      title: "Legacy Connection Layer",
+      user_built_connections: {
+        related_concepts: [],
+        related_assets: [],
+        mental_models: [],
+        prior_experience: [],
+        opposite_cases: [],
+        application_scenarios: [],
+        open_questions: [],
+      },
+      connection_layer: {
+        related_concepts: ["legacy concept"],
+        related_assets: [],
+        mental_models: [],
+        prior_experience: [],
+        opposite_cases: [],
+        application_scenarios: [],
+        open_questions: [],
+      },
+      ai_suggested_connections: {
+        related_concepts: [],
+        related_assets: [],
+        mental_models: [],
+        prior_experience: [],
+        opposite_cases: [],
+        application_scenarios: [],
+        open_questions: [],
+      },
+    }));
+
+    render(<AssetLibrary refreshKey={0} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Connections").parentElement).toHaveTextContent("0");
+      expect(screen.getByText(/连接 0/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Legacy Connection Layer"));
+
+    expect(screen.queryByText("User-first Connection Layer")).not.toBeInTheDocument();
+    expect(screen.queryByText("legacy concept")).not.toBeInTheDocument();
+  });
 });
