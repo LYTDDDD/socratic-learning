@@ -650,7 +650,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   }, [result]);
 
   const isMultiAgent = agentSteps.length > 0;
-  const rawPanelLabel = isMultiAgent ? "Agent 执行轨迹" : "模型原始输出";
+  const isMultiAgentRun = result?.runLog?.prompt_version.startsWith("multi-agent:") ?? false;
+  const rawPanelLabel = isMultiAgent || isMultiAgentRun ? "Agent 执行轨迹" : "模型原始输出";
 
   const assetAlreadySaved = currentRunId ? hasAssetFromRun(currentRunId) : false;
   const corrections = useMemo(() => {
@@ -1071,7 +1072,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
                 </pre>
               ) : (
                 <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed border-line bg-surface-2 text-sm text-ink-muted">
-                  {isMultiAgent
+                  {isMultiAgent || isMultiAgentRun
                     ? "暂无 Agent 执行轨迹。运行多 Agent 分析后，步骤原始数据会显示在这里。"
                     : "暂无原始输出。提交输入后，模型的原始返回会显示在这里。"}
                 </div>

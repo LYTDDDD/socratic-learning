@@ -126,6 +126,24 @@ describe("AnalysisWorkbench", () => {
     expect(screen.queryByRole("heading", { name: "模型原始输出" })).not.toBeInTheDocument();
   });
 
+  it("labels multi-agent raw panel by run log even when steps cannot be parsed", async () => {
+    const response = makeResponse("run_workbench_agent_unparsed");
+    response.raw = "unparsed agent trace";
+    response.runLog!.prompt_version = "multi-agent:offline-mission-analysis-v0.3-json-only";
+    saveToHistory({
+      ...makeHistoryEntry("run_workbench_agent_unparsed"),
+      analyzeResponse: response,
+    });
+
+    render(<AnalysisWorkbench />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /run_workbench_agen/ }));
+    fireEvent.click(screen.getByRole("button", { name: "原始输出" }));
+
+    expect(screen.getByRole("heading", { name: "Agent 执行轨迹" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "模型原始输出" })).not.toBeInTheDocument();
+  });
+
   it("opens the agents tab when selecting a multi-agent history entry", async () => {
     const response = makeResponse("run_workbench_agent_history");
     response.raw = JSON.stringify({
