@@ -213,28 +213,15 @@ export function extractJsonFromOutput(rawOutput: string): ExtractJsonResult {
 }
 
 function extractBareJsonObject(text: string): ExtractJsonResult | null {
-  let depth = 0;
-  let start = -1;
+  for (let start = 0; start < text.length; start++) {
+    if (text[start] !== "{") continue;
 
-  for (let i = text.length - 1; i >= 0; i--) {
-    if (text[i] === "}") {
-      depth++;
-    } else if (text[i] === "{") {
-      depth--;
-      if (depth === 0) {
-        start = i;
-        const candidate = text.substring(start);
+    const candidate = text.substring(start).trim();
+    const parsed = tryParseJson(candidate);
 
-        const parsed = tryParseJson(candidate);
-
-        if (parsed) {
-          const markdown = text.substring(0, start).replace(/\n{3,}/g, "\n\n").trim();
-          return { success: true, json: parsed, markdown };
-        }
-
-        depth = 0;
-        start = -1;
-      }
+    if (parsed) {
+      const markdown = text.substring(0, start).replace(/\n{3,}/g, "\n\n").trim();
+      return { success: true, json: parsed, markdown };
     }
   }
 
