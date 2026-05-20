@@ -108,6 +108,22 @@ describe("extractJsonFromOutput", () => {
     expect(result.markdown).not.toContain('"mission_review"');
   });
 
+  it("extracts a bare JSON object followed by trailing text", () => {
+    const raw = [
+      "Here is the JSON:",
+      '{"mission_review": {"original_goal": "test"}, "depth_evaluation": {}}',
+      "Done.",
+    ].join("\n");
+
+    const result = extractJsonFromOutput(raw);
+
+    expect(result.success).toBe(true);
+    expect((result.json as Record<string, unknown>).mission_review).toBeDefined();
+    expect(result.markdown).toContain("Here is the JSON");
+    expect(result.markdown).toContain("Done.");
+    expect(result.markdown).not.toContain('"mission_review"');
+  });
+
   it("extracts JSON from a JSON-only response without markdown", () => {
     const raw = JSON.stringify({
       schema_version: "offline_mission_analysis_result.v0.3",
