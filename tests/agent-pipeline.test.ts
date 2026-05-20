@@ -1032,7 +1032,7 @@ describe("buildMultiAgentJson", () => {
     expect(decision.recommended_asset_type).toBe("");
   });
 
-  it("injects curator connections into draft_asset ai_suggested_connections and connection_layer", () => {
+  it("injects curator connections into draft_asset ai_suggested_connections only", () => {
     const steps: AgentStep[] = [
       {
         agent: "asset",
@@ -1083,7 +1083,7 @@ describe("buildMultiAgentJson", () => {
       application_scenarios: [],
       open_questions: [],
     });
-    expect(draft.connection_layer).toEqual(draft.ai_suggested_connections);
+    expect(draft).not.toHaveProperty("connection_layer");
   });
 
   it("does not add ai_suggested_connections when no curator step exists", () => {

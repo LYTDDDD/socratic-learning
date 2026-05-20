@@ -261,7 +261,6 @@ export function buildMultiAgentJson(steps: AgentStep[]): Record<string, unknown>
         curatorConnections as Array<Record<string, string>>,
       );
       draftAsset.ai_suggested_connections = connectionLayer;
-      draftAsset.connection_layer = connectionLayer;
     }
 
     result.asset_decision = {
