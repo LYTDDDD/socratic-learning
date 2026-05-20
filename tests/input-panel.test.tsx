@@ -143,4 +143,40 @@ describe("InputPanel", () => {
       expect(onAnalyzeFinish).toHaveBeenCalledWith(expect.objectContaining({ raw: doneResult.raw }));
     });
   });
+
+  it("finishes with a client error result when multi-agent HTTP error is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response("server error", {
+            status: 500,
+            headers: { "Content-Type": "text/plain" },
+          }),
+        ),
+      ),
+    );
+
+    const onAnalyzeFinish = vi.fn();
+    render(<InputPanel onAnalyzeFinish={onAnalyzeFinish} />);
+
+    fireEvent.change(screen.getByPlaceholderText("一开始想解决的问题或判断目标。"), {
+      target: { value: "测试多 Agent HTTP 错误" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("粘贴完整对话或关键片段。"), {
+      target: { value: "用户：请复盘这段学习对话。" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "多 Agent" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("分析请求失败，请稍后重试。")).toBeInTheDocument();
+      expect(onAnalyzeFinish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parseStatus: "not_attempted",
+          error: "分析请求失败，请稍后重试。",
+        }),
+      );
+    });
+  });
 });

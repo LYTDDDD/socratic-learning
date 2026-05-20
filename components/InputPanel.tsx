@@ -329,8 +329,9 @@ export function InputPanel({
         }
 
         if (!response.ok) {
-          setReadyMessage("分析请求失败，请稍后重试。");
-          setIsSubmitting(false);
+          const message = "分析请求失败，请稍后重试。";
+          setReadyMessage(message);
+          onAnalyzeFinish?.(buildClientErrorResult(message));
           return;
         }
 
