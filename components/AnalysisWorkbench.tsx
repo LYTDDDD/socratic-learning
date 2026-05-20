@@ -650,6 +650,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   }, [result]);
 
   const isMultiAgent = agentSteps.length > 0;
+  const rawPanelLabel = isMultiAgent ? "Agent 执行轨迹" : "模型原始输出";
 
   const assetAlreadySaved = currentRunId ? hasAssetFromRun(currentRunId) : false;
   const corrections = useMemo(() => {
@@ -976,7 +977,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
               <p className="text-xs font-semibold uppercase tracking-wider text-blue">Offline Mission Analysis</p>
               <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">离线任务分析工作台</h1>
               <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-                输入对话，生成 Mission Review、DepthScore 与认知资产候选。JSON 是事实来源，Markdown 由 JSON 导出，模型原始输出 / Run Log 用于调试追溯。
+                输入对话，生成 Mission Review、DepthScore 与认知资产候选。JSON 是事实来源，Markdown 由 JSON 导出，模型原始输出 / Agent 执行轨迹 / Run Log 用于调试追溯。
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1062,14 +1063,16 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           )}
           {activeTab === "raw" && (
             <div className="p-5">
-              <h2 className="mb-3 text-base font-semibold">模型原始输出</h2>
+              <h2 className="mb-3 text-base font-semibold">{rawPanelLabel}</h2>
               {result?.raw ? (
                 <pre className="overflow-auto whitespace-pre-wrap break-words rounded-xl bg-surface-2 p-4 text-sm leading-6 text-white">
                   {result.raw}
                 </pre>
               ) : (
                 <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed border-line bg-surface-2 text-sm text-ink-muted">
-                  暂无原始输出。提交输入后，模型的原始返回会显示在这里。
+                  {isMultiAgent
+                    ? "暂无 Agent 执行轨迹。运行多 Agent 分析后，步骤原始数据会显示在这里。"
+                    : "暂无原始输出。提交输入后，模型的原始返回会显示在这里。"}
                 </div>
               )}
             </div>

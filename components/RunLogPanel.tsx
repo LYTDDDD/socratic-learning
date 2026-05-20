@@ -10,15 +10,19 @@ function statusBadge(status: string) {
   return "bg-surface-2 text-ink-muted";
 }
 
-function userActionLabel(action: RunLogUserAction): string {
+function rawActionLabel(verb: "复制" | "下载", rawLabel: string): string {
+  return rawLabel.startsWith("Agent") ? `${verb} ${rawLabel}` : `${verb}${rawLabel}`;
+}
+
+function userActionLabel(action: RunLogUserAction, rawLabel: string): string {
   const labels: Record<RunLogUserActionType, string> = {
     copy_report: "复制报告",
     copy_markdown: "复制 Markdown",
     copy_json: "复制 JSON",
-    copy_raw: "复制模型原始输出",
+    copy_raw: rawActionLabel("复制", rawLabel),
     download_markdown: "下载 Markdown",
     download_json: "下载 JSON",
-    download_raw: "下载模型原始输出",
+    download_raw: rawActionLabel("下载", rawLabel),
     mark_reviewed: "标记已审阅",
     mark_discarded: "标记废弃",
     restore_report: "恢复报告",
@@ -46,6 +50,7 @@ export function RunLogPanel({ runLog }: { runLog: RunLog }) {
   const inputChars = runLog.input_snapshot.originalGoal.length + runLog.input_snapshot.conversation.length;
   const userActions = runLog.user_actions ?? [];
   const latestActions = userActions.slice(-5).reverse();
+  const rawLabel = runLog.prompt_version.startsWith("multi-agent:") ? "Agent 执行轨迹" : "模型原始输出";
   const rows: { label: string; value: ReactNode }[] = [
     { label: "Run ID", value: <code className="font-mono text-xs">{runLog.run_id}</code> },
     { label: "Created At", value: runLog.created_at },
@@ -129,7 +134,7 @@ export function RunLogPanel({ runLog }: { runLog: RunLog }) {
               <ul className="mt-2 space-y-1">
                 {latestActions.map((action) => (
                   <li className="flex items-center justify-between gap-3 text-xs" key={`${action.type}-${action.at}`}>
-                    <span className="text-ink">{userActionLabel(action)}</span>
+                    <span className="text-ink">{userActionLabel(action, rawLabel)}</span>
                     <time className="shrink-0 font-mono text-[10px] text-ink-muted">{formatActionTime(action.at)}</time>
                   </li>
                 ))}
