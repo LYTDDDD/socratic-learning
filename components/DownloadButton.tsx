@@ -40,6 +40,12 @@ function download(content: string, filename: string, mimeType: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function rawOutputLabel(result: AnalyzeResponse | null): string {
+  return result?.runLog?.prompt_version.startsWith("multi-agent:")
+    ? "Agent 执行轨迹"
+    : "模型原始输出";
+}
+
 export function DownloadButton({ result, onDownload }: DownloadButtonProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -58,6 +64,7 @@ export function DownloadButton({ result, onDownload }: DownloadButtonProps) {
 
   const stamp = getTimestamp();
   const markdownContent = result?.markdown ?? buildMarkdownFromAnalysisJson(result?.json);
+  const rawLabel = rawOutputLabel(result);
 
   const options: DownloadOption[] = [
     {
@@ -78,7 +85,7 @@ export function DownloadButton({ result, onDownload }: DownloadButtonProps) {
       available: result?.json != null && (result.parseStatus === "success" || result.parseStatus === "partial"),
     },
     {
-      label: "模型原始输出",
+      label: rawLabel,
       ext: "txt",
       format: "raw",
       content: result?.raw ?? null,

@@ -94,4 +94,35 @@ describe("AnalysisWorkbench", () => {
       expect(loadHistory()[0].analyzeResponse.runLog?.user_actions?.[0]?.type).toBe("copy_raw");
     });
   });
+
+  it("labels multi-agent raw content as agent execution trace", async () => {
+    const response = makeResponse("run_workbench_agent_trace");
+    response.raw = JSON.stringify({
+      steps: [
+        {
+          agent: "supervisor",
+          startedAt: "2026-01-01T00:00:00Z",
+          finishedAt: "2026-01-01T00:00:01Z",
+          input: {},
+          output: { steps: ["review"], reasoning: "test" },
+          status: "success",
+          error: null,
+        },
+      ],
+      supervisorDecision: "test",
+    });
+    response.runLog!.prompt_version = "multi-agent:offline-mission-analysis-v0.3-json-only";
+    saveToHistory({
+      ...makeHistoryEntry("run_workbench_agent_trace"),
+      analyzeResponse: response,
+    });
+
+    render(<AnalysisWorkbench />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /run_workbench_agen/ }));
+    fireEvent.click(screen.getByRole("button", { name: "原始输出" }));
+
+    expect(screen.getByRole("heading", { name: "Agent 执行轨迹" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "模型原始输出" })).not.toBeInTheDocument();
+  });
 });

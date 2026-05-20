@@ -97,4 +97,25 @@ describe("RunLogPanel", () => {
     expect(screen.getByText("复制模型原始输出")).toBeInTheDocument();
     expect(screen.getByText("下载模型原始输出")).toBeInTheDocument();
   });
+
+  it("labels multi-agent raw user actions as agent execution trace", () => {
+    render(
+      <RunLogPanel
+        runLog={makeRunLog({
+          prompt_version: "multi-agent:offline-mission-analysis-v0.3-json-only",
+          user_actions: [
+            { type: "copy_raw", at: "2026-05-20T00:00:01.000Z" },
+            { type: "download_raw", at: "2026-05-20T00:00:02.000Z" },
+          ],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Run Log/ }));
+
+    expect(screen.getByText("复制 Agent 执行轨迹")).toBeInTheDocument();
+    expect(screen.getByText("下载 Agent 执行轨迹")).toBeInTheDocument();
+    expect(screen.queryByText("复制模型原始输出")).not.toBeInTheDocument();
+    expect(screen.queryByText("下载模型原始输出")).not.toBeInTheDocument();
+  });
 });
