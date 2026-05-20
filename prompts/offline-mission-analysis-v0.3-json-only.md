@@ -543,7 +543,7 @@ problem_it_solves（它解决什么问题）
 original_judgment（原始判断）
 revised_judgment（修正后判断）
 transferable_value（可迁移价值）
-connection_layer（连接层）
+ai_suggested_connections（AI 候选连接层）
 application_scenarios（使用场景）
 usage_evidence_prompt（使用证据提示）
 review_questions（复习问题）
@@ -561,9 +561,11 @@ my_understanding_prompt（我的理解提示）不是替用户写“我的理解
 而是提出问题，引导用户自己改写。
 ```
 
-### 9.2 Connection Layer（连接层）字段
+### 9.2 AI Suggested Connections（AI 候选连接层）字段
 
-connection_layer（连接层）用于帮助用户把新理解挂到已有认知结构上。
+ai_suggested_connections（AI 候选连接层）用于提出“可连接到哪里”的建议，帮助用户把新理解挂到已有认知结构上。
+
+不要输出 user_built_connections。用户连接层必须由用户在前端编辑或确认后形成，不能由 AI 代写。
 
 它必须包含：
 
@@ -571,7 +573,7 @@ connection_layer（连接层）用于帮助用户把新理解挂到已有认知�
 related_concepts（相关概念）
 related_assets（相关旧资产）
 mental_models（相关思维模型）
-prior_experience_prompts（个人经验连接提示）
+prior_experience（个人经验连接提示）
 opposite_cases（反面案例）
 application_scenarios（应用场景）
 open_questions（未解决问题）
@@ -579,7 +581,7 @@ open_questions（未解决问题）
 
 注意：
 
-1. AI 可以提出连接建议。
+1. AI 只能提出候选连接建议。
 2. 如果没有明确证据，不要虚构用户已有经验。
 3. 对个人经验应以问题形式提示用户补充，而不是替用户编造。
 
@@ -901,11 +903,11 @@ Trace Summary（轨迹摘要）是给用户理解系统判断用的，
         "original_judgment": "",
         "revised_judgment": "",
         "transferable_value": "",
-        "connection_layer": {
+        "ai_suggested_connections": {
           "related_concepts": [],
           "related_assets": [],
           "mental_models": [],
-          "prior_experience_prompts": [],
+          "prior_experience": [],
           "opposite_cases": [],
           "application_scenarios": [],
           "open_questions": []
