@@ -711,6 +711,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     setCurrentReportStatus(status);
     setIsLoading(false);
     setDismissedDraft(false);
+    setActiveTab(parseAgentSteps(response.raw).length > 0 ? "agents" : "report");
   }, []);
 
   const handleNavigateToHistory = useCallback((sourceRunId: string) => {
@@ -721,7 +722,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
       setCurrentRunId(entry.run_id);
       setCurrentReportStatus(entry.status);
       setIsLoading(false);
-      setActiveTab("report");
+      setActiveTab(parseAgentSteps(entry.analyzeResponse.raw).length > 0 ? "agents" : "report");
     }
   }, []);
 
