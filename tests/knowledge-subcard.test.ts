@@ -158,4 +158,43 @@ describe("knowledge subcards", () => {
     expect(suggestions[0].source).toBe("ai_suggested_user_edited");
     expect(loadKnowledgeSubCards("asset_1")).toEqual([]);
   });
+
+  it("uses user-built application scenarios for suggestions, not AI suggestions", () => {
+    const asset = makeAsset({
+      application_questions: [],
+      user_built_connections: {
+        related_concepts: [],
+        related_assets: [],
+        mental_models: [],
+        prior_experience: [],
+        opposite_cases: [],
+        application_scenarios: ["用户真实使用场景"],
+        open_questions: [],
+      },
+      ai_suggested_connections: {
+        related_concepts: [],
+        related_assets: [],
+        mental_models: [],
+        prior_experience: [],
+        opposite_cases: [],
+        application_scenarios: ["AI 候选场景"],
+        open_questions: [],
+      },
+      connection_layer: {
+        related_concepts: [],
+        related_assets: [],
+        mental_models: [],
+        prior_experience: [],
+        opposite_cases: [],
+        application_scenarios: ["legacy 场景"],
+        open_questions: [],
+      },
+    });
+
+    const suggestions = suggestSubCardDrafts(asset);
+
+    expect(suggestions.some((draft) => draft.corePoint === "用户真实使用场景")).toBe(true);
+    expect(suggestions.some((draft) => draft.corePoint === "AI 候选场景")).toBe(false);
+    expect(suggestions.some((draft) => draft.corePoint === "legacy 场景")).toBe(false);
+  });
 });
