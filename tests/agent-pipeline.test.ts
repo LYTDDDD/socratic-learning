@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { runAgentPipeline, buildMultiAgentJson, buildMultiAgentMarkdown } from "../lib/agent-pipeline";
+import { extractAssetFromResponse } from "../lib/extract-asset";
 import type { AgentStep } from "../lib/agent-types";
+import type { AnalyzeResponse } from "../lib/analyze-types";
 
 vi.mock("../lib/llm", () => ({
   callReviewModel: vi.fn(),
@@ -18,6 +20,17 @@ function makeInput() {
     notes: "test notes",
     expectedOutput: "test expected output",
     preferenceRules: [],
+  };
+}
+
+function makeAnalyzeResponse(json: unknown): AnalyzeResponse {
+  return {
+    markdown: null,
+    json,
+    raw: null,
+    parseStatus: "success",
+    error: null,
+    runLog: null,
   };
 }
 
@@ -1084,6 +1097,69 @@ describe("buildMultiAgentJson", () => {
       open_questions: [],
     });
     expect(draft).not.toHaveProperty("connection_layer");
+  });
+
+  it("keeps curator suggestions separate after asset extraction", () => {
+    const steps: AgentStep[] = [
+      {
+        agent: "asset",
+        startedAt: "2026-01-01T00:00:00Z",
+        finishedAt: "2026-01-01T00:00:01Z",
+        input: {},
+        output: {
+          has_asset: true,
+          asset_type: "principle",
+          title: "Test Title",
+          core_insight: "insight",
+          original_judgment: "orig",
+          revised_judgment: "revised",
+          my_understanding: "understanding",
+          transferable_value: "value",
+          reasoning: "reason",
+        },
+        status: "success",
+        error: null,
+      },
+      {
+        agent: "curator",
+        startedAt: "2026-01-01T00:00:01Z",
+        finishedAt: "2026-01-01T00:00:02Z",
+        input: {},
+        output: {
+          connections: [
+            { source_concept: "A", target_concept: "Concept B", connection_type: "concept", reasoning: "r1" },
+            { source_concept: "A", target_concept: "Model C", connection_type: "model", reasoning: "r2" },
+          ],
+          organization_tips: ["tip1"],
+        },
+        status: "success",
+        error: null,
+      },
+    ];
+
+    const json = buildMultiAgentJson(steps);
+    const asset = extractAssetFromResponse(makeAnalyzeResponse(json), "run_agent_asset");
+
+    expect(asset).not.toBeNull();
+    expect(asset!.ai_suggested_connections).toEqual({
+      related_concepts: ["Concept B"],
+      related_assets: [],
+      mental_models: ["Model C"],
+      prior_experience: [],
+      opposite_cases: [],
+      application_scenarios: [],
+      open_questions: [],
+    });
+    expect(asset!.user_built_connections).toEqual({
+      related_concepts: [],
+      related_assets: [],
+      mental_models: [],
+      prior_experience: [],
+      opposite_cases: [],
+      application_scenarios: [],
+      open_questions: [],
+    });
+    expect(asset!.connection_layer).toEqual(asset!.user_built_connections);
   });
 
   it("does not add ai_suggested_connections when no curator step exists", () => {
