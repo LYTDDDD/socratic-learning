@@ -125,6 +125,27 @@ describe("extractJsonFromOutput", () => {
     expect(result.markdown).toBe("");
   });
 
+  it("extracts a trailing bare JSON object when a string value contains an unmatched brace", () => {
+    const raw = [
+      "Here is the JSON:",
+      JSON.stringify({
+        mission_review: {
+          original_goal: "理解集合 {x 的定义",
+        },
+        depth_evaluation: {},
+        asset_decision: {},
+        trace_summary: {},
+      }),
+    ].join("\n");
+
+    const result = extractJsonFromOutput(raw);
+
+    expect(result.success).toBe(true);
+    const missionReview = (result.json as Record<string, unknown>).mission_review as Record<string, unknown>;
+    expect(missionReview.original_goal).toContain("集合 {x");
+    expect(result.markdown).toContain("Here is the JSON");
+  });
+
   it("returns failure for invalid JSON in code block", () => {
     const raw = [
       "```json",
