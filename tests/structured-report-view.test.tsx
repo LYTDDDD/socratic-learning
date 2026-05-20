@@ -209,6 +209,33 @@ describe("StructuredReportView", () => {
     expect(screen.getByText("学生解释不出参数含义")).toBeInTheDocument();
   });
 
+  it("prefers v0.3 AI suggested connections over legacy connection_layer", () => {
+    const json = makeReportJson();
+    const decision = json.asset_decision as Record<string, unknown>;
+    const pkg = decision.asset_candidate_package as Record<string, unknown>;
+    const draft = (pkg.draft_asset ?? {}) as Record<string, unknown>;
+
+    draft.ai_suggested_connections = {
+      related_concepts: ["AI concept only"],
+      related_assets: [],
+      mental_models: ["AI model only"],
+      application_scenarios: [],
+    };
+    draft.connection_layer = {
+      related_concepts: ["Legacy concept hidden"],
+      related_assets: [],
+      mental_models: ["Legacy model hidden"],
+      application_scenarios: [],
+    };
+
+    render(<StructuredReportView json={json} parseStatus="success" />);
+
+    expect(screen.getByText("AI concept only")).toBeInTheDocument();
+    expect(screen.getByText("AI model only")).toBeInTheDocument();
+    expect(screen.queryByText("Legacy concept hidden")).not.toBeInTheDocument();
+    expect(screen.queryByText("Legacy model hidden")).not.toBeInTheDocument();
+  });
+
   it("renders empty state before analysis", () => {
     render(<StructuredReportView json={null} parseStatus="not_attempted" />);
 
