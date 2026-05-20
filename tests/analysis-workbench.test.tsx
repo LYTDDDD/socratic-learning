@@ -144,6 +144,25 @@ describe("AnalysisWorkbench", () => {
     expect(screen.queryByRole("heading", { name: "模型原始输出" })).not.toBeInTheDocument();
   });
 
+  it("opens the agents tab with a parse warning for unparsed multi-agent history", async () => {
+    const response = makeResponse("run_workbench_agent_warning");
+    response.raw = "unparsed agent trace";
+    response.runLog!.prompt_version = "multi-agent:offline-mission-analysis-v0.3-json-only";
+    saveToHistory({
+      ...makeHistoryEntry("run_workbench_agent_warning"),
+      analyzeResponse: response,
+    });
+
+    render(<AnalysisWorkbench />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /run_workbench_agen/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Agents" })).toHaveClass("text-blue");
+      expect(screen.getByText("这是多 Agent 结果，但当前 Agent 执行轨迹无法解析。")).toBeInTheDocument();
+    });
+  });
+
   it("opens the agents tab when selecting a multi-agent history entry", async () => {
     const response = makeResponse("run_workbench_agent_history");
     response.raw = JSON.stringify({
