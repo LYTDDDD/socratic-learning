@@ -18,3 +18,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Local scratch artifacts
+.pr-*.txt
+.trae/
+DESIGN.md
+analyze_raw_overlap.mjs
+estimate_analysis_tokens.mjs
+estimate_tokens.mjs
+test_*_result.json
+test_*_report.md
+test_conversation.mjs
+test_offline_analysis.mjs
