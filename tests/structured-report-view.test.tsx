@@ -202,6 +202,7 @@ describe("StructuredReportView", () => {
     expect(screen.getByText("Depth Evaluation")).toBeInTheDocument();
     expect(screen.getByText("8/10")).toBeInTheDocument();
     expect(screen.getByText("资产决策")).toBeInTheDocument();
+    expect(screen.getByText("AI 候选相关概念")).toBeInTheDocument();
     expect(screen.getByText("理解诊断三问")).toBeInTheDocument();
     expect(screen.getByText("为什么会算不等于理解？")).toBeInTheDocument();
     expect(screen.getByText("判断依据摘要")).toBeInTheDocument();
