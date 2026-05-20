@@ -12,7 +12,7 @@ The interface should feel like a focused analysis console: structured, traceable
 2. Use Review Handoff to send a meaningful conversation into Offline Analysis when the chat becomes review-worthy.
 3. Run single prompt or multi-agent analysis.
 4. Read the Markdown report first.
-5. Inspect Evidence Trail, JSON, raw output, agent steps, and run log only when needed.
+5. Inspect Evidence Trail, JSON, model original output, agent steps, and run log only when needed.
 6. Review the asset candidate as AI-generated reference material.
 7. Let the user confirm, correct, or rewrite before any asset is treated as owned understanding.
 8. Organize reviewed reports and generated assets through Mission Workspace and Report History.
@@ -43,7 +43,7 @@ Future pages may split reports, assets, run logs, missions, review mode, and set
 - Use full-height application layout, not a hero section.
 - Keep three stable zones: navigation, workbench controls, reading surface.
 - Let Markdown report occupy the largest visual area.
-- Keep JSON and raw output behind tabs.
+- Keep JSON and model original output behind tabs.
 - Offline Analysis on narrow screens should stack Workflow and input first, report second, operational panels last.
 - Chat Workspace on narrow screens should stack conversation list first, active conversation second, Review Handoff last.
 - Repeated status counters and toolbars need stable dimensions so labels, hover states, and loading text do not shift the layout.
@@ -51,7 +51,7 @@ Future pages may split reports, assets, run logs, missions, review mode, and set
 ## 5. Information Density Rules
 
 - Default density is medium: enough context to work, not every object expanded.
-- Run logs, raw output, and AI-suggested connection detail should be secondary.
+- Run logs, model original output, and AI-suggested connection detail should be secondary.
 - Required fields must be visible without scanning long prose.
 - Empty states should state what will appear next, not explain the whole product.
 
@@ -77,7 +77,7 @@ Avoid single-hue purple gradients, marketing-style glow backgrounds, and decorat
 - Use compact headings in panels.
 - Use larger type only for the active report title or workbench title.
 - Preserve readable line height in Markdown reports.
-- Use mono only for run IDs, JSON, raw output, and code snippets.
+- Use mono only for run IDs, JSON, model original output, and code snippets.
 - Do not scale font size with viewport width.
 
 ## 8. Card System
@@ -120,7 +120,7 @@ Knowledge SubCard:
 
 - JSON is for inspection and debugging.
 - Keep it behind a tab.
-- On parse failure, show a clear warning and provide raw output access.
+- On parse failure, show a clear warning and provide model original output access.
 - Do not let JSON compete with Markdown as the primary reading surface.
 
 ## 13. Run Log Display Rules
