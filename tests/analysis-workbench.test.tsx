@@ -125,4 +125,44 @@ describe("AnalysisWorkbench", () => {
     expect(screen.getByRole("heading", { name: "Agent 执行轨迹" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "模型原始输出" })).not.toBeInTheDocument();
   });
+
+  it("opens the agents tab when selecting a multi-agent history entry", async () => {
+    const response = makeResponse("run_workbench_agent_history");
+    response.raw = JSON.stringify({
+      steps: [
+        {
+          agent: "supervisor",
+          startedAt: "2026-01-01T00:00:00Z",
+          finishedAt: "2026-01-01T00:00:01Z",
+          input: {},
+          output: { steps: ["review"], reasoning: "test" },
+          status: "success",
+          error: null,
+        },
+        {
+          agent: "review",
+          startedAt: "2026-01-01T00:00:01Z",
+          finishedAt: "2026-01-01T00:00:02Z",
+          input: {},
+          output: { summary: "review summary" },
+          status: "success",
+          error: null,
+        },
+      ],
+      supervisorDecision: "test",
+    });
+    response.runLog!.prompt_version = "multi-agent:offline-mission-analysis-v0.3-json-only";
+    saveToHistory({
+      ...makeHistoryEntry("run_workbench_agent_history"),
+      analyzeResponse: response,
+    });
+
+    render(<AnalysisWorkbench />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /run_workbench_agen/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Agents" })).toHaveClass("text-blue");
+    });
+  });
 });
