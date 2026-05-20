@@ -342,7 +342,7 @@ export function InputPanel({
           (result) => {
             setReadyMessage(
               result.error ??
-                (result.raw ? "模型调用完成，已收到模型原始输出。" : "Analyze API 已接收输入。"),
+                (result.raw ? "多 Agent 分析完成，已收到 Agent 执行轨迹。" : "Analyze API 已接收输入。"),
             );
             onAnalyzeFinish?.(result);
           },
