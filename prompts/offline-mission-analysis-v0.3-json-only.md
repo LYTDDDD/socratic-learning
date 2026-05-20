@@ -1032,7 +1032,7 @@ AssetCandidateCard
 ConnectionPromptsPanel
 ApplicationQuestionsPanel
 TraceSummaryPanel
-RawJsonViewer
+ModelOriginalOutputViewer
 MarkdownExporter
 ```
 
