@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetDraftPanel } from "../components/AssetDraftPanel";
 import { AssetLibrary } from "../components/AssetLibrary";
 import { ReviewPanel } from "../components/ReviewPanel";
@@ -119,6 +119,31 @@ function ConfirmationFlowHarness() {
 }
 
 describe("asset confirmation flow", () => {
+  it("requires user understanding and user-built connections before confirming a candidate", () => {
+    const asset = makeCandidateAsset();
+    asset.my_understanding = "";
+    asset.user_built_connections = {
+      related_concepts: [],
+      related_assets: [],
+      mental_models: [],
+      prior_experience: [],
+      opposite_cases: [],
+      application_scenarios: [],
+      open_questions: [],
+    };
+    const onConfirm = vi.fn();
+
+    render(<AssetDraftPanel asset={asset} onConfirm={onConfirm} onDiscard={() => {}} />);
+
+    const confirmButton = screen.getByRole("button", { name: "确认入库为母卡" });
+    expect(confirmButton).toBeDisabled();
+    expect(screen.getByText(/我的理解/)).toBeInTheDocument();
+    fireEvent.click(confirmButton);
+
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(loadAssets()).toEqual([]);
+  });
+
   it("refreshes asset library and review mode after confirming a candidate", async () => {
     render(<ConfirmationFlowHarness />);
 
