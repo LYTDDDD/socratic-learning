@@ -434,7 +434,7 @@ function AssetDecision({
 } & AssetActionProps & { onAssetUpdated?: () => void }) {
   const pkg = asRecord(data.asset_candidate_package);
   const draft = asRecord(pkg.draft_asset);
-  const connectionLayer = asRecord(draft.connection_layer);
+  const aiConnectionLayer = asRecord(draft.ai_suggested_connections ?? draft.connection_layer);
   const canConfirm = Boolean(canConfirmDraftAsset(draftAsset) && onConfirmDraftAsset && !assetAlreadySaved);
   const canDiscard = Boolean(draftAsset && onDiscardDraftAsset && !assetAlreadySaved);
 
@@ -513,10 +513,10 @@ function AssetDecision({
             <BulletList label="应用问题" values={draft.application_questions} />
           </div>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <BulletList label="相关概念" values={connectionLayer.related_concepts} />
-            <BulletList label="相关资产" values={connectionLayer.related_assets} />
-            <BulletList label="思维模型" values={connectionLayer.mental_models} />
-            <BulletList label="应用场景" values={connectionLayer.application_scenarios} />
+            <BulletList label="AI 候选相关概念" values={aiConnectionLayer.related_concepts} />
+            <BulletList label="AI 候选相关资产" values={aiConnectionLayer.related_assets} />
+            <BulletList label="AI 候选思维模型" values={aiConnectionLayer.mental_models} />
+            <BulletList label="AI 候选应用场景" values={aiConnectionLayer.application_scenarios} />
           </div>
         </div>
       )}
