@@ -80,6 +80,12 @@ function formatListValue(value: string | string[] | undefined): string {
   return String(value);
 }
 
+function isMultiAgentResponse(response: AnalyzeResponse | null): boolean {
+  if (!response) return false;
+  if (response.runLog?.prompt_version.startsWith("multi-agent:")) return true;
+  return parseAgentSteps(response.raw).length > 0;
+}
+
 function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData }) {
   const evidenceCount = Array.isArray(traceSummary.key_evidence_used)
     ? traceSummary.key_evidence_used.length
@@ -649,8 +655,9 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     return parseAgentSteps(result?.raw);
   }, [result]);
 
-  const isMultiAgent = agentSteps.length > 0;
-  const isMultiAgentRun = result?.runLog?.prompt_version.startsWith("multi-agent:") ?? false;
+  const hasParsedAgentSteps = agentSteps.length > 0;
+  const isMultiAgent = isMultiAgentResponse(result);
+  const isMultiAgentRun = isMultiAgent;
   const rawPanelLabel = isMultiAgent || isMultiAgentRun ? "Agent 执行轨迹" : "模型原始输出";
 
   const assetAlreadySaved = currentRunId ? hasAssetFromRun(currentRunId) : false;
@@ -679,12 +686,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     setIsLoading(false);
     setDismissedDraft(false);
     setAgentProgress([]);
-    const steps = parseAgentSteps(response.raw);
-    if (steps.length > 0) {
-      setActiveTab("agents");
-    } else {
-      setActiveTab("report");
-    }
+    setActiveTab(isMultiAgentResponse(response) ? "agents" : "report");
     if (response.runLog) {
       saveToHistory({
         run_id: response.runLog.run_id,
@@ -712,7 +714,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
     setCurrentReportStatus(status);
     setIsLoading(false);
     setDismissedDraft(false);
-    setActiveTab(parseAgentSteps(response.raw).length > 0 ? "agents" : "report");
+    setActiveTab(isMultiAgentResponse(response) ? "agents" : "report");
   }, []);
 
   const handleNavigateToHistory = useCallback((sourceRunId: string) => {
@@ -723,7 +725,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
       setCurrentRunId(entry.run_id);
       setCurrentReportStatus(entry.status);
       setIsLoading(false);
-      setActiveTab(parseAgentSteps(entry.analyzeResponse.raw).length > 0 ? "agents" : "report");
+      setActiveTab(isMultiAgentResponse(entry.analyzeResponse) ? "agents" : "report");
     }
   }, []);
 
@@ -1081,7 +1083,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
           )}
           {activeTab === "agents" && (
             <div className="p-5">
-              {isMultiAgent ? (
+              {hasParsedAgentSteps ? (
                 <div className="space-y-6">
                   <AgentStepProgress steps={agentSteps} progressSteps={undefined} />
                   <AgentOutputCards steps={agentSteps} />
@@ -1089,6 +1091,15 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
               ) : isLoading && agentProgress.length > 0 ? (
                 <div className="space-y-6">
                   <AgentStepProgress steps={[]} progressSteps={agentProgress} />
+                </div>
+              ) : isMultiAgent ? (
+                <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-surface-2 text-sm text-ink-muted">
+                  <svg className="h-8 w-8 text-ink-muted/30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>这是多 Agent 结果，但当前 Agent 执行轨迹无法解析。</span>
+                  <span className="text-xs text-ink-muted">可以切到“原始输出”查看原始轨迹文本，或重新运行分析以获取完整步骤。</span>
                 </div>
               ) : (
                 <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-surface-2 text-sm text-ink-muted">
