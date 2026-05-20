@@ -60,6 +60,14 @@ function asList(value: unknown): string[] {
   return text ? [text] : [];
 }
 
+function hasUserConnection(asset: CognitiveAsset): boolean {
+  return Object.values(asset.user_built_connections).some((items) => items.length > 0);
+}
+
+function canConfirmDraftAsset(asset: CognitiveAsset | null | undefined): asset is CognitiveAsset {
+  return Boolean(asset && asset.my_understanding.trim().length > 0 && hasUserConnection(asset));
+}
+
 function Section({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
   return (
     <section className="border-b border-line px-5 py-5 last:border-b-0">
@@ -427,7 +435,7 @@ function AssetDecision({
   const pkg = asRecord(data.asset_candidate_package);
   const draft = asRecord(pkg.draft_asset);
   const connectionLayer = asRecord(draft.connection_layer);
-  const canConfirm = Boolean(draftAsset && onConfirmDraftAsset && !assetAlreadySaved);
+  const canConfirm = Boolean(canConfirmDraftAsset(draftAsset) && onConfirmDraftAsset && !assetAlreadySaved);
   const canDiscard = Boolean(draftAsset && onDiscardDraftAsset && !assetAlreadySaved);
 
   const allProposals = [
@@ -468,7 +476,7 @@ function AssetDecision({
                   className="rounded-md bg-blue px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue/90"
                   disabled={!canConfirm}
                   onClick={() => {
-                    if (draftAsset && onConfirmDraftAsset) onConfirmDraftAsset(draftAsset);
+                    if (canConfirmDraftAsset(draftAsset) && onConfirmDraftAsset) onConfirmDraftAsset(draftAsset);
                   }}
                   type="button"
                 >

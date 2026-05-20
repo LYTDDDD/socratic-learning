@@ -222,6 +222,8 @@ describe("StructuredReportView", () => {
 
   it("exposes asset candidate actions from the report", () => {
     const draftAsset = makeDraftAsset();
+    draftAsset.my_understanding = "我会先用自己的话重写这个诊断方法。";
+    draftAsset.user_built_connections.related_concepts = ["理解诊断"];
     const onConfirm = vi.fn();
     const onDiscard = vi.fn();
     render(
@@ -239,6 +241,27 @@ describe("StructuredReportView", () => {
 
     expect(onConfirm).toHaveBeenCalledWith(draftAsset);
     expect(onDiscard).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not confirm draft asset from report before user-first inputs are present", () => {
+    const draftAsset = makeDraftAsset();
+    draftAsset.connection_layer.related_concepts = ["AI suggested concept"];
+    const onConfirm = vi.fn();
+
+    render(
+      <StructuredReportView
+        draftAsset={draftAsset}
+        json={makeReportJson()}
+        onConfirmDraftAsset={onConfirm}
+        parseStatus="success"
+      />,
+    );
+
+    const confirmButton = screen.getByRole("button", { name: "确认入库" });
+    expect(confirmButton).toBeDisabled();
+    fireEvent.click(confirmButton);
+
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it("shows saved state for an already confirmed asset candidate", () => {
