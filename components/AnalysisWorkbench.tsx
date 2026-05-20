@@ -1062,6 +1062,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
                 json={result?.json ?? null}
                 parseStatus={result?.parseStatus ?? "not_attempted"}
                 raw={result?.raw ?? null}
+                rawLabel={rawPanelLabel}
               />
             </div>
           )}

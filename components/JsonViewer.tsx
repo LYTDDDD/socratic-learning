@@ -7,9 +7,10 @@ type JsonViewerProps = {
   json: unknown | null;
   parseStatus: AnalyzeResponse["parseStatus"];
   raw: string | null;
+  rawLabel?: string;
 };
 
-export function JsonViewer({ json, parseStatus, raw }: JsonViewerProps) {
+export function JsonViewer({ json, parseStatus, raw, rawLabel = "模型原始输出" }: JsonViewerProps) {
   const [showRaw, setShowRaw] = useState(false);
 
   if (parseStatus === "not_attempted" || ((parseStatus === "success" || parseStatus === "partial") && json === null)) {
@@ -33,7 +34,7 @@ export function JsonViewer({ json, parseStatus, raw }: JsonViewerProps) {
               onClick={() => setShowRaw((prev) => !prev)}
               type="button"
             >
-              {showRaw ? "隐藏模型原始输出" : "查看模型原始输出"}
+              {showRaw ? `隐藏${rawLabel}` : `查看${rawLabel}`}
             </button>
             {showRaw && (
               <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-2 p-4 text-sm leading-6 text-white">

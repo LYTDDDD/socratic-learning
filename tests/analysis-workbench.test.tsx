@@ -144,6 +144,27 @@ describe("AnalysisWorkbench", () => {
     expect(screen.queryByRole("heading", { name: "模型原始输出" })).not.toBeInTheDocument();
   });
 
+  it("passes the multi-agent raw label into json viewer when parse fails", async () => {
+    const response = makeResponse("run_workbench_agent_json_failed");
+    response.json = null;
+    response.parseStatus = "failed";
+    response.raw = "unparsed agent trace";
+    response.runLog!.prompt_version = "multi-agent:offline-mission-analysis-v0.3-json-only";
+    response.runLog!.parse_status = "failed";
+    saveToHistory({
+      ...makeHistoryEntry("run_workbench_agent_json_failed"),
+      analyzeResponse: response,
+    });
+
+    render(<AnalysisWorkbench />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /run_workbench_agen/ }));
+    fireEvent.click(screen.getByRole("button", { name: "JSON" }));
+
+    expect(screen.getByRole("button", { name: "查看Agent 执行轨迹" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "查看模型原始输出" })).not.toBeInTheDocument();
+  });
+
   it("opens the agents tab with a parse warning for unparsed multi-agent history", async () => {
     const response = makeResponse("run_workbench_agent_warning");
     response.raw = "unparsed agent trace";
