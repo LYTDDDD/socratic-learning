@@ -144,6 +144,29 @@ describe("asset confirmation flow", () => {
     expect(loadAssets()).toEqual([]);
   });
 
+  it("does not display legacy connection_layer values as user-built draft connections", () => {
+    const asset = makeCandidateAsset();
+    asset.user_built_connections = {
+      related_concepts: [],
+      related_assets: [],
+      mental_models: [],
+      prior_experience: [],
+      opposite_cases: [],
+      application_scenarios: [],
+      open_questions: [],
+    };
+
+    render(<AssetDraftPanel asset={asset} onConfirm={vi.fn()} onDiscard={() => {}} />);
+
+    expect(screen.queryByText("User-first Connection Layer")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑候选包" }));
+
+    expect(screen.getByLabelText("user-built related concepts")).toHaveValue("");
+    expect(screen.getByLabelText("user-built mental models")).toHaveValue("");
+    expect(screen.getByLabelText("user-built application scenarios")).toHaveValue("");
+  });
+
   it("enables confirmation after editing in user understanding and a user-built connection", async () => {
     const asset = makeCandidateAsset();
     asset.my_understanding = "";

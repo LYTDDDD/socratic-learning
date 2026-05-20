@@ -278,7 +278,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("related_concepts", parseLines(e.target.value))}
                 rows={2}
-                value={editedAsset.connection_layer.related_concepts.join("\n")}
+                value={editedAsset.user_built_connections.related_concepts.join("\n")}
               />
             </div>
             <div className="mb-2">
@@ -288,7 +288,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("related_assets", parseLines(e.target.value))}
                 rows={2}
-                value={editedAsset.connection_layer.related_assets.join("\n")}
+                value={editedAsset.user_built_connections.related_assets.join("\n")}
               />
             </div>
             <div className="mb-2">
@@ -298,7 +298,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("mental_models", parseLines(e.target.value))}
                 rows={2}
-                value={editedAsset.connection_layer.mental_models.join("\n")}
+                value={editedAsset.user_built_connections.mental_models.join("\n")}
               />
             </div>
             <div className="mb-2">
@@ -308,7 +308,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("prior_experience", parseLines(e.target.value))}
                 rows={2}
-                value={editedAsset.connection_layer.prior_experience.join("\n")}
+                value={editedAsset.user_built_connections.prior_experience.join("\n")}
               />
             </div>
             <div className="mb-2">
@@ -318,7 +318,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("opposite_cases", parseLines(e.target.value))}
                 rows={2}
-                value={editedAsset.connection_layer.opposite_cases.join("\n")}
+                value={editedAsset.user_built_connections.opposite_cases.join("\n")}
               />
             </div>
             <div className="mb-2">
@@ -328,7 +328,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("application_scenarios", parseLines(e.target.value))}
                 rows={2}
-                value={editedAsset.connection_layer.application_scenarios.join("\n")}
+                value={editedAsset.user_built_connections.application_scenarios.join("\n")}
               />
             </div>
             <div>
@@ -338,7 +338,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("open_questions", parseLines(e.target.value))}
                 rows={2}
-                value={editedAsset.connection_layer.open_questions.join("\n")}
+                value={editedAsset.user_built_connections.open_questions.join("\n")}
               />
             </div>
           </div>
@@ -445,74 +445,74 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
             </div>
           )}
 
-          {Object.values(displayAsset.connection_layer).some((arr) => arr.length > 0) && (
+          {Object.values(displayAsset.user_built_connections).some((arr) => arr.length > 0) && (
             <div className="mb-3 rounded-md border border-line bg-surface-1 p-3">
               <h5 className="mb-2 text-xs font-semibold text-ink-muted">User-first Connection Layer</h5>
-              {displayAsset.connection_layer.related_concepts.length > 0 && (
+              {displayAsset.user_built_connections.related_concepts.length > 0 && (
                 <div className="mb-2">
                   <dt className="text-xs font-medium text-ink-muted">相关概念</dt>
                   <ul className="mt-0.5 list-inside list-disc space-y-0.5 text-sm text-ink">
-                    {displayAsset.connection_layer.related_concepts.map((item, i) => (
+                    {displayAsset.user_built_connections.related_concepts.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              {displayAsset.connection_layer.related_assets.length > 0 && (
+              {displayAsset.user_built_connections.related_assets.length > 0 && (
                 <div className="mb-2">
                   <dt className="text-xs font-medium text-ink-muted">相关资产</dt>
                   <ul className="mt-0.5 list-inside list-disc space-y-0.5 text-sm text-ink">
-                    {displayAsset.connection_layer.related_assets.map((item, i) => (
+                    {displayAsset.user_built_connections.related_assets.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              {displayAsset.connection_layer.mental_models.length > 0 && (
+              {displayAsset.user_built_connections.mental_models.length > 0 && (
                 <div className="mb-2">
                   <dt className="text-xs font-medium text-ink-muted">相关思维模型</dt>
                   <ul className="mt-0.5 list-inside list-disc space-y-0.5 text-sm text-ink">
-                    {displayAsset.connection_layer.mental_models.map((item, i) => (
+                    {displayAsset.user_built_connections.mental_models.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              {displayAsset.connection_layer.prior_experience.length > 0 && (
+              {displayAsset.user_built_connections.prior_experience.length > 0 && (
                 <div className="mb-2">
                   <dt className="text-xs font-medium text-ink-muted">相关个人经验</dt>
                   <ul className="mt-0.5 list-inside list-disc space-y-0.5 text-sm text-ink">
-                    {displayAsset.connection_layer.prior_experience.map((item, i) => (
+                    {displayAsset.user_built_connections.prior_experience.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              {displayAsset.connection_layer.opposite_cases.length > 0 && (
+              {displayAsset.user_built_connections.opposite_cases.length > 0 && (
                 <div className="mb-2">
                   <dt className="text-xs font-medium text-ink-muted">反面案例</dt>
                   <ul className="mt-0.5 list-inside list-disc space-y-0.5 text-sm text-ink">
-                    {displayAsset.connection_layer.opposite_cases.map((item, i) => (
+                    {displayAsset.user_built_connections.opposite_cases.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              {displayAsset.connection_layer.application_scenarios.length > 0 && (
+              {displayAsset.user_built_connections.application_scenarios.length > 0 && (
                 <div className="mb-2">
                   <dt className="text-xs font-medium text-ink-muted">应用场景</dt>
                   <ul className="mt-0.5 list-inside list-disc space-y-0.5 text-sm text-ink">
-                    {displayAsset.connection_layer.application_scenarios.map((item, i) => (
+                    {displayAsset.user_built_connections.application_scenarios.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
               )}
-              {displayAsset.connection_layer.open_questions.length > 0 && (
+              {displayAsset.user_built_connections.open_questions.length > 0 && (
                 <div>
                   <dt className="text-xs font-medium text-ink-muted">未解决问题</dt>
                   <ul className="mt-0.5 list-inside list-disc space-y-0.5 text-sm text-ink">
-                    {displayAsset.connection_layer.open_questions.map((item, i) => (
+                    {displayAsset.user_built_connections.open_questions.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
