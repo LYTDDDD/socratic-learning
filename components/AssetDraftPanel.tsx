@@ -242,6 +242,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
           <div className="mb-3">
             <dt className="text-xs font-medium text-ink-muted">复习问题（每行一个）</dt>
             <textarea
+              aria-label="review questions"
               className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
               onChange={(e) => handleFieldChange("review_questions", parseLines(e.target.value))}
               rows={3}
@@ -251,6 +252,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
           <div className="mb-3">
             <dt className="text-xs font-medium text-ink-muted">连接问题（每行一个）</dt>
             <textarea
+              aria-label="connection questions"
               className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
               onChange={(e) => handleFieldChange("connection_questions", parseLines(e.target.value))}
               rows={3}
@@ -260,6 +262,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
           <div className="mb-3">
             <dt className="text-xs font-medium text-ink-muted">应用问题（每行一个）</dt>
             <textarea
+              aria-label="application questions"
               className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
               onChange={(e) => handleFieldChange("application_questions", parseLines(e.target.value))}
               rows={3}
@@ -281,6 +284,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
             <div className="mb-2">
               <dt className="text-xs font-medium text-ink-muted">相关资产（每行一个）</dt>
               <textarea
+                aria-label="user-built related assets"
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("related_assets", parseLines(e.target.value))}
                 rows={2}
@@ -290,6 +294,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
             <div className="mb-2">
               <dt className="text-xs font-medium text-ink-muted">相关思维模型（每行一个）</dt>
               <textarea
+                aria-label="user-built mental models"
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("mental_models", parseLines(e.target.value))}
                 rows={2}
@@ -299,6 +304,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
             <div className="mb-2">
               <dt className="text-xs font-medium text-ink-muted">相关个人经验（每行一个）</dt>
               <textarea
+                aria-label="user-built prior experience"
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("prior_experience", parseLines(e.target.value))}
                 rows={2}
@@ -308,6 +314,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
             <div className="mb-2">
               <dt className="text-xs font-medium text-ink-muted">反面案例（每行一个）</dt>
               <textarea
+                aria-label="user-built opposite cases"
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("opposite_cases", parseLines(e.target.value))}
                 rows={2}
@@ -317,6 +324,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
             <div className="mb-2">
               <dt className="text-xs font-medium text-ink-muted">应用场景（每行一个）</dt>
               <textarea
+                aria-label="user-built application scenarios"
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("application_scenarios", parseLines(e.target.value))}
                 rows={2}
@@ -326,6 +334,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
             <div>
               <dt className="text-xs font-medium text-ink-muted">未解决问题（每行一个）</dt>
               <textarea
+                aria-label="user-built open questions"
                 className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
                 onChange={(e) => handleConnectionLayerChange("open_questions", parseLines(e.target.value))}
                 rows={2}
@@ -336,6 +345,7 @@ export function AssetDraftPanel({ asset, onConfirm, onDiscard, currentMissionId 
           <div className="mb-3">
             <dt className="text-xs font-medium text-ink-muted">使用证据（每行一个真实使用场景）</dt>
             <textarea
+              aria-label="usage evidence"
               className="mt-0.5 w-full rounded-md border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink outline-none transition focus:border-blue focus:ring-1 focus:ring-blue/20"
               onChange={(e) => handleUsageEvidenceChange(e.target.value)}
               rows={3}

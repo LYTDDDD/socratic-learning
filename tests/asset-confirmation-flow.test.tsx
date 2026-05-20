@@ -170,6 +170,18 @@ describe("asset confirmation flow", () => {
     fireEvent.change(screen.getByLabelText("user-built related concepts"), {
       target: { value: "student-built concept" },
     });
+    fireEvent.change(screen.getByLabelText("user-built mental models"), {
+      target: { value: "concrete before abstract\nvisible reasoning" },
+    });
+    fireEvent.change(screen.getByLabelText("user-built prior experience"), {
+      target: { value: "debugging a formula explanation" },
+    });
+    fireEvent.change(screen.getByLabelText("user-built application scenarios"), {
+      target: { value: "next math review" },
+    });
+    fireEvent.change(screen.getByLabelText("user-built open questions"), {
+      target: { value: "when is an example too leading?" },
+    });
 
     const enabledConfirmButton = screen.getByRole("button", { name: "编辑后确认母卡" });
     expect(enabledConfirmButton).not.toBeDisabled();
@@ -179,6 +191,10 @@ describe("asset confirmation flow", () => {
     const [saved] = loadAssets();
     expect(saved.my_understanding).toContain("先让学生解释例子");
     expect(saved.user_built_connections.related_concepts).toEqual(["student-built concept"]);
+    expect(saved.user_built_connections.mental_models).toEqual(["concrete before abstract", "visible reasoning"]);
+    expect(saved.user_built_connections.prior_experience).toEqual(["debugging a formula explanation"]);
+    expect(saved.user_built_connections.application_scenarios).toEqual(["next math review"]);
+    expect(saved.user_built_connections.open_questions).toEqual(["when is an example too leading?"]);
   });
 
   it("refreshes asset library and review mode after confirming a candidate", async () => {
