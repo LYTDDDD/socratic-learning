@@ -91,4 +91,56 @@ describe("InputPanel", () => {
       expect(screen.getByText("分析已取消。")).toBeInTheDocument();
     });
   });
+
+  it("labels completed multi-agent SSE raw data as agent execution trace", async () => {
+    const doneResult = {
+      markdown: "# Report",
+      json: { mission_review: {} },
+      raw: JSON.stringify({ steps: [], supervisorDecision: "test" }),
+      parseStatus: "success",
+      error: null,
+      runLog: {
+        run_id: "run_input_agent_trace",
+        created_at: "2026-05-20T00:00:00.000Z",
+        input_snapshot: { originalGoal: "goal", conversation: "conversation" },
+        prompt_version: "multi-agent:offline-mission-analysis-v0.3-json-only",
+        model_name: "test-model",
+        request_status: "success",
+        parse_status: "success",
+        duration_ms: 100,
+        error_message: null,
+      },
+    };
+    const streamText = `event: done\ndata: ${JSON.stringify(doneResult)}\n\n`;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(new TextEncoder().encode(streamText), {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          }),
+        ),
+      ),
+    );
+
+    const onAnalyzeFinish = vi.fn();
+    render(<InputPanel onAnalyzeFinish={onAnalyzeFinish} />);
+
+    fireEvent.change(screen.getByPlaceholderText("一开始想解决的问题或判断目标。"), {
+      target: { value: "测试多 Agent 完成提示" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("粘贴完整对话或关键片段。"), {
+      target: { value: "用户：请复盘这段学习对话。" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "多 Agent" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analyze" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("多 Agent 分析完成，已收到 Agent 执行轨迹。")).toBeInTheDocument();
+      expect(screen.queryByText("模型调用完成，已收到模型原始输出。")).not.toBeInTheDocument();
+      expect(onAnalyzeFinish).toHaveBeenCalledWith(expect.objectContaining({ raw: doneResult.raw }));
+    });
+  });
 });
