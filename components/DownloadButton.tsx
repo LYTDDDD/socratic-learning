@@ -78,7 +78,7 @@ export function DownloadButton({ result, onDownload }: DownloadButtonProps) {
       available: result?.json != null && (result.parseStatus === "success" || result.parseStatus === "partial"),
     },
     {
-      label: "Raw Text",
+      label: "模型原始输出",
       ext: "txt",
       format: "raw",
       content: result?.raw ?? null,

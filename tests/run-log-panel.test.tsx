@@ -79,4 +79,22 @@ describe("RunLogPanel", () => {
     expect(scoped.getByText("下载 JSON")).toBeInTheDocument();
     expect(scoped.getByText("复制 JSON")).toBeInTheDocument();
   });
+
+  it("labels raw user actions as model original output", () => {
+    render(
+      <RunLogPanel
+        runLog={makeRunLog({
+          user_actions: [
+            { type: "copy_raw", at: "2026-05-20T00:00:01.000Z" },
+            { type: "download_raw", at: "2026-05-20T00:00:02.000Z" },
+          ],
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Run Log/ }));
+
+    expect(screen.getByText("复制模型原始输出")).toBeInTheDocument();
+    expect(screen.getByText("下载模型原始输出")).toBeInTheDocument();
+  });
 });
