@@ -21,6 +21,7 @@ import type { RunLogUserAction, RunLogUserActionType } from "../lib/run-log";
 import type { Correction } from "../lib/correction-store";
 import { appendRunLogUserAction, saveToHistory, loadHistory, updateHistoryStatus } from "../lib/history-store";
 import type { HistoryStatus } from "../lib/history-store";
+import { isMultiAgentResponse } from "../lib/agent-trace";
 import { extractAssetFromResponse } from "../lib/extract-asset";
 import type { CognitiveAsset } from "../lib/extract-asset";
 import { confirmAssetDraft } from "../lib/asset-confirmation";
@@ -78,12 +79,6 @@ function formatListValue(value: string | string[] | undefined): string {
   if (!value) return "—";
   if (Array.isArray(value)) return value.join("；");
   return String(value);
-}
-
-function isMultiAgentResponse(response: AnalyzeResponse | null): boolean {
-  if (!response) return false;
-  if (response.runLog?.prompt_version.startsWith("multi-agent:")) return true;
-  return parseAgentSteps(response.raw).length > 0;
 }
 
 function TraceSummaryPanel({ traceSummary }: { traceSummary: TraceSummaryData }) {
