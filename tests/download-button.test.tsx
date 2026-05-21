@@ -48,4 +48,33 @@ describe("DownloadButton", () => {
     expect(screen.getByRole("button", { name: ".txtAgent 执行轨迹" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: ".txt模型原始输出" })).not.toBeInTheDocument();
   });
+
+  it("falls back to parsed agent steps when runLog is missing", () => {
+    render(
+      <DownloadButton
+        result={makeResult({
+          raw: JSON.stringify({
+            steps: [
+              {
+                agent: "supervisor",
+                startedAt: "2026-01-01T00:00:00Z",
+                finishedAt: "2026-01-01T00:00:01Z",
+                input: {},
+                output: { steps: ["review"] },
+                status: "success",
+                error: null,
+              },
+            ],
+            supervisorDecision: "done",
+          }),
+          runLog: null,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "下载" }));
+
+    expect(screen.getByRole("button", { name: ".txtAgent 执行轨迹" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: ".txt模型原始输出" })).not.toBeInTheDocument();
+  });
 });

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { AnalyzeResponse } from "../lib/analyze-types";
 import { buildMarkdownFromAnalysisJson } from "../lib/analysis-markdown";
+import { parseAgentSteps } from "./AgentStepProgress";
 
 type DownloadButtonProps = {
   result: AnalyzeResponse | null;
@@ -41,7 +42,7 @@ function download(content: string, filename: string, mimeType: string) {
 }
 
 function rawOutputLabel(result: AnalyzeResponse | null): string {
-  return result?.runLog?.prompt_version.startsWith("multi-agent:")
+  return result?.runLog?.prompt_version.startsWith("multi-agent:") || parseAgentSteps(result?.raw).length > 0
     ? "Agent 执行轨迹"
     : "模型原始输出";
 }
