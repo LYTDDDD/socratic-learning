@@ -1,6 +1,8 @@
 "use client";
 
 import { type AgentStep, type AgentType, AGENT_NAME_MAP } from "../lib/agent-types";
+export { parseAgentSteps } from "../lib/agent-trace";
+import { parseAgentSteps } from "../lib/agent-trace";
 
 function formatDuration(startedAt: string, finishedAt: string | null): string | null {
   if (!finishedAt) return null;
@@ -10,7 +12,6 @@ function formatDuration(startedAt: string, finishedAt: string | null): string | 
   const seconds = (end - start) / 1000;
   return `${seconds.toFixed(1)}s`;
 }
-
 function StatusIcon({ status }: { status: AgentStep["status"] }) {
   switch (status) {
     case "success":
@@ -119,30 +120,4 @@ export function AgentStepProgress({ steps, progressSteps }: { steps: AgentStep[]
       </div>
     </div>
   );
-}
-
-const VALID_AGENT_TYPES: AgentType[] = ["supervisor", "review", "depth_evaluation", "asset", "curator", "reflection"];
-const VALID_STATUSES = ["running", "success", "failed", "skipped"];
-
-function isValidStep(item: unknown): item is AgentStep {
-  if (typeof item !== "object" || item === null) return false;
-  const s = item as Record<string, unknown>;
-  return (
-    typeof s.agent === "string" &&
-    VALID_AGENT_TYPES.includes(s.agent as AgentType) &&
-    typeof s.status === "string" &&
-    VALID_STATUSES.includes(s.status) &&
-    typeof s.startedAt === "string"
-  );
-}
-
-export function parseAgentSteps(raw: string | null | undefined): AgentStep[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed.steps || !Array.isArray(parsed.steps)) return [];
-    return parsed.steps.filter(isValidStep);
-  } catch {
-    return [];
-  }
 }
