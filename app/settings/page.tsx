@@ -159,23 +159,23 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        <div className="mb-6 flex gap-2">
+        <div className="mb-6 flex gap-1 rounded-lg bg-slate-100 p-1">
           <button
             onClick={() => setActiveTab("model")}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`flex-1 rounded-md px-4 py-2.5 text-sm font-medium transition ${
               activeTab === "model"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-300"
+                : "text-slate-700 hover:text-blue-600 hover:bg-slate-50"
             }`}
           >
             模型配置
           </button>
           <button
             onClick={() => setActiveTab("database")}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`flex-1 rounded-md px-4 py-2.5 text-sm font-medium transition ${
               activeTab === "database"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-300"
+                : "text-slate-700 hover:text-blue-600 hover:bg-slate-50"
             }`}
           >
             数据库配置
