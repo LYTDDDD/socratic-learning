@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { FlaskConical, MessageCircle, Brain } from "lucide-react";
+import { FlaskConical, MessageCircle, Brain, Settings, LogOut } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
+import Link from "next/link";
 import { getSessionById } from "../lib/chat-store";
 import type { AnalyzeInput } from "../lib/analyze-types";
 import type { InitialInputSource } from "../components/InputPanel";
@@ -13,6 +15,7 @@ const ChatWorkspace = dynamic(() => import("../components/ChatWorkspace").then((
 type WorkspaceMode = "analysis" | "chat";
 
 export default function Home() {
+  const { data: session } = useSession();
   const [mode, setMode] = useState<WorkspaceMode>("analysis");
   const [currentMissionId, setCurrentMissionId] = useState<string | null>(null);
   const [initialInputOverride, setInitialInputOverride] = useState<Partial<AnalyzeInput> | undefined>(undefined);
@@ -76,8 +79,24 @@ export default function Home() {
             <MessageCircle className="h-4 w-4" />
           </button>
         </nav>
-        <div className="text-ink-muted/30">
-          <FlaskConical className="h-3.5 w-3.5" />
+        <div className="flex flex-col items-center gap-1">
+          <Link
+            href="/settings"
+            className="flex h-11 w-full flex-col items-center justify-center rounded-lg text-ink-muted transition hover:text-ink hover:bg-surface-2"
+            title="系统设置"
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
+          {session && (
+            <button
+              className="flex h-11 w-full flex-col items-center justify-center rounded-lg text-ink-muted transition hover:text-ink hover:bg-surface-2"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              title="退出登录"
+              type="button"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </aside>
 
