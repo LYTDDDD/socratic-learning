@@ -30,3 +30,5 @@ test_*_result.json
 test_*_report.md
 test_conversation.mjs
 test_offline_analysis.mjs
+
+/generated/prisma

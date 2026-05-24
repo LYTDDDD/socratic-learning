@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Noto_Sans_SC, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import AuthProvider from "@/components/AuthProvider";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -61,7 +62,9 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${notoSansSC.variable} ${ibmPlexSans.variable} ${jetbrainsMono.variable}`}
     >
       <body>
-        <TooltipProvider>{children}</TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </AuthProvider>
       </body>
     </html>
   );
