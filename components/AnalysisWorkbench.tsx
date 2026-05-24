@@ -635,6 +635,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
   const [agentProgress, setAgentProgress] = useState<AgentProgressStep[]>([]);
   const [leftTab, setLeftTab] = useState<"history" | "mission">("history");
   const [inputCollapsed, setInputCollapsed] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [currentReportStatus, setCurrentReportStatus] = useState<HistoryStatus>("draft");
 
@@ -969,34 +970,50 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
         </div>
       </div>
 
-      <div className="flex min-h-[520px] min-w-0 flex-1 flex-col">
-        <div className="border-b border-line bg-surface-1 px-5 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
+      <div className={`flex min-w-0 flex-1 flex-col ${headerCollapsed ? "" : "min-h-[520px]"}`}>
+        <div className="border-b border-line bg-surface-1 px-5 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-blue">Offline Mission Analysis</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">离线任务分析工作台</h1>
-              <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-                输入对话，生成 Mission Review、DepthScore 与认知资产候选。JSON 是事实来源，Markdown 由 JSON 导出，模型原始输出 / Agent 执行轨迹 / Run Log 用于调试追溯。
-              </p>
+              <h1 className="text-sm font-semibold tracking-tight text-ink">离线任务分析工作台</h1>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${runStatus.tone}`}>{runStatus.label}</span>
-              <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-ink-muted">
-                {currentMissionId ? "Mission 已关联" : "未关联 Mission"}
-              </span>
-              <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-ink-muted">
-                {isMultiAgent ? "多 Agent 结果" : "单 Prompt / 待运行"}
-              </span>
+            <div className="flex items-center gap-3">
+              {!headerCollapsed && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${runStatus.tone}`}>{runStatus.label}</span>
+                  <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-ink-muted">
+                    {currentMissionId ? "Mission 已关联" : "未关联 Mission"}
+                  </span>
+                  <span className="rounded-full bg-surface-2 px-3 py-1 text-xs text-ink-muted">
+                    {isMultiAgent ? "多 Agent 结果" : "单 Prompt / 待运行"}
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={() => setHeaderCollapsed(!headerCollapsed)}
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-muted transition hover:bg-surface-2 hover:text-ink"
+                type="button"
+                aria-label={headerCollapsed ? "展开" : "收起"}
+              >
+                <svg className={`h-4 w-4 transition-transform ${headerCollapsed ? "" : "rotate-180"}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
             </div>
           </div>
+          {!headerCollapsed && (
+            <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+              输入对话，生成 Mission Review、DepthScore 与认知资产候选。JSON 是事实来源，Markdown 由 JSON 导出，模型原始输出 / Agent 执行轨迹 / Run Log 用于调试追溯。
+            </p>
+          )}
         </div>
-        <header className="sticky top-0 z-10 flex shrink-0 items-center border-b border-line bg-surface-1 px-5">
-          <div className="flex items-center">
+        {!headerCollapsed && (
+        <>
+        <header className="sticky top-0 z-10 flex shrink-0 items-center border-b border-line bg-surface-1">
+          <div className="flex items-center overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {tabs.map((tab, i) => (
               <Fragment key={tab.key}>
-                {i > 0 && <Separator orientation="vertical" className="mx-1 h-4" />}
+                {i > 0 && <Separator orientation="vertical" className="mx-1 h-4 shrink-0" />}
                 <button
-                  className={`relative px-4 py-3 text-sm font-semibold transition ${
+                  className={`relative shrink-0 px-3 py-3 text-sm font-semibold transition sm:px-4 ${
                     activeTab === tab.key
                       ? "text-blue"
                       : "text-ink-muted hover:text-ink"
@@ -1012,7 +1029,7 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
               </Fragment>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2 pr-5">
             <DownloadButton result={result} onDownload={(format) => recordUserAction(getDownloadAction(format))} />
             <CopyButton
               content={getCopyContent()}
@@ -1110,6 +1127,8 @@ export function AnalysisWorkbench({ currentMissionId: externalMissionId, onSelec
             </div>
           )}
         </div>
+        </>
+        )}
 
         <AssetDecisionBanner
           result={result}
